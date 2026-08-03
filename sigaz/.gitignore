@@ -1,9 +1,9 @@
 node_modules/
 .env
-backend/db/sigaz.db
-backend/db/sigaz.db-journal
-backend/db/sigaz.db-wal
-backend/db/sigaz.db-shm
+backend/db/*.db
+backend/db/*.db-journal
+backend/db/*.db-wal
+backend/db/*.db-shm
 backend/uploads/
 backend/backups/
 *.log
