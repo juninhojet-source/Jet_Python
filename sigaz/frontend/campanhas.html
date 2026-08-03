@@ -54,6 +54,7 @@
     montarShell({ paginaAtiva: 'campanhas', titulo: 'Campanhas e Mutirões', subtitulo: 'Planejamento e registro de ações em campo' });
     const conteudo = document.getElementById('conteudo');
     let cacheAnimais = [];
+    let cacheCampanhas = [];
 
     function montar() {
       conteudo.innerHTML = `
@@ -70,6 +71,7 @@
       const [c, a] = await Promise.all([api('/campanhas'), api('/animais?limite=500')]);
       cacheAnimais = a.dados;
       const dados = c.dados;
+      cacheCampanhas = dados;
       const div = document.getElementById('listaCamp');
       if (dados.length === 0) { div.innerHTML = '<div class="vazio"><div class="vazio-icone">📣</div><div class="vazio-titulo">Nenhuma campanha</div></div>'; return; }
       const cor = { Planejada:'azul', 'Em Andamento':'laranja', Concluída:'verde', Cancelada:'vermelho' };
@@ -84,8 +86,8 @@
           <td><span class="badge badge-${cor[c.status]||'cinza'}">${escapeHtml(c.status)}</span></td>
           <td><div class="acoes">
             <button class="btn btn-primario btn-sm" onclick="verDetalhes(${c.id})">Ver / Atender</button>
-            <button class="btn btn-secundario btn-sm" onclick='editarCamp(${JSON.stringify(c).replace(/'/g,"&#39;")})'>Editar</button>
-            <button class="btn btn-secundario btn-sm" onclick="excluirCamp(${c.id}, '${escapeHtml(c.nome)}')">✕</button>
+            <button class="btn btn-secundario btn-sm" onclick="editarCamp(${c.id})">Editar</button>
+            <button class="btn btn-secundario btn-sm" onclick="excluirCamp(${c.id})">✕</button>
           </div></td>
         </tr>`).join('')}</tbody></table>`;
     }
@@ -98,7 +100,9 @@
       abrirModal('modalCamp');
     }
 
-    function editarCamp(c) {
+    function editarCamp(id) {
+      const c = cacheCampanhas.find(x => x.id === id);
+      if (!c) return;
       document.getElementById('campId').value = c.id;
       document.getElementById('c_nome').value = c.nome;
       document.getElementById('c_tipo').value = c.tipo || '';
@@ -136,8 +140,9 @@
       } catch (err) { toast('Erro: '+err.message, 'erro'); }
     });
 
-    async function excluirCamp(id, nome) {
-      if (!confirm(`Excluir campanha "${nome}"? Os atendimentos vinculados também serão excluídos.`)) return;
+    async function excluirCamp(id) {
+      const c = cacheCampanhas.find(x => x.id === id);
+      if (!confirm(`Excluir campanha "${c ? c.nome : ''}"? Os atendimentos vinculados também serão excluídos.`)) return;
       try { await api('/campanhas/'+id, { method:'DELETE' }); toast('Excluído','sucesso'); carregar(); }
       catch (err) { toast('Erro: '+err.message, 'erro'); }
     }

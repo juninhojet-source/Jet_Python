@@ -95,6 +95,7 @@
   <script>
     montarShell({ paginaAtiva: 'responsaveis', titulo: 'Responsáveis (Tutores)', subtitulo: 'Cadastro de tutores dos animais municipais' });
     const conteudo = document.getElementById('conteudo');
+    let ultimaLista = [];
 
     // Aplicar máscaras assim que a página carregar
     // (NÃO aplicamos 'cpf' aqui via mascarar() porque o campo de documento
@@ -237,6 +238,7 @@
     }
 
     function render(dados) {
+      ultimaLista = dados;
       const div = document.getElementById('lista');
       if (dados.length === 0) {
         div.innerHTML = '<div class="vazio"><div class="vazio-icone">👤</div><div class="vazio-titulo">Nenhum responsável encontrado</div></div>';
@@ -254,7 +256,7 @@
               <td>
                 <div class="acoes">
                   <button class="btn btn-secundario btn-sm" onclick="editar(${r.id})">Editar</button>
-                  <button class="btn btn-secundario btn-sm" onclick="excluir(${r.id}, '${escapeHtml(r.nome)}')">✕</button>
+                  <button class="btn btn-secundario btn-sm" onclick="excluir(${r.id})">✕</button>
                 </div>
               </td>
             </tr>`).join('')}
@@ -360,8 +362,9 @@
       } finally { btn.disabled = false; }
     });
 
-    async function excluir(id, nome) {
-      if (!confirm(`Excluir o responsável "${nome}"?`)) return;
+    async function excluir(id) {
+      const r = ultimaLista.find(x => x.id === id);
+      if (!confirm(`Excluir o responsável "${r ? r.nome : ''}"?`)) return;
       try {
         await api('/responsaveis/' + id, { method: 'DELETE' });
         toast('Excluído', 'sucesso');

@@ -143,8 +143,9 @@ router.put('/:id', (req, res) => {
 
 /**
  * DELETE /api/animais/:id — Soft delete (inativar)
+ * Restrito a admin/ti/veterinario, mesma política da exclusão em lote.
  */
-router.delete('/:id', (req, res) => {
+router.delete('/:id', autorizar('admin', 'ti', 'veterinario'), (req, res) => {
   db.prepare('UPDATE animais SET ativo = 0, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?').run(req.params.id);
   registrarLog(req, 'INATIVAR', 'animais', req.params.id);
   res.json({ ok: true });

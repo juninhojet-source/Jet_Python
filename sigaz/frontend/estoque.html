@@ -206,6 +206,7 @@
   <script>
     montarShell({ paginaAtiva: 'estoque', titulo: 'Estoque de Insumos', subtitulo: 'Controle de vacinas, vermífugos, medicamentos e materiais' });
     const conteudo = document.getElementById('conteudo');
+    let cacheItens = [];
 
     function montar() {
       conteudo.innerHTML = `
@@ -269,6 +270,7 @@
     }
 
     function renderItens(dados) {
+      cacheItens = dados;
       const div = document.getElementById('listaItens');
       if (dados.length === 0) { div.innerHTML = '<div class="vazio"><div class="vazio-icone">📦</div><div class="vazio-titulo">Nenhum item cadastrado</div><div class="vazio-texto">Clique em "+ Novo Item" para começar.</div></div>'; return; }
       div.innerHTML = `<table class="tabela">
@@ -282,9 +284,9 @@
             <td>${i.estoque_minimo}</td>
             <td>${i.proxima_validade?formatarData(i.proxima_validade):'<span class="text-cinza">—</span>'}</td>
             <td><div class="acoes">
-              <button class="btn btn-primario btn-sm" onclick='movimentar(${JSON.stringify(i).replace(/'/g,"&#39;")})'>Movimentar</button>
-              <button class="btn btn-secundario btn-sm" onclick='abrirAjuste(${JSON.stringify(i).replace(/'/g,"&#39;")})' title="Corrigir saldo do sistema">🔧 Ajustar</button>
-              <button class="btn btn-secundario btn-sm" onclick='editarItem(${JSON.stringify(i).replace(/'/g,"&#39;")})'>Editar</button>
+              <button class="btn btn-primario btn-sm" onclick="movimentar(${i.id})">Movimentar</button>
+              <button class="btn btn-secundario btn-sm" onclick="abrirAjuste(${i.id})" title="Corrigir saldo do sistema">🔧 Ajustar</button>
+              <button class="btn btn-secundario btn-sm" onclick="editarItem(${i.id})">Editar</button>
             </div></td>
           </tr>`;}).join('')}
         </tbody></table>`;
@@ -326,7 +328,9 @@
       setTimeout(() => document.getElementById('i_nome').focus(), 100);
     }
 
-    function editarItem(i) {
+    function editarItem(id) {
+      const i = cacheItens.find(x => x.id === id);
+      if (!i) return;
       document.getElementById('formItem').reset();
       document.getElementById('itemId').value = i.id;
       document.getElementById('i_nome').value = i.nome;
@@ -370,7 +374,9 @@
     });
 
     // ===== Movimentação normal =====
-    function movimentar(item) {
+    function movimentar(id) {
+      const item = cacheItens.find(x => x.id === id);
+      if (!item) return;
       document.getElementById('formMov').reset();
       document.getElementById('m_item').value = item.id;
       document.getElementById('m_item_nome').textContent = item.nome;
@@ -398,7 +404,9 @@
     });
 
     // ===== Ajuste de saldo =====
-    function abrirAjuste(item) {
+    function abrirAjuste(id) {
+      const item = cacheItens.find(x => x.id === id);
+      if (!item) return;
       document.getElementById('formAjuste').reset();
       document.getElementById('a_item').value = item.id;
       document.getElementById('a_item_nome').textContent = item.nome;

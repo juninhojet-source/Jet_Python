@@ -162,7 +162,10 @@ router.get('/zoonoses/sinan-csv', (req, res) => {
 
   const escape = v => {
     if (v == null) return '';
-    const s = String(v);
+    let s = String(v);
+    // Neutraliza CSV/Formula Injection: Excel/LibreOffice interpretam como
+    // fórmula valores que começam com =, +, -, @, tab ou CR.
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
 

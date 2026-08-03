@@ -244,9 +244,9 @@
                 : `<span class="coord-vazia">✕ Sem coordenada</span>`}</td>
               <td>${b.ativo ? '<span class="badge badge-verde">Ativo</span>' : '<span class="badge badge-cinza">Inativo</span>'}</td>
               <td><div class="acoes">
-                <button class="btn btn-secundario btn-sm" onclick='editar(${JSON.stringify(b).replace(/'/g,"&#39;")})'>Editar</button>
+                <button class="btn btn-secundario btn-sm" onclick="editar(${b.id})">Editar</button>
                 ${b.ativo
-                  ? `<button class="btn btn-secundario btn-sm" onclick="inativar(${b.id}, '${escapeHtml(b.nome)}')" title="Inativar">✕</button>`
+                  ? `<button class="btn btn-secundario btn-sm" onclick="inativar(${b.id})" title="Inativar">✕</button>`
                   : `<button class="btn btn-secundario btn-sm" onclick="reativar(${b.id})" title="Reativar">↻</button>`}
               </div></td>
             </tr>`).join('')}
@@ -266,7 +266,9 @@
       setTimeout(() => document.getElementById('bairroNome').focus(), 100);
     }
 
-    function editar(b) {
+    function editar(id) {
+      const b = cacheBairros.find(x => x.id === id);
+      if (!b) return;
       document.getElementById('bairroId').value = b.id;
       document.getElementById('bairroNome').value = b.nome;
       document.getElementById('bairroDistrito').checked = !!b.eh_distrito;
@@ -341,8 +343,9 @@
       finally { btn.disabled = false; }
     });
 
-    async function inativar(id, nome) {
-      if (!confirm(`Inativar o bairro "${nome}"?\n\nEle não aparecerá mais nos formulários novos, mas os registros antigos serão preservados.`)) return;
+    async function inativar(id) {
+      const b = cacheBairros.find(x => x.id === id);
+      if (!confirm(`Inativar o bairro "${b ? b.nome : ''}"?\n\nEle não aparecerá mais nos formulários novos, mas os registros antigos serão preservados.`)) return;
       try {
         await api('/bairros/' + id, { method: 'DELETE' });
         toast('Bairro inativado', 'sucesso');

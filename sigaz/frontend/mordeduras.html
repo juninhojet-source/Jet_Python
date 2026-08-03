@@ -402,7 +402,7 @@
                 ${m.observacao_iniciada ? `<button class="btn btn-secundario btn-sm" onclick="abrirObs(${m.id})" title="Registrar observação">📋</button>` : ''}
                 <button class="btn btn-secundario btn-sm" onclick="gerarPdf(${m.id})" title="Gerar PDF">📄</button>
                 <button class="btn btn-secundario btn-sm" onclick="editar(${m.id})">Editar</button>
-                <button class="btn btn-secundario btn-sm" onclick="excluir(${m.id}, '${escapeHtml(m.protocolo)}')">✕</button>
+                <button class="btn btn-secundario btn-sm" onclick="excluir(${m.id})">✕</button>
               </div></td>
             </tr>`;}).join('')}
           </tbody>
@@ -519,8 +519,9 @@
       finally { btn.disabled = false; }
     });
 
-    async function excluir(id, protocolo) {
-      if (!confirm(`Excluir notificação ${protocolo}?`)) return;
+    async function excluir(id) {
+      const m = cacheMor.find(x => x.id === id);
+      if (!confirm(`Excluir notificação ${m ? m.protocolo : ''}?`)) return;
       try {
         await api('/mordeduras/' + id, { method: 'DELETE' });
         toast('Excluído', 'sucesso');

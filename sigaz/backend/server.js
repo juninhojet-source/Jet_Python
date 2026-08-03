@@ -12,14 +12,26 @@ const fs = require('fs');
 require('dotenv').config();
 
 const db = require('./db/connection');
+const { limitarTaxa } = require('./middleware/rateLimit');
 
 const PORT = process.env.PORT || 3000;
 const app = express();
 
+// Confia no reverse proxy (IIS + ARR) para obter o IP real do cliente em
+// req.ip — necessário para o rate limiting funcionar por IP, não globalmente.
+app.set('trust proxy', true);
+
 // ----- Middlewares globais -----
 app.use(cors());
-app.use(express.json({ limit: '200mb' }));
-app.use(express.urlencoded({ extended: true, limit: '200mb' }));
+
+// Limite de corpo padrão baixo (protege endpoints públicos sem login contra
+// esgotamento de memória). A restauração de banco (upload em base64) recebe
+// um limite maior só para sua própria rota, abaixo.
+const jsonPadrao = express.json({ limit: '10mb' });
+const urlencodedPadrao = express.urlencoded({ extended: true, limit: '10mb' });
+app.use((req, res, next) => req.path === '/api/admin/restore' ? next() : jsonPadrao(req, res, next));
+app.use((req, res, next) => req.path === '/api/admin/restore' ? next() : urlencodedPadrao(req, res, next));
+app.use('/api/admin/restore', express.json({ limit: '50mb' }));
 
 // Log básico de requisições
 app.use((req, res, next) => {
@@ -71,7 +83,7 @@ app.get('/api/publico/animal/:codigo', (req, res) => {
 });
 
 // ----- Denúncia pública (cidadão registra maus-tratos) -----
-app.post('/api/publico/denuncia', (req, res) => {
+app.post('/api/publico/denuncia', limitarTaxa(5, 10 * 60 * 1000), (req, res) => {
   const { tipo, descricao, endereco, bairro, referencia,
           denunciante_nome, denunciante_telefone, anonimo } = req.body;
   if (!descricao || descricao.length < 10) {
@@ -108,7 +120,7 @@ app.get('/api/publico/denuncia/:protocolo', (req, res) => {
 });
 
 // ----- Proxy de busca de CEP (passa pelo servidor — útil em redes restritas) -----
-app.get('/api/publico/cep/:cep', async (req, res) => {
+app.get('/api/publico/cep/:cep', limitarTaxa(30, 60 * 1000), async (req, res) => {
   const cep = String(req.params.cep || '').replace(/\D/g, '');
   if (cep.length !== 8) {
     return res.status(400).json({ erro: 'CEP deve ter 8 dígitos' });

@@ -105,6 +105,7 @@
   <script>
     montarShell({ paginaAtiva: 'usuarios', titulo: 'Administração do Sistema', subtitulo: 'Usuários, auditoria, backup e configurações' });
     const conteudo = document.getElementById('conteudo');
+    let cacheUsers = [];
 
     if (SIGAZ.usuario.perfil !== 'admin' && SIGAZ.usuario.perfil !== 'ti') {
       conteudo.innerHTML = '<div class="card"><div class="card-body"><div class="vazio"><div class="vazio-icone">🔒</div><div class="vazio-titulo">Acesso restrito</div><div class="vazio-texto">Esta área é exclusiva para administradores.</div></div></div></div>';
@@ -243,6 +244,7 @@
     }
 
     function renderUsers(dados) {
+      cacheUsers = dados;
       const div = document.getElementById('listaUsers');
       if (dados.length === 0) {
         div.innerHTML = '<div class="vazio"><div class="vazio-icone">👥</div><div class="vazio-titulo">Nenhum usuário cadastrado</div></div>';
@@ -274,10 +276,10 @@
               <td>${u.ultimo_login ? formatarDataHora(u.ultimo_login) : '<span class="text-cinza">nunca</span>'}</td>
               <td>
                 <div class="acoes">
-                  <button class="btn btn-secundario btn-sm" onclick='editarUser(${JSON.stringify(u).replace(/'/g, "&#39;")})'>Editar</button>
-                  ${bloqueado ? `<button class="btn btn-secundario btn-sm" onclick="desbloquear(${u.id}, '${escapeHtml(u.nome)}')" title="Desbloquear">🔓</button>` : ''}
-                  ${u.id !== SIGAZ.usuario.id ? `<button class="btn btn-secundario btn-sm" onclick="resetarSenha(${u.id}, '${escapeHtml(u.nome)}')" title="Resetar senha">🔑</button>` : ''}
-                  ${u.id !== SIGAZ.usuario.id ? `<button class="btn btn-secundario btn-sm" onclick="inativarUser(${u.id}, '${escapeHtml(u.nome)}')" title="Inativar">✕</button>` : ''}
+                  <button class="btn btn-secundario btn-sm" onclick="editarUser(${u.id})">Editar</button>
+                  ${bloqueado ? `<button class="btn btn-secundario btn-sm" onclick="desbloquear(${u.id})" title="Desbloquear">🔓</button>` : ''}
+                  ${u.id !== SIGAZ.usuario.id ? `<button class="btn btn-secundario btn-sm" onclick="resetarSenha(${u.id})" title="Resetar senha">🔑</button>` : ''}
+                  ${u.id !== SIGAZ.usuario.id ? `<button class="btn btn-secundario btn-sm" onclick="inativarUser(${u.id})" title="Inativar">✕</button>` : ''}
                 </div>
               </td>
             </tr>`;
@@ -357,7 +359,9 @@
       abrirModal('modalUser');
     }
 
-    function editarUser(u) {
+    function editarUser(id) {
+      const u = cacheUsers.find(x => x.id === id);
+      if (!u) return;
       document.getElementById('userId').value = u.id;
       document.getElementById('nome').value = u.nome;
       document.getElementById('username').value = u.username || '';
@@ -403,8 +407,9 @@
       finally { btn.disabled = false; }
     });
 
-    async function inativarUser(id, nome) {
-      if (!confirm(`Inativar o usuário "${nome}"?`)) return;
+    async function inativarUser(id) {
+      const u = cacheUsers.find(x => x.id === id);
+      if (!confirm(`Inativar o usuário "${u ? u.nome : ''}"?`)) return;
       try {
         await api('/usuarios/' + id, { method: 'DELETE' });
         toast('Usuário inativado', 'sucesso');
@@ -412,7 +417,9 @@
       } catch (err) { toast('Erro: ' + err.message, 'erro'); }
     }
 
-    async function desbloquear(id, nome) {
+    async function desbloquear(id) {
+      const u = cacheUsers.find(x => x.id === id);
+      const nome = u ? u.nome : '';
       if (!confirm(`Desbloquear o usuário "${nome}"?\nEle poderá tentar fazer login novamente.`)) return;
       try {
         await api(`/usuarios/${id}/desbloquear`, { method: 'POST' });
@@ -421,8 +428,9 @@
       } catch (err) { toast('Erro: ' + err.message, 'erro'); }
     }
 
-    async function resetarSenha(id, nome) {
-      if (!confirm(`Gerar uma nova senha temporária para "${nome}"?\nA senha atual será invalidada e ele será obrigado a trocar no próximo login.`)) return;
+    async function resetarSenha(id) {
+      const u = cacheUsers.find(x => x.id === id);
+      if (!confirm(`Gerar uma nova senha temporária para "${u ? u.nome : ''}"?\nA senha atual será invalidada e ele será obrigado a trocar no próximo login.`)) return;
       try {
         const r = await api(`/usuarios/${id}/resetar-senha`, { method: 'POST' });
         document.getElementById('senhaTempTexto').textContent = r.senha_temporaria;

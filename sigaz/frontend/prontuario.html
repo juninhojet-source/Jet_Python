@@ -222,6 +222,7 @@
     }
 
     let animalAtual = null;
+    let cacheConsultas = [];
 
     async function carregar() {
       try {
@@ -267,6 +268,7 @@
     }
 
     function renderConsultas(consultas) {
+      cacheConsultas = consultas;
       const div = document.getElementById('lista');
       if (consultas.length === 0) {
         div.innerHTML = '<div class="vazio"><div class="vazio-icone">📝</div><div class="vazio-titulo">Sem consultas registradas</div><div class="vazio-texto">Clique em "+ Nova Consulta" para registrar o primeiro atendimento.</div></div>';
@@ -295,7 +297,7 @@
               </div>
               <div class="acoes">
                 <button class="btn btn-secundario btn-sm" onclick="gerarPdfConsulta(${c.id})">📄 PDF</button>
-                <button class="btn btn-secundario btn-sm" onclick='editar(${JSON.stringify(c).replace(/'/g,"&#39;")})'>Editar</button>
+                <button class="btn btn-secundario btn-sm" onclick="editar(${c.id})">Editar</button>
                 <button class="btn btn-secundario btn-sm" onclick="excluir(${c.id})">✕</button>
               </div>
             </div>
@@ -329,7 +331,9 @@
       abrirModal('modalCon');
     }
 
-    function editar(c) {
+    function editar(id) {
+      const c = cacheConsultas.find(x => x.id === id);
+      if (!c) return;
       document.getElementById('conId').value = c.id;
       const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
       set('data_consulta', c.data_consulta);

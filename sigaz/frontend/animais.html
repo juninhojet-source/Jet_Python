@@ -257,6 +257,7 @@
 
     const conteudo = document.getElementById('conteudo');
     let cacheResponsaveis = [];
+    let ultimaListaAnimais = [];
 
     // ========== CADASTRO RÁPIDO DE TUTOR ==========
     // Máscaras nos campos do modal de novo tutor
@@ -478,6 +479,9 @@
     }
 
     function renderizarLista(animais) {
+      ultimaListaAnimais = animais;
+      const perfil = (SIGAZ.usuario || {}).perfil;
+      const podeInativar = ['admin', 'ti', 'veterinario'].includes(perfil);
       const div = document.getElementById('lista');
       if (animais.length === 0) {
         div.innerHTML = `<div class="vazio">
@@ -528,7 +532,7 @@
                     <button class="btn btn-secundario btn-sm" onclick="verCarteirinha(${a.id})">🪪 Carteirinha</button>
                     <button class="btn btn-secundario btn-sm" onclick="verProntuario(${a.id})">🩺 Prontuário</button>
                     <button class="btn btn-secundario btn-sm" onclick="editarAnimal(${a.id})">Editar</button>
-                    <button class="btn btn-secundario btn-sm" onclick="excluirAnimal(${a.id}, '${escapeHtml(a.nome)}')" title="Inativar">✕</button>
+                    ${podeInativar ? `<button class="btn btn-secundario btn-sm" onclick="excluirAnimal(${a.id})" title="Inativar">✕</button>` : ''}
                   </div>
                 </td>
               </tr>
@@ -707,8 +711,9 @@
       }
     });
 
-    async function excluirAnimal(id, nome) {
-      if (!confirm(`Inativar o animal "${nome}"?\nO registro será mantido no histórico.`)) return;
+    async function excluirAnimal(id) {
+      const a = ultimaListaAnimais.find(x => x.id === id);
+      if (!confirm(`Inativar o animal "${a ? a.nome : ''}"?\nO registro será mantido no histórico.`)) return;
       try {
         await api('/animais/' + id, { method: 'DELETE' });
         toast('Animal inativado', 'sucesso');
