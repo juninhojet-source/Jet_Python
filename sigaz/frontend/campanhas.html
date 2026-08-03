@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Campanhas — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <div class="modal-overlay" id="modalCamp">
+    <div class="modal">
+      <div class="modal-header"><h2 id="tituloCamp">Nova Campanha</h2><button class="modal-fechar" onclick="fecharModal('modalCamp')">×</button></div>
+      <div class="modal-body">
+        <form id="formCamp">
+          <input type="hidden" id="campId">
+          <div class="form-grid">
+            <div class="form-grupo full"><label class="form-label obrigatorio">Nome</label><input type="text" id="c_nome" class="form-controle" required maxlength="120"></div>
+            <div class="form-grupo"><label class="form-label">Tipo</label>
+              <select id="c_tipo" class="form-controle">
+                <option value="">—</option><option>Castração</option><option>Vacinação Antirrábica</option>
+                <option>Vermifugação</option><option>Mutirão Geral</option><option>Educação Sanitária</option>
+              </select></div>
+            <div class="form-grupo"><label class="form-label">Status</label>
+              <select id="c_status" class="form-controle">
+                <option>Planejada</option><option>Em Andamento</option><option>Concluída</option><option>Cancelada</option>
+              </select></div>
+            <div class="form-grupo"><label class="form-label">Data Início</label><input type="date" id="c_inicio" class="form-controle"></div>
+            <div class="form-grupo"><label class="form-label">Data Fim</label><input type="date" id="c_fim" class="form-controle"></div>
+            <div class="form-grupo"><label class="form-label">Bairro</label><input type="text" id="c_bairro" class="form-controle" maxlength="80"></div>
+            <div class="form-grupo"><label class="form-label">Meta de Atendimentos</label><input type="number" id="c_meta" class="form-controle" min="0" value="0"></div>
+            <div class="form-grupo full"><label class="form-label">Local</label><input type="text" id="c_local" class="form-controle" maxlength="200"></div>
+            <div class="form-grupo full"><label class="form-label">Descrição</label><textarea id="c_desc" class="form-controle" maxlength="500"></textarea></div>
+          </div>
+          <div class="form-acoes"><button type="button" class="btn btn-secundario" onclick="fecharModal('modalCamp')">Cancelar</button><button type="submit" class="btn btn-primario">Salvar</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalDet">
+    <div class="modal modal-lg">
+      <div class="modal-header"><h2 id="detTitulo">Detalhes da Campanha</h2><button class="modal-fechar" onclick="fecharModal('modalDet')">×</button></div>
+      <div class="modal-body" id="detBody"></div>
+    </div>
+  </div>
+
+  <script src="/js/comum.js"></script>
+  <script>
+    montarShell({ paginaAtiva: 'campanhas', titulo: 'Campanhas e Mutirões', subtitulo: 'Planejamento e registro de ações em campo' });
+    const conteudo = document.getElementById('conteudo');
+    let cacheAnimais = [];
+
+    function montar() {
+      conteudo.innerHTML = `
+        <div class="card mb-4"><div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div><strong style="font-size:16px;">Campanhas Cadastradas</strong></div>
+          <button class="btn btn-primario" onclick="novaCamp()">+ Nova Campanha</button>
+        </div></div>
+        <div class="tabela-container"><div id="listaCamp"></div></div>
+      `;
+      carregar();
+    }
+
+    async function carregar() {
+      const [c, a] = await Promise.all([api('/campanhas'), api('/animais?limite=500')]);
+      cacheAnimais = a.dados;
+      const dados = c.dados;
+      const div = document.getElementById('listaCamp');
+      if (dados.length === 0) { div.innerHTML = '<div class="vazio"><div class="vazio-icone">📣</div><div class="vazio-titulo">Nenhuma campanha</div></div>'; return; }
+      const cor = { Planejada:'azul', 'Em Andamento':'laranja', Concluída:'verde', Cancelada:'vermelho' };
+      div.innerHTML = `<table class="tabela">
+        <thead><tr><th>Campanha</th><th>Tipo</th><th>Período</th><th>Bairro</th><th>Atendimentos</th><th>Status</th><th style="text-align:right;">Ações</th></tr></thead>
+        <tbody>${dados.map(c => `<tr>
+          <td><strong>${escapeHtml(c.nome)}</strong></td>
+          <td>${escapeHtml(c.tipo||'—')}</td>
+          <td style="font-size:13px;">${c.data_inicio?formatarData(c.data_inicio):'?'}${c.data_fim?' – '+formatarData(c.data_fim):''}</td>
+          <td>${escapeHtml(c.bairro||'—')}</td>
+          <td><strong>${c.atendimentos}</strong>${c.meta_atendimentos>0?' / '+c.meta_atendimentos:''}</td>
+          <td><span class="badge badge-${cor[c.status]||'cinza'}">${escapeHtml(c.status)}</span></td>
+          <td><div class="acoes">
+            <button class="btn btn-primario btn-sm" onclick="verDetalhes(${c.id})">Ver / Atender</button>
+            <button class="btn btn-secundario btn-sm" onclick='editarCamp(${JSON.stringify(c).replace(/'/g,"&#39;")})'>Editar</button>
+            <button class="btn btn-secundario btn-sm" onclick="excluirCamp(${c.id}, '${escapeHtml(c.nome)}')">✕</button>
+          </div></td>
+        </tr>`).join('')}</tbody></table>`;
+    }
+
+    function novaCamp() {
+      document.getElementById('formCamp').reset();
+      document.getElementById('campId').value = '';
+      document.getElementById('c_status').value = 'Planejada';
+      document.getElementById('tituloCamp').textContent = 'Nova Campanha';
+      abrirModal('modalCamp');
+    }
+
+    function editarCamp(c) {
+      document.getElementById('campId').value = c.id;
+      document.getElementById('c_nome').value = c.nome;
+      document.getElementById('c_tipo').value = c.tipo || '';
+      document.getElementById('c_status').value = c.status;
+      document.getElementById('c_inicio').value = c.data_inicio || '';
+      document.getElementById('c_fim').value = c.data_fim || '';
+      document.getElementById('c_bairro').value = c.bairro || '';
+      document.getElementById('c_meta').value = c.meta_atendimentos;
+      document.getElementById('c_local').value = c.local || '';
+      document.getElementById('c_desc').value = c.descricao || '';
+      document.getElementById('tituloCamp').textContent = 'Editar Campanha';
+      abrirModal('modalCamp');
+    }
+
+    document.getElementById('formCamp').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('campId').value;
+      const body = {
+        nome: document.getElementById('c_nome').value.trim(),
+        tipo: document.getElementById('c_tipo').value,
+        status: document.getElementById('c_status').value,
+        data_inicio: document.getElementById('c_inicio').value || null,
+        data_fim: document.getElementById('c_fim').value || null,
+        bairro: document.getElementById('c_bairro').value.trim(),
+        meta_atendimentos: parseInt(document.getElementById('c_meta').value)||0,
+        local: document.getElementById('c_local').value.trim(),
+        descricao: document.getElementById('c_desc').value.trim()
+      };
+      try {
+        if (id) await api('/campanhas/'+id, { method:'PUT', body });
+        else await api('/campanhas', { method:'POST', body });
+        toast('Salvo', 'sucesso');
+        fecharModal('modalCamp');
+        carregar();
+      } catch (err) { toast('Erro: '+err.message, 'erro'); }
+    });
+
+    async function excluirCamp(id, nome) {
+      if (!confirm(`Excluir campanha "${nome}"? Os atendimentos vinculados também serão excluídos.`)) return;
+      try { await api('/campanhas/'+id, { method:'DELETE' }); toast('Excluído','sucesso'); carregar(); }
+      catch (err) { toast('Erro: '+err.message, 'erro'); }
+    }
+
+    async function verDetalhes(id) {
+      try {
+        const c = await api('/campanhas/'+id);
+        document.getElementById('detTitulo').textContent = c.nome;
+        document.getElementById('detBody').innerHTML = `
+          <div class="text-sm text-cinza mb-3">${escapeHtml(c.descricao || '')}</div>
+          <div style="display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap;">
+            <div><strong>Tipo:</strong> ${escapeHtml(c.tipo||'—')}</div>
+            <div><strong>Status:</strong> ${escapeHtml(c.status)}</div>
+            <div><strong>Atendimentos:</strong> ${c.atendimentos.length}${c.meta_atendimentos>0?' / '+c.meta_atendimentos:''}</div>
+          </div>
+          <h3 style="font-family:var(--fonte-display);font-size:15px;border-bottom:1px solid var(--cinza-200);padding-bottom:8px;margin-bottom:12px;">Registrar atendimento</h3>
+          <div class="form-grid">
+            <div class="form-grupo full"><label class="form-label">Animal</label>
+              <select id="addAnimal" class="form-controle">
+                <option value="">Selecione...</option>
+                ${cacheAnimais.map(a => `<option value="${a.id}">${escapeHtml(a.codigo)} — ${escapeHtml(a.nome)}</option>`).join('')}
+              </select></div>
+            <div class="form-grupo full"><label class="form-label">Procedimento</label>
+              <input type="text" id="addProc" class="form-controle" placeholder="Ex: Castração, V10 + Antirrábica, etc">
+            </div>
+            <div class="form-grupo full">
+              <button class="btn btn-primario" onclick="adicionarAt(${c.id})">+ Adicionar Atendimento</button>
+            </div>
+          </div>
+          <h3 style="font-family:var(--fonte-display);font-size:15px;border-bottom:1px solid var(--cinza-200);padding-bottom:8px;margin:18px 0 12px;">Atendimentos realizados (${c.atendimentos.length})</h3>
+          ${c.atendimentos.length === 0 ? '<div class="vazio"><div class="vazio-texto">Sem atendimentos ainda</div></div>' : `
+          <table class="tabela">
+            <thead><tr><th>Animal</th><th>Espécie</th><th>Procedimento</th><th>Data</th><th></th></tr></thead>
+            <tbody>${c.atendimentos.map(a => `<tr>
+              <td><strong>${escapeHtml(a.animal_nome)}</strong> <span class="codigo-cell">${escapeHtml(a.animal_codigo)}</span></td>
+              <td>${escapeHtml(a.especie)}</td>
+              <td>${escapeHtml(a.procedimento||'—')}</td>
+              <td>${formatarDataHora(a.criado_em)}</td>
+              <td><button class="btn btn-secundario btn-sm" onclick="excluirAt(${a.id}, ${c.id})">✕</button></td>
+            </tr>`).join('')}</tbody>
+          </table>`}
+        `;
+        abrirModal('modalDet');
+      } catch (err) { toast('Erro: '+err.message, 'erro'); }
+    }
+
+    async function adicionarAt(campId) {
+      const animal_id = document.getElementById('addAnimal').value;
+      const procedimento = document.getElementById('addProc').value;
+      if (!animal_id) { toast('Selecione um animal', 'alerta'); return; }
+      try {
+        await api(`/campanhas/${campId}/atendimentos`, { method:'POST', body:{ animal_id, procedimento }});
+        toast('Adicionado','sucesso');
+        verDetalhes(campId);
+        carregar();
+      } catch (err) { toast('Erro: '+err.message, 'erro'); }
+    }
+
+    async function excluirAt(id, campId) {
+      if (!confirm('Excluir este atendimento?')) return;
+      try { await api(`/campanhas/atendimentos/${id}`, { method:'DELETE' }); verDetalhes(campId); carregar(); }
+      catch (err) { toast('Erro: '+err.message, 'erro'); }
+    }
+
+    montar();
+  </script>
+</body>
+</html>

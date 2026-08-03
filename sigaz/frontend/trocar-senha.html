@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trocar Senha — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/login.css">
+  <style>
+    body.tela-login { grid-template-columns: 1fr; }
+    .troca-senha-card {
+      max-width: 460px;
+      width: 100%;
+      background: var(--branco);
+      border-radius: var(--raio-lg);
+      box-shadow: var(--sombra-forte);
+      padding: 36px;
+    }
+    .troca-senha-card .brasao-topo {
+      width: 72px; height: 72px; margin: 0 auto 18px;
+      border-radius: 12px;
+      background: var(--branco);
+      padding: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .troca-senha-card .brasao-topo img { width:100%; height:100%; object-fit:contain; }
+    .req-senha {
+      background: var(--cinza-50);
+      border: 1px solid var(--cinza-200);
+      border-radius: var(--raio);
+      padding: 12px 14px;
+      font-size: 12px;
+      margin-bottom: 16px;
+      line-height: 1.7;
+    }
+    .req-senha .item { display:flex; align-items:center; gap:8px; }
+    .req-senha .item.ok { color: var(--verde-bandeira); }
+    .req-senha .item.falha { color: var(--cinza-500); }
+    .req-senha .item .ico { font-weight: 700; width: 14px; display:inline-block; }
+  </style>
+</head>
+<body class="tela-login" style="display:grid;place-items:center;padding:20px;">
+
+  <div class="troca-senha-card">
+    <div class="brasao-topo"><img src="/assets/brasao.png" alt="Brasão"></div>
+    <h2 style="font-family:var(--fonte-display);text-align:center;margin-bottom:4px;">Trocar Senha</h2>
+    <p style="text-align:center;color:var(--cinza-500);font-size:14px;margin-bottom:24px;">
+      Por motivos de segurança, você deve definir uma nova senha antes de continuar.
+    </p>
+
+    <div class="login-erro" id="erro"></div>
+
+    <form id="form">
+      <div class="form-grupo">
+        <label class="form-label obrigatorio">Senha Atual</label>
+        <input type="password" id="senha_atual" class="form-controle" required autocomplete="current-password" maxlength="100">
+      </div>
+
+      <div class="form-grupo mt-3">
+        <label class="form-label obrigatorio">Nova Senha</label>
+        <input type="password" id="senha_nova" class="form-controle" required autocomplete="new-password" maxlength="100">
+      </div>
+
+      <div class="form-grupo mt-3">
+        <label class="form-label obrigatorio">Confirmar Nova Senha</label>
+        <input type="password" id="senha_conf" class="form-controle" required autocomplete="new-password" maxlength="100">
+      </div>
+
+      <div class="req-senha mt-3" id="reqSenha">
+        <strong style="display:block;margin-bottom:6px;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:var(--cinza-700);">Sua nova senha deve ter:</strong>
+        <div class="item falha" data-req="min"><span class="ico">○</span> Pelo menos 8 caracteres</div>
+        <div class="item falha" data-req="maiuscula"><span class="ico">○</span> Uma letra maiúscula</div>
+        <div class="item falha" data-req="numero"><span class="ico">○</span> Um número</div>
+        <div class="item falha" data-req="confere"><span class="ico">○</span> As duas senhas devem coincidir</div>
+      </div>
+
+      <button type="submit" class="btn btn-primario" id="btn" style="width:100%;padding:13px;font-size:15px;margin-top:12px;">Trocar Senha</button>
+    </form>
+
+    <button onclick="sair()" style="display:block;width:100%;background:none;border:none;color:var(--cinza-500);margin-top:14px;font-size:13px;cursor:pointer;">
+      Cancelar e sair
+    </button>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('sigaz_token');
+    if (!token) window.location.href = '/index.html';
+
+    const form = document.getElementById('form');
+    const erro = document.getElementById('erro');
+    const btn = document.getElementById('btn');
+
+    function avaliar() {
+      const nova = document.getElementById('senha_nova').value;
+      const conf = document.getElementById('senha_conf').value;
+      const reqs = {
+        min: nova.length >= 8,
+        maiuscula: /[A-Z]/.test(nova),
+        numero: /[0-9]/.test(nova),
+        confere: nova.length > 0 && nova === conf
+      };
+      for (const [k, ok] of Object.entries(reqs)) {
+        const el = document.querySelector(`[data-req="${k}"]`);
+        if (el) {
+          el.classList.toggle('ok', ok);
+          el.classList.toggle('falha', !ok);
+          el.querySelector('.ico').textContent = ok ? '✓' : '○';
+        }
+      }
+      return Object.values(reqs).every(Boolean);
+    }
+
+    document.getElementById('senha_nova').addEventListener('input', avaliar);
+    document.getElementById('senha_conf').addEventListener('input', avaliar);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      erro.classList.remove('ativo');
+
+      if (!avaliar()) {
+        erro.textContent = 'A nova senha não atende a todos os requisitos.';
+        erro.classList.add('ativo');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Trocando...';
+
+      try {
+        const r = await fetch('/api/auth/trocar-senha', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            senha_atual: document.getElementById('senha_atual').value,
+            senha_nova: document.getElementById('senha_nova').value
+          })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.erro || 'Falha ao trocar senha');
+
+        // Limpar token antigo e redirecionar pro login (o novo token sem o flag)
+        alert('Senha alterada com sucesso! Faça login novamente.');
+        localStorage.removeItem('sigaz_token');
+        localStorage.removeItem('sigaz_usuario');
+        window.location.href = '/index.html';
+      } catch (err) {
+        erro.textContent = err.message;
+        erro.classList.add('ativo');
+        btn.disabled = false;
+        btn.textContent = 'Trocar Senha';
+      }
+    });
+
+    function sair() {
+      if (!confirm('Sair sem trocar a senha? Você terá que fazer login novamente.')) return;
+      localStorage.removeItem('sigaz_token');
+      localStorage.removeItem('sigaz_usuario');
+      window.location.href = '/index.html';
+    }
+  </script>
+</body>
+</html>

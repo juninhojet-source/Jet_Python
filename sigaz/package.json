@@ -1,0 +1,25 @@
+{
+  "name": "sigaz",
+  "version": "1.0.0",
+  "description": "SIGAZ - Sistema Integrado de Gestão Animal e Zoonoses - Prefeitura Municipal de Barão de Cocais",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node --watch backend/server.js",
+    "init-db": "node backend/db/init.js"
+  },
+  "keywords": ["sigaz", "prefeitura", "barao-de-cocais", "zoonoses", "controle-animal"],
+  "author": "Departamento de TI - PMBC",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "cors": "^2.8.5",
+    "qrcode": "^1.5.3",
+    "dotenv": "^16.4.5"
+  }
+}

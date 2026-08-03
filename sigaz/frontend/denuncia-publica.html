@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Denúncia de Maus-Tratos — Barão de Cocais</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    body { background: var(--fundo-pagina); min-height: 100vh; }
+    .topo-publico {
+      background: linear-gradient(135deg, var(--azul-escuro), var(--azul-bandeira));
+      color: var(--branco); padding: 28px 20px; text-align: center;
+      border-bottom: 4px solid var(--dourado);
+    }
+    .topo-publico .brasao-pub { width: 70px; height: 70px; border-radius: 10px; background: var(--branco); display: inline-grid; place-items: center; padding: 6px; margin-bottom: 12px; }
+    .topo-publico .brasao-pub img { width: 100%; height: 100%; object-fit: contain; }
+    .topo-publico strong { display: block; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.85; }
+    .topo-publico h1 { font-family: var(--fonte-display); font-size: 22px; margin-top: 4px; }
+    .container-pub { max-width: 680px; margin: 24px auto; padding: 0 20px; }
+    .rodape-pub { text-align: center; padding: 24px; color: var(--cinza-500); font-size: 12px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <header class="topo-publico">
+    <div class="brasao-pub"><img src="/assets/brasao.png" alt="Brasão"></div>
+    <strong>Prefeitura Municipal de Barão de Cocais</strong>
+    <h1>Denúncia de Maus-Tratos a Animais</h1>
+  </header>
+
+  <main class="container-pub" id="main">
+    <div class="card">
+      <div class="card-body">
+        <p style="margin-bottom:18px;color:var(--cinza-700);line-height:1.6;">
+          A denúncia de maus-tratos pode ser feita por qualquer cidadão. Você pode optar por se identificar
+          ou registrar de forma anônima. Em ambos os casos, será gerado um <strong>protocolo</strong> para acompanhamento.
+        </p>
+
+        <form id="form">
+          <div class="form-grid">
+            <div class="form-grupo">
+              <label class="form-label">Tipo</label>
+              <select id="tipo" class="form-controle">
+                <option value="">Selecione...</option>
+                <option>Agressão física</option>
+                <option>Abandono</option>
+                <option>Negligência (sem comida/água/abrigo)</option>
+                <option>Animal preso/acorrentado</option>
+                <option>Crueldade</option>
+                <option>Outro</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Bairro</label>
+              <select id="bairro" class="form-controle">
+                <option value="">— Selecione o bairro —</option>
+              </select>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Endereço da ocorrência</label>
+              <input type="text" id="endereco" class="form-controle" maxlength="200" placeholder="Rua, número">
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Ponto de referência</label>
+              <input type="text" id="referencia" class="form-controle" maxlength="150" placeholder="Próximo a...">
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label obrigatorio">Descrição detalhada (mínimo 10 caracteres)</label>
+              <textarea id="descricao" class="form-controle" required rows="5" maxlength="2000"
+                placeholder="Descreva a situação observada, quantos animais, há quanto tempo, etc."></textarea>
+            </div>
+            <div class="form-grupo full">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" id="anonimo"> Denúncia anônima (não informar meus dados)
+              </label>
+            </div>
+            <div class="form-grupo" id="grpNome">
+              <label class="form-label">Seu nome</label>
+              <input type="text" id="nome" class="form-controle" maxlength="120">
+            </div>
+            <div class="form-grupo" id="grpTel">
+              <label class="form-label">Seu telefone</label>
+              <input type="text" id="telefone" class="form-controle" maxlength="15" placeholder="(31) 99999-9999">
+            </div>
+          </div>
+          <div class="form-acoes"><button type="submit" class="btn btn-primario" id="btn">Enviar Denúncia</button></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mt-4">
+      <div class="card-header"><h2>Consultar denúncia já registrada</h2></div>
+      <div class="card-body">
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="protocolo" class="form-controle" placeholder="DEN-2026-00001">
+          <button class="btn btn-secundario" onclick="consultar()">Consultar</button>
+        </div>
+        <div id="resConsulta" style="margin-top:14px;"></div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="rodape-pub">
+    <strong>Departamento de Informática e Tecnologia</strong><br>
+    Prefeitura Municipal de Barão de Cocais — MG<br>
+    📞 (31) 3837-7661<br>
+    <a href="/privacidade.html" target="_blank" style="color:var(--azul-bandeira);font-size:12px;">🛡️ Política de Privacidade · LGPD</a>
+  </footer>
+
+  <script src="/js/mascaras.js"></script>
+  <script>
+    function toast(m, t='info') {
+      // simples toast standalone (sem dependência)
+      const d = document.createElement('div');
+      d.style.cssText='position:fixed;top:20px;right:20px;background:#1a1f29;color:white;padding:14px 18px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:1000;max-width:400px;border-left:4px solid '+(t==='sucesso'?'#1f7a3a':t==='erro'?'#b8252c':'#1565a8');
+      d.textContent=m; document.body.appendChild(d);
+      setTimeout(()=>d.remove(), 4000);
+    }
+    function escapeHtml(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';}
+    function formatarDataHora(s){if(!s)return '—'; return new Date(s.replace(' ','T')).toLocaleString('pt-BR');}
+
+    mascarar('telefone', 'telefone');
+
+    // Carregar bairros oficiais para o select (endpoint público)
+    (async () => {
+      try {
+        const r = await fetch('/api/publico/bairros');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const j = await r.json();
+        const sel = document.getElementById('bairro');
+        let html = '<option value="">— Selecione o bairro —</option>';
+        for (const b of j.dados) {
+          const sufixo = b.eh_distrito ? ' (Distrito)' : '';
+          html += `<option value="${escapeHtml(b.nome)}">${escapeHtml(b.nome)}${sufixo}</option>`;
+        }
+        html += '<option value="__OUTROS__">— Outros (digitar manualmente) —</option>';
+        sel.innerHTML = html;
+
+        // Campo de texto que aparece quando "Outros"
+        const inp = document.createElement('input');
+        inp.type = 'text'; inp.id = 'bairro_outros'; inp.className = 'form-controle';
+        inp.placeholder = 'Informe o nome do bairro'; inp.maxLength = 80;
+        inp.style.display = 'none'; inp.style.marginTop = '6px';
+        sel.parentNode.insertBefore(inp, sel.nextSibling);
+        sel.addEventListener('change', () => {
+          if (sel.value === '__OUTROS__') { inp.style.display='block'; inp.focus(); }
+          else { inp.style.display='none'; inp.value=''; }
+        });
+      } catch (err) {
+        console.warn('Não foi possível carregar bairros oficiais:', err);
+        // Fallback: substitui por input de texto se a API falhar
+        const sel = document.getElementById('bairro');
+        const inp = document.createElement('input');
+        inp.type='text'; inp.id='bairro'; inp.className='form-controle'; inp.maxLength=80;
+        sel.parentNode.replaceChild(inp, sel);
+      }
+    })();
+
+    document.getElementById('anonimo').addEventListener('change', (e) => {
+      const ocultar = e.target.checked;
+      document.getElementById('grpNome').style.display = ocultar?'none':'';
+      document.getElementById('grpTel').style.display = ocultar?'none':'';
+      if (ocultar) {
+        document.getElementById('nome').value = '';
+        document.getElementById('telefone').value = '';
+      }
+    });
+
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const desc = document.getElementById('descricao').value.trim();
+      if (desc.length < 10) { toast('Descrição muito curta', 'erro'); return; }
+      const btn = document.getElementById('btn');
+      btn.disabled = true; btn.textContent = 'Enviando...';
+
+      try {
+        const r = await fetch('/api/publico/denuncia', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tipo: document.getElementById('tipo').value,
+            descricao: desc,
+            endereco: document.getElementById('endereco').value.trim(),
+            bairro: (function(){
+              const s = document.getElementById('bairro');
+              if (s && s.value === '__OUTROS__') {
+                const o = document.getElementById('bairro_outros');
+                return o ? o.value.trim() : '';
+              }
+              return s ? s.value : '';
+            })(),
+            referencia: document.getElementById('referencia').value.trim(),
+            denunciante_nome: document.getElementById('nome').value.trim(),
+            denunciante_telefone: document.getElementById('telefone').value.replace(/\D/g,''),
+            anonimo: document.getElementById('anonimo').checked
+          })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.erro);
+
+        document.getElementById('main').innerHTML = `
+          <div class="card"><div class="card-body" style="text-align:center;">
+            <div style="font-size:64px;color:var(--verde-bandeira);">✓</div>
+            <h2 style="font-family:var(--fonte-display);margin:14px 0;">Denúncia registrada!</h2>
+            <p style="margin-bottom:14px;">Seu protocolo é:</p>
+            <div style="background:var(--cinza-50);padding:18px;border-radius:8px;font-family:ui-monospace,monospace;font-size:24px;font-weight:700;color:var(--azul-bandeira);">
+              ${escapeHtml(data.protocolo)}
+            </div>
+            <p style="margin-top:18px;color:var(--cinza-600);line-height:1.6;">
+              Anote este protocolo. Você poderá usá-lo para consultar o andamento da sua denúncia.
+              ${data.mensagem || ''}
+            </p>
+            <a href="/denuncia-publica.html" class="btn btn-primario mt-4" style="margin-top:18px;">Nova denúncia</a>
+          </div></div>
+        `;
+      } catch (err) {
+        toast(err.message, 'erro');
+        btn.disabled = false; btn.textContent = 'Enviar Denúncia';
+      }
+    });
+
+    async function consultar() {
+      const p = document.getElementById('protocolo').value.trim();
+      const div = document.getElementById('resConsulta');
+      if (!p) return;
+      try {
+        const r = await fetch('/api/publico/denuncia/' + encodeURIComponent(p));
+        if (!r.ok) { div.innerHTML = '<div class="badge badge-vermelho">Protocolo não encontrado</div>'; return; }
+        const d = await r.json();
+        const cor = { Recebida:'laranja','Em Apuração':'azul', Atendida:'verde', Improcedente:'cinza', Encaminhada:'azul' };
+        div.innerHTML = `
+          <div style="background:var(--cinza-50);padding:14px;border-radius:6px;">
+            <div><strong>Protocolo:</strong> ${escapeHtml(d.protocolo)}</div>
+            <div><strong>Status:</strong> <span class="badge badge-${cor[d.status]||'cinza'}">${escapeHtml(d.status)}</span></div>
+            <div><strong>Recebida em:</strong> ${formatarDataHora(d.criado_em)}</div>
+            ${d.data_atendimento ? `<div><strong>Atendida em:</strong> ${formatarDataHora(d.data_atendimento)}</div>` : ''}
+            <div><strong>Denunciante:</strong> ${escapeHtml(d.denunciante)}</div>
+          </div>
+        `;
+      } catch (err) { div.innerHTML = '<div class="badge badge-vermelho">Erro ao consultar</div>'; }
+    }
+  </script>
+</body>
+</html>

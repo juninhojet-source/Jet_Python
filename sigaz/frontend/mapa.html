@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mapa do Município — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <style>
+    #mapa { height: 580px; border-radius: var(--raio); overflow: hidden; }
+    .legenda-mapa { position: absolute; bottom: 18px; right: 18px; background: rgba(255,255,255,0.95); padding: 10px 14px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 12px; z-index: 1000; line-height: 1.8; }
+    html[data-tema="escuro"] .legenda-mapa { background: rgba(22,27,36,0.95); color: var(--cinza-700); }
+    .legenda-cor { display: inline-block; width: 14px; height: 14px; border-radius: 50%; vertical-align: middle; margin-right: 6px; }
+    .marker-cluster { background: var(--azul-bandeira); color: white; border-radius: 50%; display: grid; place-items: center; font-weight: 700; }
+    .popup-info strong { display: block; margin-bottom: 4px; color: var(--azul-bandeira); }
+    .popup-info { font-size: 13px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <script src="/js/comum.js"></script>
+  <script>
+    montarShell({ paginaAtiva: 'mapa', titulo: 'Mapa do Município', subtitulo: 'Visualização geográfica de animais, zoonoses e denúncias por bairro' });
+    const conteudo = document.getElementById('conteudo');
+    let mapa = null;
+    let camadaAtual = null;
+    let modo = 'animais';
+
+    function montar() {
+      conteudo.innerHTML = `
+        <div class="card mb-4">
+          <div class="card-body">
+            <div style="display:flex;gap:14px;align-items:end;justify-content:space-between;flex-wrap:wrap;">
+              <div>
+                <strong style="font-size:16px;">Camadas de visualização</strong>
+                <div class="text-sm text-cinza">Os pontos representam aproximações por bairro (não GPS exato)</div>
+              </div>
+              <div class="tabs" style="border:none;">
+                <button class="tab ativo" onclick="trocarModo('animais', this)">🐶 Animais</button>
+                <button class="tab" onclick="trocarModo('reprodutivo', this)">⚧ Status Reprodutivo</button>
+                <button class="tab" onclick="trocarModo('vacinacao', this)">💉 Vacinação</button>
+                <button class="tab" onclick="trocarModo('vermifugacao', this)">💊 Vermifugação</button>
+                <button class="tab" onclick="trocarModo('antiparasitario', this)">🦟 Antiparasitário</button>
+                <button class="tab" onclick="trocarModo('zoonoses', this)">🦠 Zoonoses</button>
+                <button class="tab" onclick="trocarModo('denuncias', this)">📢 Denúncias</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="avisoSemCoord" class="card mb-4" style="display:none;background:var(--laranja-claro);border-left:4px solid var(--laranja);padding:12px 16px;font-size:13px;color:var(--cinza-700);"></div>
+
+        <div id="filtroReprodutivo" class="card mb-4" style="display:none;">
+          <div class="card-body" style="display:flex;gap:14px;align-items:end;flex-wrap:wrap;">
+            <div>
+              <label class="form-label">Filtrar por status reprodutivo</label>
+              <select id="selReprodutivo" class="form-controle" style="min-width:240px;" onchange="aplicarFiltroReprodutivo()">
+                <option value="">Todos os status</option>
+                <option>Castrado(a)</option>
+                <option>Inteiro(a)</option>
+                <option>Ovário remanescente</option>
+                <option>Rufião</option>
+                <option>Criptorquida</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <div class="text-sm text-cinza" id="contadorReprodutivo">Mostrando todos os animais por status reprodutivo.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="filtroVacinacao" class="card mb-4" style="display:none;">
+          <div class="card-body" style="display:flex;gap:14px;align-items:end;flex-wrap:wrap;">
+            <div>
+              <label class="form-label">Filtrar por tipo de vacina</label>
+              <select id="selVacina" class="form-controle" style="min-width:240px;" onchange="aplicarFiltroVacinacao()">
+                <option value="">Qualquer vacina</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <div class="text-sm text-cinza" id="contadorVacinacao">Verde = vacinado · Vermelho = não vacinado.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="filtroVermifugacao" class="card mb-4" style="display:none;">
+          <div class="card-body" style="display:flex;gap:14px;align-items:end;flex-wrap:wrap;">
+            <div>
+              <label class="form-label">Filtrar por produto (vermífugo)</label>
+              <select id="selVermifugo" class="form-controle" style="min-width:240px;" onchange="aplicarFiltroVermifugacao()">
+                <option value="">Qualquer vermífugo</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <div class="text-sm text-cinza" id="contadorVermifugacao">Verde = vermifugado · Vermelho = não vermifugado.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="filtroAntiparasitario" class="card mb-4" style="display:none;">
+          <div class="card-body" style="display:flex;gap:14px;align-items:end;flex-wrap:wrap;">
+            <div>
+              <label class="form-label">Filtrar por produto (ectoparasiticida/coleira)</label>
+              <select id="selAntiparasitario" class="form-controle" style="min-width:240px;" onchange="aplicarFiltroAntiparasitario()">
+                <option value="">Qualquer antiparasitário</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <div class="text-sm text-cinza" id="contadorAntiparasitario">Verde = tratado · Vermelho = não tratado.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="filtroZoonose" class="card mb-4" style="display:none;">
+          <div class="card-body" style="display:flex;gap:14px;align-items:end;flex-wrap:wrap;">
+            <div>
+              <label class="form-label">Filtrar por tipo de zoonose</label>
+              <select id="selZoonose" class="form-controle" style="min-width:240px;" onchange="aplicarFiltroZoonose()">
+                <option value="">Todas as zoonoses</option>
+                <option>Raiva</option>
+                <option>Leishmaniose</option>
+                <option>Esporotricose</option>
+                <option>Leptospirose</option>
+                <option>Toxoplasmose</option>
+                <option>Brucelose</option>
+                <option>Tuberculose</option>
+                <option>Sarna</option>
+                <option>Dermatofitose (Micose)</option>
+                <option>Outra</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <div class="text-sm text-cinza" id="contadorZoonose">Mostrando todas as ocorrências de zoonoses.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body" style="padding:0;position:relative;">
+            <div id="mapa"></div>
+            <div class="legenda-mapa" id="legenda"></div>
+          </div>
+        </div>
+
+        <div class="card mt-4">
+          <div class="card-header"><h2>📊 Resumo por Bairro</h2></div>
+          <div class="card-body"><div id="resumoBairros"></div></div>
+        </div>
+      `;
+
+      mapa = L.map('mapa').setView([-19.9444, -43.4912], 14);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19, attribution: '© OpenStreetMap'
+      }).addTo(mapa);
+
+      trocarModo('animais');
+    }
+
+    async function trocarModo(novoModo, btn) {
+      modo = novoModo;
+      if (btn) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('ativo'));
+        btn.classList.add('ativo');
+      }
+
+      // Mostra/esconde os painéis de filtro conforme a aba
+      const paineis = {
+        filtroZoonose: modo === 'zoonoses',
+        filtroReprodutivo: modo === 'reprodutivo',
+        filtroVacinacao: modo === 'vacinacao',
+        filtroVermifugacao: modo === 'vermifugacao',
+        filtroAntiparasitario: modo === 'antiparasitario'
+      };
+      for (const [id, visivel] of Object.entries(paineis)) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = visivel ? '' : 'none';
+      }
+
+      await carregarMapa();
+    }
+
+    function aplicarFiltroZoonose() { carregarMapa(); }
+    function aplicarFiltroReprodutivo() { carregarMapa(); }
+    function aplicarFiltroVacinacao() { carregarMapa(); }
+    function aplicarFiltroVermifugacao() { carregarMapa(); }
+    function aplicarFiltroAntiparasitario() { carregarMapa(); }
+
+    async function carregarMapa() {
+      try {
+        let url = '/mapa/' + modo;
+        // Aplica filtro de tipo de zoonose se estiver na aba zoonoses
+        if (modo === 'zoonoses') {
+          const sel = document.getElementById('selZoonose');
+          const tipo = sel ? sel.value : '';
+          if (tipo) url += '?zoonose=' + encodeURIComponent(tipo);
+          const contador = document.getElementById('contadorZoonose');
+          if (contador) {
+            contador.textContent = tipo
+              ? `Mostrando apenas: ${tipo}`
+              : 'Mostrando todas as ocorrências de zoonoses.';
+          }
+        }
+        // Filtro de status reprodutivo
+        if (modo === 'reprodutivo') {
+          const sel = document.getElementById('selReprodutivo');
+          const st = sel ? sel.value : '';
+          if (st) url += '?status=' + encodeURIComponent(st);
+        }
+        // Filtro de vacinação (tipo de vacina)
+        if (modo === 'vacinacao') {
+          const sel = document.getElementById('selVacina');
+          const v = sel ? sel.value : '';
+          if (v) url += '?vacina=' + encodeURIComponent(v);
+        }
+        // Filtro de vermifugação (produto)
+        if (modo === 'vermifugacao') {
+          const sel = document.getElementById('selVermifugo');
+          const v = sel ? sel.value : '';
+          if (v) url += '?produto=' + encodeURIComponent(v);
+        }
+        // Filtro de antiparasitário (produto)
+        if (modo === 'antiparasitario') {
+          const sel = document.getElementById('selAntiparasitario');
+          const v = sel ? sel.value : '';
+          if (v) url += '?produto=' + encodeURIComponent(v);
+        }
+        const r = await api(url);
+        atualizarMapa(r);
+        atualizarLegenda(modo);
+        atualizarResumo(r);
+
+        // Contadores específicos
+        if (modo === 'zoonoses') {
+          const contador = document.getElementById('contadorZoonose');
+          const sel = document.getElementById('selZoonose');
+          const tipo = sel ? sel.value : '';
+          if (contador) {
+            const n = (r.pontos || []).length;
+            contador.textContent = (tipo ? `${tipo}: ` : 'Todas as zoonoses: ') +
+              `${n} ocorrência(s) plotada(s) no mapa.`;
+          }
+        }
+        if (modo === 'reprodutivo') {
+          const contador = document.getElementById('contadorReprodutivo');
+          const sel = document.getElementById('selReprodutivo');
+          const st = sel ? sel.value : '';
+          if (contador) {
+            const n = (r.pontos || []).length;
+            contador.textContent = (st ? `${st}: ` : 'Todos os status: ') + `${n} animal(is) no mapa.`;
+          }
+        }
+        if (modo === 'vacinacao') {
+          // Popula o seletor de vacinas (uma vez)
+          const sel = document.getElementById('selVacina');
+          if (sel && r.tipos_vacina && sel.options.length <= 1) {
+            r.tipos_vacina.forEach(v => {
+              const o = document.createElement('option');
+              o.value = v; o.textContent = v; sel.appendChild(o);
+            });
+          }
+          const contador = document.getElementById('contadorVacinacao');
+          if (contador && r.totais) {
+            const fv = r.filtro_vacina ? `${r.filtro_vacina}: ` : '';
+            contador.textContent = `${fv}🟢 ${r.totais.vacinados} vacinado(s) · 🔴 ${r.totais.nao_vacinados} não vacinado(s).`;
+          }
+        }
+        if (modo === 'vermifugacao') {
+          const sel = document.getElementById('selVermifugo');
+          if (sel && r.tipos_produto && sel.options.length <= 1) {
+            r.tipos_produto.forEach(v => {
+              const o = document.createElement('option');
+              o.value = v; o.textContent = v; sel.appendChild(o);
+            });
+          }
+          const contador = document.getElementById('contadorVermifugacao');
+          if (contador && r.totais) {
+            const fp = r.filtro_produto ? `${r.filtro_produto}: ` : '';
+            contador.textContent = `${fp}🟢 ${r.totais.tratados} vermifugado(s) · 🔴 ${r.totais.nao_tratados} não vermifugado(s).`;
+          }
+        }
+        if (modo === 'antiparasitario') {
+          const sel = document.getElementById('selAntiparasitario');
+          if (sel && r.tipos_produto && sel.options.length <= 1) {
+            r.tipos_produto.forEach(v => {
+              const o = document.createElement('option');
+              o.value = v; o.textContent = v; sel.appendChild(o);
+            });
+          }
+          const contador = document.getElementById('contadorAntiparasitario');
+          if (contador && r.totais) {
+            const fp = r.filtro_produto ? `${r.filtro_produto}: ` : '';
+            contador.textContent = `${fp}🟢 ${r.totais.tratados} tratado(s) · 🔴 ${r.totais.nao_tratados} não tratado(s).`;
+          }
+        }
+
+        // Aviso de bairros sem coordenada
+        const avisoDiv = document.getElementById('avisoSemCoord');
+        const sem = r.bairros_sem_coordenada || [];
+        if (sem.length > 0) {
+          avisoDiv.style.display = '';
+          avisoDiv.innerHTML = `
+            <strong>⚠️ ${sem.length} bairro(s) com registros não aparecem no mapa:</strong>
+            ${sem.map(b => `<span class="badge badge-laranja" style="margin:2px;">${escapeHtml(b)}</span>`).join(' ')}
+            <br><a href="/bairros.html" style="color:var(--azul-bandeira);text-decoration:underline;font-size:13px;">→ Definir coordenadas na tela de Bairros</a>
+          `;
+        } else {
+          avisoDiv.style.display = 'none';
+        }
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    function atualizarMapa(r) {
+      if (camadaAtual) mapa.removeLayer(camadaAtual);
+      camadaAtual = L.layerGroup().addTo(mapa);
+
+      // Modo "animais": mostrar agregação por bairro (círculos proporcionais)
+      if (modo === 'animais') {
+        const max = Math.max(...r.porBairro.map(b => b.total), 1);
+        for (const b of r.porBairro) {
+          const raio = 100 + (b.total / max) * 500;
+          const circle = L.circle([b.lat, b.lng], {
+            radius: raio,
+            color: '#003c7c', fillColor: '#003c7c', fillOpacity: 0.35, weight: 2
+          }).addTo(camadaAtual);
+          circle.bindPopup(`
+            <div class="popup-info">
+              <strong>${b.bairro}</strong>
+              <div>${b.total} animal(is) cadastrado(s)</div>
+            </div>
+          `);
+        }
+      }
+      // Modo "zoonoses": pins + heatmap
+      else if (modo === 'zoonoses') {
+        if (r.pontos.length > 0) {
+          const heat = L.heatLayer(r.pontos.map(p => [p.lat, p.lng, p.diagnostico === 'Positivo' ? 1.0 : 0.4]), {
+            radius: 35, blur: 25, max: 1,
+            gradient: { 0.2: 'green', 0.5: 'orange', 0.8: 'red' }
+          }).addTo(camadaAtual);
+        }
+        for (const p of r.pontos) {
+          const cor = p.diagnostico === 'Positivo' ? '#b8252c' :
+                      p.diagnostico === 'Negativo' ? '#1f7a3a' : '#c9a227';
+          L.circleMarker([p.lat, p.lng], {
+            radius: 7, color: cor, fillColor: cor, fillOpacity: 0.85, weight: 2
+          }).addTo(camadaAtual).bindPopup(`
+            <div class="popup-info">
+              <strong>${escapeHtml(p.zoonose)}</strong>
+              <div><b>Animal:</b> ${escapeHtml(p.animal_nome)} (${escapeHtml(p.animal_codigo)})</div>
+              <div><b>Espécie:</b> ${escapeHtml(p.especie)}</div>
+              <div><b>Bairro:</b> ${escapeHtml(p.bairro_ocorrencia)}</div>
+              <div><b>Diagnóstico:</b> ${escapeHtml(p.diagnostico || '—')}</div>
+              <div><b>Data:</b> ${formatarData(p.data_notificacao)}</div>
+            </div>
+          `);
+        }
+      }
+      // Modo "reprodutivo": pins coloridos por status reprodutivo
+      else if (modo === 'reprodutivo') {
+        const cores = {
+          'Castrado(a)': '#1f7a3a',          // verde
+          'Inteiro(a)': '#b8252c',           // vermelho
+          'Ovário remanescente': '#7b2d8e',  // roxo
+          'Rufião': '#c9a227',               // dourado
+          'Criptorquida': '#cc7a1f',         // laranja
+          'Não informado': '#999'            // cinza
+        };
+        for (const p of r.pontos) {
+          const cor = cores[p.status_reprodutivo] || '#003c7c';
+          L.circleMarker([p.lat, p.lng], {
+            radius: 7, color: cor, fillColor: cor, fillOpacity: 0.85, weight: 2
+          }).addTo(camadaAtual).bindPopup(`
+            <div class="popup-info">
+              <strong>${escapeHtml(p.nome)}</strong> <span class="text-xs">(${escapeHtml(p.codigo)})</span>
+              <div><b>Espécie:</b> ${escapeHtml(p.especie)}</div>
+              <div><b>Status:</b> ${escapeHtml(p.status_reprodutivo)}</div>
+              <div><b>Bairro:</b> ${escapeHtml(p.bairro)}</div>
+            </div>
+          `);
+        }
+      }
+      // Modo "vacinacao": verde = vacinado, vermelho = não vacinado
+      else if (modo === 'vacinacao') {
+        for (const p of r.pontos) {
+          const cor = p.vacinado ? '#1f7a3a' : '#b8252c';
+          L.circleMarker([p.lat, p.lng], {
+            radius: 7, color: cor, fillColor: cor, fillOpacity: 0.85, weight: 2
+          }).addTo(camadaAtual).bindPopup(`
+            <div class="popup-info">
+              <strong>${escapeHtml(p.nome)}</strong> <span class="text-xs">(${escapeHtml(p.codigo)})</span>
+              <div><b>Espécie:</b> ${escapeHtml(p.especie)}</div>
+              <div><b>Situação:</b> ${p.vacinado ? '✅ Vacinado' : '❌ Não vacinado'}</div>
+              <div><b>Bairro:</b> ${escapeHtml(p.bairro)}</div>
+            </div>
+          `);
+        }
+      }
+      // Modos "vermifugacao" e "antiparasitario": verde = tratado, vermelho = não
+      else if (modo === 'vermifugacao' || modo === 'antiparasitario') {
+        const rotulo = modo === 'vermifugacao' ? 'Vermifugado' : 'Antiparasitário em dia';
+        for (const p of r.pontos) {
+          const cor = p.tratado ? '#1f7a3a' : '#b8252c';
+          L.circleMarker([p.lat, p.lng], {
+            radius: 7, color: cor, fillColor: cor, fillOpacity: 0.85, weight: 2
+          }).addTo(camadaAtual).bindPopup(`
+            <div class="popup-info">
+              <strong>${escapeHtml(p.nome)}</strong> <span class="text-xs">(${escapeHtml(p.codigo)})</span>
+              <div><b>Espécie:</b> ${escapeHtml(p.especie)}</div>
+              <div><b>Situação:</b> ${p.tratado ? '✅ ' + rotulo : '❌ Não tratado'}</div>
+              <div><b>Bairro:</b> ${escapeHtml(p.bairro)}</div>
+            </div>
+          `);
+        }
+      }
+    }
+
+    function atualizarLegenda(m) {
+      const div = document.getElementById('legenda');
+      if (m === 'animais') {
+        div.innerHTML = `<strong>Animais por bairro</strong><br>
+          <span class="legenda-cor" style="background:#003c7c;"></span> Círculo proporcional ao total`;
+      } else if (m === 'zoonoses') {
+        div.innerHTML = `<strong>Zoonoses</strong><br>
+          <span class="legenda-cor" style="background:#b8252c;"></span> Positivo<br>
+          <span class="legenda-cor" style="background:#1f7a3a;"></span> Negativo<br>
+          <span class="legenda-cor" style="background:#c9a227;"></span> Pendente/Aguardando`;
+      } else if (m === 'reprodutivo') {
+        div.innerHTML = `<strong>Status Reprodutivo</strong><br>
+          <span class="legenda-cor" style="background:#1f7a3a;"></span> Castrado(a)<br>
+          <span class="legenda-cor" style="background:#b8252c;"></span> Inteiro(a)<br>
+          <span class="legenda-cor" style="background:#7b2d8e;"></span> Ovário remanescente<br>
+          <span class="legenda-cor" style="background:#c9a227;"></span> Rufião<br>
+          <span class="legenda-cor" style="background:#cc7a1f;"></span> Criptorquida<br>
+          <span class="legenda-cor" style="background:#999;"></span> Não informado`;
+      } else if (m === 'vacinacao') {
+        div.innerHTML = `<strong>Vacinação</strong><br>
+          <span class="legenda-cor" style="background:#1f7a3a;"></span> Vacinado (em dia)<br>
+          <span class="legenda-cor" style="background:#b8252c;"></span> Não vacinado`;
+      } else if (m === 'vermifugacao') {
+        div.innerHTML = `<strong>Vermifugação</strong><br>
+          <span class="legenda-cor" style="background:#1f7a3a;"></span> Vermifugado (em dia)<br>
+          <span class="legenda-cor" style="background:#b8252c;"></span> Não vermifugado`;
+      } else if (m === 'antiparasitario') {
+        div.innerHTML = `<strong>Antiparasitário (ecto/coleira)</strong><br>
+          <span class="legenda-cor" style="background:#1f7a3a;"></span> Tratado (em dia)<br>
+          <span class="legenda-cor" style="background:#b8252c;"></span> Não tratado`;
+      } else {
+        div.innerHTML = `<strong>Denúncias</strong><br>
+          <span class="legenda-cor" style="background:#cc7a1f;"></span> Em apuração<br>
+          <span class="legenda-cor" style="background:#1f7a3a;"></span> Atendida<br>
+          <span class="legenda-cor" style="background:#666;"></span> Outras`;
+      }
+    }
+
+    function atualizarResumo(r) {
+      const div = document.getElementById('resumoBairros');
+
+      // Modo reprodutivo: resumo por bairro x status (a partir de r.resumo)
+      if (modo === 'reprodutivo') {
+        if (!r.resumo || r.resumo.length === 0) {
+          div.innerHTML = '<div class="vazio"><div class="vazio-titulo">Nenhum dado para exibir</div></div>';
+          return;
+        }
+        // Agrupa por bairro
+        const porBairro = {};
+        for (const x of r.resumo) {
+          if (!porBairro[x.bairro]) porBairro[x.bairro] = {};
+          porBairro[x.bairro][x.status || 'Não informado'] = x.total;
+        }
+        const bairros = Object.keys(porBairro).sort();
+        const linhas = bairros.map(b => {
+          const detalhes = Object.entries(porBairro[b])
+            .map(([s, n]) => `${s}: ${n}`).join(' · ');
+          const tot = Object.values(porBairro[b]).reduce((a, n) => a + n, 0);
+          return `<tr><td><strong>${escapeHtml(b)}</strong></td><td>${tot}</td><td class="text-xs">${escapeHtml(detalhes)}</td></tr>`;
+        }).join('');
+        div.innerHTML = `<table class="tabela"><thead><tr><th>Bairro</th><th>Total</th><th>Por status</th></tr></thead><tbody>${linhas}</tbody></table>`;
+        return;
+      }
+
+      // Modos de ação sanitária (vacinação/vermifugação/antiparasitário): cobertura por bairro
+      if (modo === 'vacinacao' || modo === 'vermifugacao' || modo === 'antiparasitario') {
+        if (!r.pontos || r.pontos.length === 0) {
+          div.innerHTML = '<div class="vazio"><div class="vazio-titulo">Nenhum dado para exibir</div></div>';
+          return;
+        }
+        const campoTratado = (modo === 'vacinacao') ? 'vacinado' : 'tratado';
+        const rotuloSim = (modo === 'vacinacao') ? 'Vacinados'
+                        : (modo === 'vermifugacao') ? 'Vermifugados' : 'Tratados';
+        const porBairro = {};
+        for (const p of r.pontos) {
+          if (!porBairro[p.bairro]) porBairro[p.bairro] = { sim: 0, nao: 0 };
+          if (p[campoTratado]) porBairro[p.bairro].sim++; else porBairro[p.bairro].nao++;
+        }
+        const bairros = Object.keys(porBairro).sort();
+        const linhas = bairros.map(b => {
+          const d = porBairro[b];
+          const tot = d.sim + d.nao;
+          const cob = tot ? Math.round((d.sim / tot) * 100) : 0;
+          return `<tr><td><strong>${escapeHtml(b)}</strong></td><td>🟢 ${d.sim}</td><td>🔴 ${d.nao}</td><td>${cob}%</td></tr>`;
+        }).join('');
+        div.innerHTML = `<table class="tabela"><thead><tr><th>Bairro</th><th>${rotuloSim}</th><th>Não</th><th>Cobertura</th></tr></thead><tbody>${linhas}</tbody></table>`;
+        return;
+      }
+
+      if (!r.porBairro || r.porBairro.length === 0) {
+        div.innerHTML = '<div class="vazio"><div class="vazio-titulo">Nenhum dado para exibir</div></div>';
+        return;
+      }
+      const ordenado = [...r.porBairro].sort((a,b) => b.total - a.total);
+      let cabec, linhas;
+      if (modo === 'animais') {
+        cabec = '<tr><th>Bairro</th><th>Total de Animais</th></tr>';
+        linhas = ordenado.map(b => `<tr><td><strong>${escapeHtml(b.bairro)}</strong></td><td>${b.total}</td></tr>`).join('');
+      } else if (modo === 'zoonoses') {
+        cabec = '<tr><th>Bairro</th><th>Notificações</th><th>Positivos</th></tr>';
+        linhas = ordenado.map(b => `<tr><td><strong>${escapeHtml(b.bairro)}</strong></td><td>${b.total}</td><td>${b.positivos||0}</td></tr>`).join('');
+      } else {
+        cabec = '<tr><th>Bairro</th><th>Denúncias</th><th>Pendentes</th></tr>';
+        linhas = ordenado.map(b => `<tr><td><strong>${escapeHtml(b.bairro)}</strong></td><td>${b.total}</td><td>${b.pendentes||0}</td></tr>`).join('');
+      }
+      div.innerHTML = `<table class="tabela"><thead>${cabec}</thead><tbody>${linhas}</tbody></table>`;
+    }
+
+    montar();
+  </script>
+</body>
+</html>

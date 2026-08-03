@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carteirinhas — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <script src="/js/comum.js"></script>
+  <script>
+    montarShell({ paginaAtiva: 'carteirinhas', titulo: 'Carteirinhas Digitais', subtitulo: 'Emissão de identificação oficial com QR Code' });
+    const conteudo = document.getElementById('conteudo');
+
+    async function carregar() {
+      conteudo.innerHTML = `
+        <div class="card mb-4">
+          <div class="card-body">
+            <strong style="font-size:16px;">Selecione um animal para emitir a carteirinha</strong>
+            <div class="text-sm text-cinza mt-2">A carteirinha digital contém os dados do animal, do responsável e um QR Code para consulta pública.</div>
+          </div>
+        </div>
+
+        <div class="tabela-container">
+          <div class="tabela-toolbar">
+            <div class="busca"><input type="text" id="busca" placeholder="Buscar por nome ou código..."></div>
+          </div>
+          <div id="lista"></div>
+        </div>
+      `;
+      document.getElementById('busca').addEventListener('input', debounce(buscar, 300));
+      buscar();
+    }
+
+    async function buscar() {
+      const q = document.getElementById('busca').value;
+      try {
+        const r = await api('/animais?busca=' + encodeURIComponent(q));
+        render(r.dados);
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    function render(dados) {
+      const div = document.getElementById('lista');
+      if (dados.length === 0) {
+        div.innerHTML = '<div class="vazio"><div class="vazio-icone">🪪</div><div class="vazio-titulo">Nenhum animal encontrado</div></div>';
+        return;
+      }
+      div.innerHTML = `
+        <table class="tabela">
+          <thead><tr><th>Código</th><th>Animal</th><th>Espécie</th><th>Responsável</th><th style="text-align:right;">Ação</th></tr></thead>
+          <tbody>${dados.map(a => `
+            <tr>
+              <td><span class="codigo-cell">${escapeHtml(a.codigo)}</span></td>
+              <td><strong>${escapeHtml(a.nome)}</strong></td>
+              <td>${escapeHtml(a.especie)}${a.raca ? ' · ' + escapeHtml(a.raca) : ''}</td>
+              <td>${escapeHtml(a.responsavel_nome || '—')}</td>
+              <td><div class="acoes"><a href="/carteirinha.html?id=${a.id}" class="btn btn-primario btn-sm">🪪 Emitir Carteirinha</a></div></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+    carregar();
+  </script>
+</body>
+</html>

@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bairros Oficiais — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    .inativo { opacity: 0.55; }
+    .badge-dist { background: var(--azul-claro); color: var(--azul-bandeira); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .coord-ok { color: var(--verde-bandeira); font-size: 11px; }
+    .coord-vazia { color: var(--vermelho); font-size: 11px; }
+    #mapaCoord { height: 320px; border-radius: 6px; border: 1px solid var(--cinza-200); margin-top: 8px; }
+    .progress-geo { background: var(--cinza-100); border-radius: 6px; padding: 14px; margin-bottom: 14px; font-family: ui-monospace, monospace; font-size: 13px; max-height: 240px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <!-- Modal de cadastro/edição -->
+  <div class="modal-overlay" id="modalBairro">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2 id="tituloModalBairro">Novo Bairro</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalBairro')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="formBairro">
+          <input type="hidden" id="bairroId">
+          <div class="form-grid">
+            <div class="form-grupo full">
+              <label class="form-label obrigatorio">Nome do Bairro</label>
+              <input type="text" id="bairroNome" class="form-controle" required maxlength="80">
+            </div>
+            <div class="form-grupo full">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" id="bairroDistrito">
+                <span>É um distrito? <small class="text-cinza">(Bom Jesus do Amparo, Cocais, etc.)</small></span>
+              </label>
+            </div>
+            <div class="form-grupo full" id="grupoAtivo" style="display:none;">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" id="bairroAtivo" checked>
+                <span>Bairro ativo (aparece nos formulários)</span>
+              </label>
+            </div>
+
+            <div class="form-grupo full" style="margin-top:6px;">
+              <strong style="font-family:var(--fonte-display);font-size:13px;color:var(--azul-bandeira);text-transform:uppercase;letter-spacing:1px;">📍 Coordenadas Geográficas</strong>
+              <div class="text-xs text-cinza" style="margin-top:4px;">
+                As coordenadas são usadas no Mapa do Município. Você pode digitar manualmente ou <strong>clicar no mapa abaixo</strong> para marcar o ponto.
+              </div>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Latitude</label>
+              <input type="number" id="bairroLat" class="form-controle" step="any" placeholder="-19.9444">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Longitude</label>
+              <input type="number" id="bairroLng" class="form-controle" step="any" placeholder="-43.4912">
+            </div>
+            <div class="form-grupo full">
+              <div id="mapaCoord"></div>
+              <div class="text-xs text-cinza mt-2">💡 Clique no mapa para definir/ajustar as coordenadas</div>
+            </div>
+          </div>
+          <div class="form-acoes">
+            <button type="button" class="btn btn-secundario" onclick="fecharModal('modalBairro')">Cancelar</button>
+            <button type="submit" class="btn btn-primario" id="btnSalvar">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de geocoding em lote -->
+  <div class="modal-overlay" id="modalGeo">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>🌍 Sincronizar Coordenadas (OpenStreetMap)</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalGeo')">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="background:var(--azul-claro);border-left:4px solid var(--azul-bandeira);padding:14px 18px;border-radius:6px;margin-bottom:14px;font-size:13px;">
+          O sistema vai consultar o <strong>OpenStreetMap (Nominatim)</strong> para preencher as coordenadas dos bairros que ainda estão sem.
+          <br><br>
+          ⏱️ Levará cerca de <strong>1 segundo por bairro</strong> (política de uso do serviço).
+          <br>
+          🌐 Requer que o servidor tenha acesso à internet.
+        </div>
+
+        <div id="geoStatus"></div>
+
+        <div class="form-acoes">
+          <button type="button" class="btn btn-secundario" onclick="fecharModal('modalGeo')">Fechar</button>
+          <button type="button" class="btn btn-secundario" onclick="iniciarGeo(true)" id="btnGeoForcar">🔄 Refazer Todos</button>
+          <button type="button" class="btn btn-primario" onclick="iniciarGeo(false)" id="btnGeoIniciar">▶️ Buscar Pendentes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Bairros Duplicados -->
+  <div class="modal-overlay" id="modalDup">
+    <div class="modal" style="max-width:680px;">
+      <div class="modal-cabecalho">
+        <h2>🔀 Bairros Duplicados</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalDup')">×</button>
+      </div>
+      <div class="modal-corpo">
+        <p class="text-sm" style="margin-bottom:14px;color:var(--cinza-700);">
+          Bairros com grafias equivalentes (ex.: "Viúva" e "VIÚVA") aparecem agrupados abaixo.
+          Escolha qual nome manter (mestre) e mescle os demais — todos os registros vinculados
+          (responsáveis, animais, zoonoses, etc.) serão movidos para o nome escolhido.
+        </p>
+        <div id="listaDuplicados"><p class="text-cinza">Carregando...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/comum.js"></script>
+  <script>
+    montarShell({
+      paginaAtiva: 'bairros',
+      titulo: 'Bairros Oficiais do Município',
+      subtitulo: 'Gestão da lista padronizada de bairros e suas coordenadas geográficas'
+    });
+
+    const conteudo = document.getElementById('conteudo');
+    let cacheBairros = [];
+    let mapModal = null;
+    let markerModal = null;
+
+    function montar() {
+      conteudo.innerHTML = `
+        <div class="card mb-4">
+          <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div>
+              <strong style="font-size:16px;">Bairros e Distritos de Barão de Cocais</strong>
+              <div class="text-sm text-cinza">Lista oficial usada em todos os cadastros, relatórios e mapa.</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+                <input type="checkbox" id="mostrarInativos" onchange="carregar()"> Mostrar inativos
+              </label>
+              <button class="btn btn-secundario" onclick="abrirDuplicados()">🔀 Bairros Duplicados</button>
+              <button class="btn btn-secundario" onclick="abrirGeo()">🌍 Sincronizar Coordenadas</button>
+              <button class="btn btn-primario" onclick="abrirNovo()">+ Novo Bairro</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="estatisticas"></div>
+
+        <div class="tabela-container">
+          <div id="lista"></div>
+        </div>
+
+        <div class="card mt-4">
+          <div class="card-body" style="background:var(--azul-claro);border-left:4px solid var(--azul-bandeira);">
+            <strong style="color:var(--azul-bandeira);">ℹ️ Sobre esta tela</strong>
+            <div class="text-sm" style="margin-top:6px;line-height:1.6;">
+              <p>• Esta lista é usada nos formulários de <strong>Responsáveis</strong>, <strong>Animais</strong>, <strong>Zoonoses</strong>, <strong>Mordeduras SINAN</strong>, <strong>Denúncias</strong> e <strong>Relatórios</strong>.</p>
+              <p>• Os bairros com <strong>coordenadas geográficas</strong> aparecem no <strong>Mapa do Município</strong> — bairros sem coordenadas não são plotados.</p>
+              <p>• Use <strong>"🌍 Sincronizar Coordenadas"</strong> para buscar automaticamente as coordenadas no OpenStreetMap.</p>
+              <p>• Quando um bairro é <strong>inativado</strong>, ele deixa de aparecer nos formulários, mas os registros antigos são preservados.</p>
+            </div>
+          </div>
+        </div>
+      `;
+      carregar();
+    }
+
+    async function carregar() {
+      const incluirInativos = document.getElementById('mostrarInativos')?.checked ? '1' : '0';
+      try {
+        const r = await api('/bairros?incluir_inativos=' + incluirInativos);
+        cacheBairros = r.dados;
+        render(r.dados);
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    function render(dados) {
+      // Estatísticas
+      const ativos = dados.filter(b => b.ativo).length;
+      const inativos = dados.filter(b => !b.ativo).length;
+      const comCoord = dados.filter(b => b.latitude != null && b.longitude != null).length;
+      const semCoord = ativos - dados.filter(b => b.ativo && b.latitude != null).length;
+
+      document.getElementById('estatisticas').innerHTML = `
+        <div class="indicadores-grid mb-4" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;">
+          <div class="indicador">
+            <div class="indicador-label">Total</div>
+            <div class="indicador-valor">${dados.length}</div>
+          </div>
+          <div class="indicador verde">
+            <div class="indicador-label">Ativos</div>
+            <div class="indicador-valor">${ativos}</div>
+          </div>
+          ${inativos > 0 ? `<div class="indicador">
+            <div class="indicador-label">Inativos</div>
+            <div class="indicador-valor">${inativos}</div>
+          </div>` : ''}
+          <div class="indicador azul">
+            <div class="indicador-label">Com coordenada</div>
+            <div class="indicador-valor">${comCoord}</div>
+          </div>
+          ${semCoord > 0 ? `<div class="indicador vermelho">
+            <div class="indicador-label">Sem coordenada</div>
+            <div class="indicador-valor">${semCoord}</div>
+            <div class="text-xs" style="margin-top:4px;">não aparecem no mapa</div>
+          </div>` : ''}
+        </div>
+      `;
+
+      const div = document.getElementById('lista');
+      if (dados.length === 0) {
+        div.innerHTML = '<div class="vazio"><div class="vazio-icone">📍</div><div class="vazio-titulo">Nenhum bairro cadastrado</div></div>';
+        return;
+      }
+
+      div.innerHTML = `
+        <table class="tabela">
+          <thead><tr>
+            <th style="width:50px;">#</th>
+            <th>Nome do Bairro</th>
+            <th style="width:100px;">Tipo</th>
+            <th style="width:180px;">Coordenadas</th>
+            <th style="width:90px;">Status</th>
+            <th style="width:160px;text-align:right;">Ações</th>
+          </tr></thead>
+          <tbody>${dados.map((b, i) => `
+            <tr class="${b.ativo ? '' : 'inativo'}">
+              <td><span class="codigo-cell">${i+1}</span></td>
+              <td><strong>${escapeHtml(b.nome)}</strong></td>
+              <td>${b.eh_distrito ? '<span class="badge-dist">Distrito</span>' : '<span class="text-xs text-cinza">Bairro</span>'}</td>
+              <td>${b.latitude != null && b.longitude != null
+                ? `<span class="coord-ok">✓ ${b.latitude.toFixed(4)}, ${b.longitude.toFixed(4)}</span>`
+                : `<span class="coord-vazia">✕ Sem coordenada</span>`}</td>
+              <td>${b.ativo ? '<span class="badge badge-verde">Ativo</span>' : '<span class="badge badge-cinza">Inativo</span>'}</td>
+              <td><div class="acoes">
+                <button class="btn btn-secundario btn-sm" onclick='editar(${JSON.stringify(b).replace(/'/g,"&#39;")})'>Editar</button>
+                ${b.ativo
+                  ? `<button class="btn btn-secundario btn-sm" onclick="inativar(${b.id}, '${escapeHtml(b.nome)}')" title="Inativar">✕</button>`
+                  : `<button class="btn btn-secundario btn-sm" onclick="reativar(${b.id})" title="Reativar">↻</button>`}
+              </div></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function abrirNovo() {
+      document.getElementById('formBairro').reset();
+      document.getElementById('bairroId').value = '';
+      document.getElementById('bairroAtivo').checked = true;
+      document.getElementById('grupoAtivo').style.display = 'none';
+      document.getElementById('tituloModalBairro').textContent = 'Novo Bairro';
+      abrirModal('modalBairro');
+      inicializarMapa();
+      setTimeout(() => document.getElementById('bairroNome').focus(), 100);
+    }
+
+    function editar(b) {
+      document.getElementById('bairroId').value = b.id;
+      document.getElementById('bairroNome').value = b.nome;
+      document.getElementById('bairroDistrito').checked = !!b.eh_distrito;
+      document.getElementById('bairroAtivo').checked = !!b.ativo;
+      document.getElementById('bairroLat').value = b.latitude != null ? b.latitude : '';
+      document.getElementById('bairroLng').value = b.longitude != null ? b.longitude : '';
+      document.getElementById('grupoAtivo').style.display = 'block';
+      document.getElementById('tituloModalBairro').textContent = 'Editar Bairro';
+      abrirModal('modalBairro');
+      inicializarMapa(b.latitude, b.longitude);
+    }
+
+    function inicializarMapa(lat, lng) {
+      const ll = (lat != null && lng != null) ? [lat, lng] : [-19.9444, -43.4912];
+      const zoom = (lat != null && lng != null) ? 15 : 13;
+      setTimeout(() => {
+        const div = document.getElementById('mapaCoord');
+        if (mapModal) { mapModal.remove(); mapModal = null; markerModal = null; }
+        mapModal = L.map(div).setView(ll, zoom);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19, attribution: '© OpenStreetMap'
+        }).addTo(mapModal);
+        if (lat != null && lng != null) {
+          markerModal = L.marker([lat, lng], { draggable: true }).addTo(mapModal);
+          markerModal.on('dragend', (e) => {
+            const pos = e.target.getLatLng();
+            document.getElementById('bairroLat').value = pos.lat.toFixed(6);
+            document.getElementById('bairroLng').value = pos.lng.toFixed(6);
+          });
+        }
+        mapModal.on('click', (e) => {
+          const ll = e.latlng;
+          if (markerModal) markerModal.remove();
+          markerModal = L.marker(ll, { draggable: true }).addTo(mapModal);
+          markerModal.on('dragend', (ev) => {
+            const pos = ev.target.getLatLng();
+            document.getElementById('bairroLat').value = pos.lat.toFixed(6);
+            document.getElementById('bairroLng').value = pos.lng.toFixed(6);
+          });
+          document.getElementById('bairroLat').value = ll.lat.toFixed(6);
+          document.getElementById('bairroLng').value = ll.lng.toFixed(6);
+        });
+        setTimeout(() => mapModal.invalidateSize(), 200);
+      }, 250);
+    }
+
+    document.getElementById('formBairro').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('bairroId').value;
+      const lat = document.getElementById('bairroLat').value;
+      const lng = document.getElementById('bairroLng').value;
+      const body = {
+        nome: document.getElementById('bairroNome').value.trim(),
+        eh_distrito: document.getElementById('bairroDistrito').checked,
+        ativo: document.getElementById('bairroAtivo').checked,
+        latitude: lat === '' ? null : parseFloat(lat),
+        longitude: lng === '' ? null : parseFloat(lng)
+      };
+      const btn = document.getElementById('btnSalvar');
+      btn.disabled = true;
+      try {
+        if (id) {
+          await api('/bairros/' + id, { method: 'PUT', body });
+          toast('Bairro atualizado', 'sucesso');
+        } else {
+          await api('/bairros', { method: 'POST', body });
+          toast('Bairro cadastrado', 'sucesso');
+        }
+        fecharModal('modalBairro');
+        carregar();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+      finally { btn.disabled = false; }
+    });
+
+    async function inativar(id, nome) {
+      if (!confirm(`Inativar o bairro "${nome}"?\n\nEle não aparecerá mais nos formulários novos, mas os registros antigos serão preservados.`)) return;
+      try {
+        await api('/bairros/' + id, { method: 'DELETE' });
+        toast('Bairro inativado', 'sucesso');
+        carregar();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    async function reativar(id) {
+      try {
+        await api('/bairros/' + id, { method: 'PUT', body: { ativo: true } });
+        toast('Bairro reativado', 'sucesso');
+        carregar();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    // ========== GEOCODING EM LOTE ==========
+    function abrirGeo() {
+      document.getElementById('geoStatus').innerHTML = '';
+      abrirModal('modalGeo');
+    }
+
+    async function iniciarGeo(forcar) {
+      const status = document.getElementById('geoStatus');
+      const btn1 = document.getElementById('btnGeoIniciar');
+      const btn2 = document.getElementById('btnGeoForcar');
+      const semCoord = cacheBairros.filter(b => b.ativo && (b.latitude == null || b.longitude == null)).length;
+      const totalAtivos = cacheBairros.filter(b => b.ativo).length;
+      const qtd = forcar ? totalAtivos : semCoord;
+
+      if (qtd === 0) {
+        status.innerHTML = '<div class="progress-geo">Nenhum bairro pendente. Todos já têm coordenadas. ✅</div>';
+        return;
+      }
+      const segundos = Math.ceil(qtd * 1.1);
+      if (!confirm(`${forcar ? 'Refazer' : 'Buscar'} coordenadas de ${qtd} bairros?\n\nEstimativa: ~${segundos} segundos (${Math.ceil(segundos/60)} min)`)) return;
+
+      btn1.disabled = true; btn2.disabled = true;
+      status.innerHTML = `<div class="progress-geo">⏳ Processando ${qtd} bairros... aguarde, isso pode levar alguns minutos.</div>`;
+
+      try {
+        const r = await api('/bairros/geocodificar' + (forcar ? '?forcar=1' : ''), { method: 'POST' });
+
+        let html = `<div class="progress-geo">
+          <div style="color:var(--verde-bandeira);font-weight:600;margin-bottom:8px;">✅ Concluído!</div>
+          📊 Processados: ${r.processados}<br>
+          ✅ Encontrados: ${r.encontrados}<br>
+          ${r.nao_encontrados > 0 ? `❌ Não encontrados: ${r.nao_encontrados}<br>` : ''}
+          <hr style="margin:8px 0;border-color:var(--cinza-200);">
+        `;
+        for (const d of r.detalhes) {
+          if (d.status === 'ok') {
+            html += `<div style="color:var(--verde-bandeira);">✓ ${d.nome} → ${d.lat.toFixed(4)}, ${d.lng.toFixed(4)}</div>`;
+          } else {
+            html += `<div style="color:var(--vermelho);">✕ ${d.nome} (não encontrado — defina manualmente)</div>`;
+          }
+        }
+        html += '</div>';
+        status.innerHTML = html;
+
+        toast(`${r.encontrados} de ${r.processados} bairros sincronizados`, 'sucesso');
+        carregar();
+      } catch (err) {
+        status.innerHTML = `<div class="progress-geo" style="color:var(--vermelho);">❌ Erro: ${err.message}<br><br>Verifique se o servidor tem acesso à internet (nominatim.openstreetmap.org).</div>`;
+      } finally {
+        btn1.disabled = false; btn2.disabled = false;
+      }
+    }
+
+    // ===== BAIRROS DUPLICADOS =====
+    async function abrirDuplicados() {
+      abrirModal('modalDup');
+      const cont = document.getElementById('listaDuplicados');
+      cont.innerHTML = '<p class="text-cinza">Carregando...</p>';
+      try {
+        const r = await api('/bairros/duplicados');
+        if (!r.duplicados || r.duplicados.length === 0) {
+          cont.innerHTML = '<div style="text-align:center;padding:30px;color:var(--verde-bandeira);"><div style="font-size:40px;">✓</div><p style="margin-top:8px;">Nenhum bairro duplicado encontrado!</p></div>';
+          return;
+        }
+        cont.innerHTML = r.duplicados.map((grupo, gi) => {
+          const opcoes = grupo.map(b => `
+            <label style="display:flex;align-items:center;gap:8px;padding:6px 0;">
+              <input type="radio" name="mestre_${gi}" value="${b.id}" ${b.ativo ? 'checked' : ''}>
+              <span>${escapeHtml(b.nome)} ${b.ativo ? '' : '<span class="badge badge-laranja">inativo</span>'} ${b.latitude ? '<span class="badge badge-verde">tem coord.</span>' : ''}</span>
+            </label>`).join('');
+          return `
+            <div class="card" style="margin-bottom:12px;border:1px solid var(--cinza-200);">
+              <div class="card-body">
+                <div class="text-sm" style="font-weight:600;margin-bottom:8px;">Grupo ${gi + 1}: ${grupo.length} grafias equivalentes</div>
+                <div class="text-xs text-cinza" style="margin-bottom:6px;">Escolha qual nome MANTER (mestre):</div>
+                ${opcoes}
+                <button class="btn btn-primario btn-sm" style="margin-top:10px;" onclick="mesclarGrupo(${gi}, ${JSON.stringify(grupo.map(b=>b.id)).replace(/"/g,'&quot;')})">
+                  Mesclar este grupo
+                </button>
+              </div>
+            </div>`;
+        }).join('');
+      } catch (err) {
+        cont.innerHTML = `<p style="color:var(--vermelho);">Erro: ${err.message}</p>`;
+      }
+    }
+
+    async function mesclarGrupo(gi, ids) {
+      const sel = document.querySelector(`input[name="mestre_${gi}"]:checked`);
+      if (!sel) { toast('Selecione qual nome manter', 'alerta'); return; }
+      const mestreId = parseInt(sel.value);
+      const idsParaMesclar = ids.filter(id => id !== mestreId);
+      if (idsParaMesclar.length === 0) { toast('Nada a mesclar', 'alerta'); return; }
+      if (!confirm(`Mesclar ${idsParaMesclar.length} bairro(s) no escolhido? Os registros serão movidos e os duplicados inativados.`)) return;
+      try {
+        const r = await api('/bairros/mesclar', { method: 'POST', body: { mestre_id: mestreId, ids_para_mesclar: idsParaMesclar } });
+        const movidos = Object.entries(r.registros_movidos || {}).map(([t,n]) => `${n} em ${t}`).join(', ') || 'nenhum registro';
+        toast(`Mesclado em "${r.mestre}". Movidos: ${movidos}`, 'sucesso');
+        abrirDuplicados();
+        carregar();
+      } catch (err) {
+        toast('Erro: ' + err.message, 'erro');
+      }
+    }
+
+    montar();
+  </script>
+</body>
+</html>

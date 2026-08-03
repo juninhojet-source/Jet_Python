@@ -1,0 +1,25 @@
+{
+  "name": "SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses",
+  "short_name": "SIGAZ",
+  "description": "Sistema da Prefeitura Municipal de Barão de Cocais para gestão de animais e vigilância de zoonoses",
+  "start_url": "/dashboard.html",
+  "display": "standalone",
+  "background_color": "#003c7c",
+  "theme_color": "#003c7c",
+  "orientation": "any",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/assets/brasao_small.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/brasao.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

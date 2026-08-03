@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consulta Pública — SIGAZ</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    body { background: var(--fundo-pagina); min-height: 100vh; }
+    .topo-publico {
+      background: linear-gradient(135deg, var(--azul-escuro), var(--azul-bandeira));
+      color: var(--branco);
+      padding: 28px 20px;
+      text-align: center;
+      border-bottom: 4px solid var(--dourado);
+    }
+    .topo-publico .brasao-pub {
+      width: 70px; height: 70px;
+      border-radius: 10px;
+      background: var(--branco);
+      display: inline-grid; place-items: center;
+      padding: 6px;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .topo-publico .brasao-pub img {
+      width: 100%; height: 100%; object-fit: contain;
+    }
+    .topo-publico strong {
+      display: block; font-size: 12px; letter-spacing: 1.5px;
+      text-transform: uppercase; opacity: 0.85;
+    }
+    .topo-publico h1 {
+      font-family: var(--fonte-display);
+      font-size: 22px; margin-top: 4px;
+    }
+    .publico-container { max-width: 600px; margin: 24px auto; padding: 0 20px; }
+    .rodape-publico {
+      text-align: center;
+      padding: 24px;
+      color: var(--cinza-500);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <header class="topo-publico">
+    <div class="brasao-pub"><img src="/assets/brasao.png" alt="Brasão Barão de Cocais"></div>
+    <strong>Prefeitura Municipal de Barão de Cocais</strong>
+    <h1>Consulta Pública de Animal</h1>
+  </header>
+
+  <main class="publico-container" id="conteudo">
+    <div class="vazio"><div class="vazio-icone">⏳</div><div class="vazio-titulo">Carregando informações...</div></div>
+  </main>
+
+  <footer class="rodape-publico">
+    SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses<br>
+    Secretaria Municipal de Saúde · Vigilância em Saúde<br>
+    <strong>Departamento de Informática e Tecnologia</strong><br>
+    Prefeitura Municipal de Barão de Cocais — MG<br>
+    📞 (31) 3837-7661<br>
+    <a href="/privacidade.html" target="_blank" style="color:var(--azul-bandeira);font-size:12px;">🛡️ Política de Privacidade · LGPD</a>
+  </footer>
+
+  <script>
+    function formatarData(iso) {
+      if (!iso) return '—';
+      const [a, m, d] = iso.substring(0,10).split('-');
+      return `${d}/${m}/${a}`;
+    }
+    function escapeHtml(s) {
+      if (s == null) return '';
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    async function consultar() {
+      const codigo = new URLSearchParams(location.search).get('codigo');
+      const c = document.getElementById('conteudo');
+
+      if (!codigo) {
+        c.innerHTML = `
+          <div class="card"><div class="card-body" style="text-align:center;">
+            <div style="font-size:48px;opacity:0.4;margin-bottom:12px;">📷</div>
+            <div style="font-weight:600;font-size:16px;margin-bottom:8px;">Código não informado</div>
+            <div style="color:var(--cinza-500);font-size:14px;">
+              Escaneie um QR Code da carteirinha para consultar as informações do animal.
+            </div>
+          </div></div>
+        `;
+        return;
+      }
+
+      try {
+        const r = await fetch('/api/publico/animal/' + encodeURIComponent(codigo));
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.erro || 'Animal não encontrado');
+        }
+        const { animal, vacinas } = await r.json();
+        renderizar(animal, vacinas);
+      } catch (err) {
+        c.innerHTML = `
+          <div class="card"><div class="card-body" style="text-align:center;">
+            <div style="font-size:48px;opacity:0.4;margin-bottom:12px;">❌</div>
+            <div style="font-weight:600;font-size:16px;margin-bottom:8px;">Não foi possível consultar</div>
+            <div style="color:var(--cinza-500);font-size:14px;">${escapeHtml(err.message)}</div>
+          </div></div>
+        `;
+      }
+    }
+
+    function renderizar(a, vacinas) {
+      const dadoLinha = (lbl, val) => `
+        <div style="padding:10px 0;border-bottom:1px solid var(--cinza-100);display:flex;justify-content:space-between;gap:12px;">
+          <span style="color:var(--cinza-500);font-size:13px;">${lbl}</span>
+          <span style="font-weight:600;color:var(--cinza-800);font-size:14px;text-align:right;">${escapeHtml(val || '—')}</span>
+        </div>
+      `;
+
+      document.getElementById('conteudo').innerHTML = `
+        <div class="card mb-4">
+          <div class="card-header">
+            <h2>${escapeHtml(a.nome)}<small style="font-family:ui-monospace,monospace;text-transform:none;letter-spacing:0;">${escapeHtml(a.codigo)}</small></h2>
+            ${a.status_reprodutivo === 'Castrado(a)' ? '<span class="badge badge-verde">Castrado</span>' : ''}
+          </div>
+          <div class="card-body" style="padding-top:8px;">
+            ${dadoLinha('Espécie', a.especie)}
+            ${dadoLinha('Raça', a.raca)}
+            ${dadoLinha('Sexo', a.sexo)}
+            ${dadoLinha('Idade', a.idade_aproximada)}
+            ${dadoLinha('Microchip', a.microchip)}
+          </div>
+        </div>
+
+        <div class="card mb-4">
+          <div class="card-header"><h2>Responsável</h2></div>
+          <div class="card-body" style="padding-top:8px;">
+            ${dadoLinha('Nome', a.responsavel_nome)}
+            ${dadoLinha('Telefone', a.responsavel_telefone)}
+            ${dadoLinha('Bairro', a.responsavel_bairro)}
+          </div>
+        </div>
+
+        ${vacinas && vacinas.length > 0 ? `
+        <div class="card">
+          <div class="card-header"><h2>Vacinas Recentes<small>Últimas ${vacinas.length} aplicações</small></h2></div>
+          <div class="card-body" style="padding:0;">
+            <table class="tabela">
+              <thead><tr><th>Vacina</th><th>Aplicação</th><th>Próxima</th></tr></thead>
+              <tbody>${vacinas.map(v => `
+                <tr>
+                  <td><strong>${escapeHtml(v.vacina)}</strong></td>
+                  <td>${formatarData(v.data_aplicacao)}</td>
+                  <td>${v.proxima_aplicacao ? formatarData(v.proxima_aplicacao) : '—'}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        ` : `
+        <div class="card"><div class="card-body" style="text-align:center;color:var(--cinza-500);font-size:14px;">
+          Nenhuma vacina registrada para este animal.
+        </div></div>
+        `}
+      `;
+    }
+
+    consultar();
+  </script>
+</body>
+</html>

@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Animais — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    .foto-uploader {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .foto-preview {
+      width: 130px;
+      height: 130px;
+      border-radius: var(--raio);
+      background: var(--cinza-100);
+      border: 2px dashed var(--cinza-300);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      flex-shrink: 0;
+      color: var(--cinza-400);
+      font-size: 36px;
+    }
+    .foto-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .foto-acoes { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  </style>
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <div class="modal-overlay" id="modalAnimal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2 id="tituloModalAnimal">Cadastro de Animal</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalAnimal')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="formAnimal">
+          <input type="hidden" id="animalId">
+          <input type="hidden" id="foto_base64">
+
+          <!-- Foto do animal -->
+          <div class="form-grupo full mb-4">
+            <label class="form-label">Foto do Animal</label>
+            <div class="foto-uploader">
+              <div class="foto-preview" id="fotoPreview">📷</div>
+              <div class="foto-acoes">
+                <input type="file" id="fotoInput" accept="image/*" style="display:none;">
+                <button type="button" class="btn btn-secundario btn-sm" onclick="document.getElementById('fotoInput').click()">📁 Escolher Foto</button>
+                <button type="button" class="btn btn-secundario btn-sm" onclick="removerFoto()" id="btnRemoverFoto" style="display:none;">🗑️ Remover Foto</button>
+                <small class="text-xs text-cinza">JPG ou PNG, até 3 MB. Será redimensionada automaticamente.</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-grupo">
+              <label class="form-label obrigatorio">Nome do Animal</label>
+              <input type="text" id="nome" class="form-controle" required maxlength="80">
+            </div>
+
+            <div class="form-grupo">
+              <label class="form-label obrigatorio">Espécie</label>
+              <select id="especie" class="form-controle" required>
+                <option value="">Selecione...</option>
+                <option>Canino</option><option>Felino</option><option>Equídeo</option>
+                <option>Bovídeo</option><option>Suídeo</option><option>Ave</option><option>Outro</option>
+              </select>
+            </div>
+
+            <div class="form-grupo">
+              <label class="form-label">Raça</label>
+              <input type="text" id="raca" class="form-controle" maxlength="60">
+            </div>
+
+            <div class="form-grupo">
+              <label class="form-label">Sexo</label>
+              <select id="sexo" class="form-controle">
+                <option value="">Selecione...</option>
+                <option>Macho</option><option>Fêmea</option><option>Indeterminado</option>
+              </select>
+            </div>
+
+            <div class="form-grupo">
+              <label class="form-label">Idade Aproximada</label>
+              <input type="text" id="idade_aproximada" class="form-controle" placeholder="Ex: 3 anos ou 6 meses" maxlength="30">
+              <div class="text-xs text-cinza mt-1">💡 Digite e a data de nascimento aproximada é calculada</div>
+            </div>
+
+            <div class="form-grupo">
+              <label class="form-label">Data de Nascimento</label>
+              <input type="date" id="data_nascimento" class="form-controle">
+              <div class="text-xs text-cinza mt-1">💡 Preencha e a idade é calculada automaticamente</div>
+            </div>
+
+            <div class="form-grupo">
+              <label class="form-label">Porte</label>
+              <select id="porte" class="form-controle">
+                <option value="">Selecione...</option>
+                <option>Pequeno</option><option>Médio</option><option>Grande</option><option>Gigante</option>
+              </select>
+            </div>
+
+            <div class="form-grupo">
+              <label class="form-label">Peso (kg)</label>
+              <input type="number" step="0.1" id="peso_kg" class="form-controle" min="0" max="9999">
+            </div>
+
+            <div class="form-grupo">
+              <label class="form-label">Pelagem / Cor</label>
+              <input type="text" id="pelagem" class="form-controle" maxlength="60">
+            </div>
+
+            <div class="form-grupo">
+              <label class="form-label">Status Reprodutivo</label>
+              <select id="status_reprodutivo" class="form-controle">
+                <option value="">Selecione...</option>
+                <option>Inteiro(a)</option><option>Castrado(a)</option>
+                <option>Ovário remanescente</option>
+                <option>Rufião</option><option>Criptorquida</option>
+              </select>
+            </div>
+
+            <div class="form-grupo">
+              <label class="form-label">Habitação</label>
+              <select id="habitacao" class="form-controle">
+                <option value="">Selecione...</option>
+                <option>Domiciliado</option><option>Semidomiciliado</option>
+                <option>Comunitário</option><option>Colônia</option><option>Errante</option>
+              </select>
+            </div>
+
+            <div class="form-grupo">
+              <label class="form-label">Microchip</label>
+              <input type="text" id="microchip" class="form-controle" maxlength="30">
+            </div>
+
+            <div class="form-grupo">
+              <label class="form-label">Nº Identificação Externa</label>
+              <input type="text" id="numero_identificacao" class="form-controle" maxlength="30">
+            </div>
+
+            <div class="form-grupo full">
+              <label class="form-label">Responsável (Tutor)</label>
+              <div style="display:flex;gap:8px;align-items:stretch;">
+                <select id="responsavel_id" class="form-controle" style="flex:1;">
+                  <option value="">Sem responsável vinculado</option>
+                </select>
+                <button type="button" class="btn btn-secundario" onclick="abrirNovoTutor()" title="Cadastrar novo tutor sem sair desta tela" style="white-space:nowrap;">
+                  + Novo Tutor
+                </button>
+              </div>
+              <small class="text-xs text-cinza" style="margin-top:4px;display:block;">
+                Não encontrou o tutor? Clique em "Novo Tutor" para cadastrar rapidamente.
+              </small>
+            </div>
+
+            <div class="form-grupo full">
+              <label class="form-label">Observações</label>
+              <textarea id="observacoes" class="form-controle" maxlength="500"></textarea>
+            </div>
+          </div>
+
+          <div class="form-acoes">
+            <button type="button" class="btn btn-secundario" onclick="fecharModal('modalAnimal')">Cancelar</button>
+            <button type="submit" class="btn btn-primario" id="btnSalvarAnimal">Salvar Animal</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de cadastro rápido de tutor (chamado a partir do cadastro de animal) -->
+  <div class="modal-overlay" id="modalNovoTutor">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Cadastro Rápido de Tutor</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalNovoTutor')">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="background:var(--azul-claro);border-left:3px solid var(--azul-bandeira);padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:13px;">
+          💡 Preencha os dados mínimos do tutor. Ele já será vinculado a este animal automaticamente.
+        </div>
+        <form id="formNovoTutor">
+          <div class="form-grid">
+            <div class="form-grupo full">
+              <label class="form-label obrigatorio">Nome Completo</label>
+              <input type="text" id="nt_nome" class="form-controle" required maxlength="120">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label obrigatorio">CPF</label>
+              <input type="text" id="nt_cpf" class="form-controle" required placeholder="000.000.000-00" maxlength="14" inputmode="numeric">
+              <small id="nt_cpf_fb" class="text-xs" style="margin-top:4px;display:none;"></small>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Telefone</label>
+              <input type="text" id="nt_telefone" class="form-controle" placeholder="(31) 99999-9999" maxlength="15" inputmode="tel">
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">E-mail</label>
+              <input type="email" id="nt_email" class="form-controle" maxlength="120">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">CEP</label>
+              <input type="text" id="nt_cep" class="form-controle" placeholder="00000-000" maxlength="9" inputmode="numeric">
+              <small class="text-xs text-cinza" style="margin-top:4px;display:block;">Endereço será preenchido automaticamente.</small>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Número</label>
+              <input type="text" id="nt_numero" class="form-controle" maxlength="10">
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Endereço</label>
+              <input type="text" id="nt_endereco" class="form-controle" maxlength="200">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Bairro</label>
+              <select id="nt_bairro" class="form-controle"></select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Cidade</label>
+              <input type="text" id="nt_cidade" class="form-controle" maxlength="80" value="Barão de Cocais">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">UF</label>
+              <input type="text" id="nt_uf" class="form-controle" maxlength="2" value="MG" style="text-transform:uppercase;">
+            </div>
+          </div>
+          <div class="form-acoes">
+            <button type="button" class="btn btn-secundario" onclick="fecharModal('modalNovoTutor')">Cancelar</button>
+            <button type="submit" class="btn btn-primario" id="btnSalvarNovoTutor">Salvar e Vincular</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/comum.js"></script>
+  <script src="/js/mascaras.js"></script>
+  <script src="/js/bairros.js"></script>
+  <script>
+    montarShell({
+      paginaAtiva: 'animais',
+      titulo: 'Animais Cadastrados',
+      subtitulo: 'Gestão completa do cadastro animal municipal'
+    });
+
+    const conteudo = document.getElementById('conteudo');
+    let cacheResponsaveis = [];
+
+    // ========== CADASTRO RÁPIDO DE TUTOR ==========
+    // Máscaras nos campos do modal de novo tutor
+    mascarar('nt_cpf', 'cpf');
+    mascarar('nt_telefone', 'telefone');
+    mascarar('nt_cep', 'cep');
+    ligarBuscaCep('nt_cep', {
+      endereco: 'nt_endereco',
+      cidade: 'nt_cidade',
+      uf: 'nt_uf'
+    });
+    // Inicializar select de bairros oficiais
+    BairrosHelper.inicializar('nt_bairro');
+
+    // Feedback visual do CPF no modal de novo tutor
+    document.getElementById('nt_cpf').addEventListener('blur', () => {
+      const cpf = document.getElementById('nt_cpf').value;
+      const fb = document.getElementById('nt_cpf_fb');
+      const limpo = cpf.replace(/\D/g, '');
+      if (limpo.length === 0) { fb.style.display = 'none'; return; }
+      if (limpo.length !== 11) {
+        fb.style.display = 'block';
+        fb.style.color = 'var(--vermelho)';
+        fb.textContent = 'CPF incompleto.';
+        return;
+      }
+      if (!validarCpf(limpo)) {
+        fb.style.display = 'block';
+        fb.style.color = 'var(--vermelho)';
+        fb.textContent = '✕ CPF inválido — verifique os dígitos.';
+      } else {
+        fb.style.display = 'block';
+        fb.style.color = 'var(--verde-bandeira)';
+        fb.textContent = '✓ CPF válido';
+      }
+    });
+
+    function abrirNovoTutor() {
+      document.getElementById('formNovoTutor').reset();
+      document.getElementById('nt_cidade').value = 'Barão de Cocais';
+      document.getElementById('nt_uf').value = 'MG';
+      document.getElementById('nt_cpf_fb').style.display = 'none';
+      abrirModal('modalNovoTutor');
+      setTimeout(() => document.getElementById('nt_nome').focus(), 100);
+    }
+
+    document.getElementById('formNovoTutor').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const cpfLimpo = document.getElementById('nt_cpf').value.replace(/\D/g, '');
+      if (!validarCpf(cpfLimpo)) {
+        toast('CPF inválido. Verifique os dígitos.', 'erro');
+        document.getElementById('nt_cpf').focus();
+        return;
+      }
+
+      const body = {
+        nome: document.getElementById('nt_nome').value.trim(),
+        cpf: cpfLimpo,
+        telefone: document.getElementById('nt_telefone').value.replace(/\D/g, ''),
+        email: document.getElementById('nt_email').value.trim(),
+        cep: document.getElementById('nt_cep').value.replace(/\D/g, ''),
+        endereco: document.getElementById('nt_endereco').value.trim(),
+        numero: document.getElementById('nt_numero').value.trim(),
+        bairro: BairrosHelper.lerValor('nt_bairro'),
+        cidade: document.getElementById('nt_cidade').value.trim(),
+        uf: document.getElementById('nt_uf').value.trim().toUpperCase()
+      };
+
+      const btn = document.getElementById('btnSalvarNovoTutor');
+      btn.disabled = true;
+      btn.textContent = 'Salvando...';
+      try {
+        const r = await api('/responsaveis', { method: 'POST', body });
+        toast('Tutor cadastrado com sucesso!', 'sucesso');
+
+        // Recarregar lista de tutores e selecionar o recém-criado
+        const lista = await api('/responsaveis?limite=500');
+        cacheResponsaveis = lista.dados;
+        popularResponsaveis(r.id);
+
+        fecharModal('modalNovoTutor');
+      } catch (err) {
+        // Se for conflito (CPF já existe), oferece selecionar
+        if (err.message && err.message.includes('CPF')) {
+          toast('Esse CPF já está cadastrado. Procure pelo nome na lista.', 'alerta');
+          // Recarregar mesmo assim e tentar selecionar
+          try {
+            const lista = await api('/responsaveis?limite=500');
+            cacheResponsaveis = lista.dados;
+            const existente = cacheResponsaveis.find(x => x.cpf === cpfLimpo);
+            if (existente) {
+              popularResponsaveis(existente.id);
+              toast('Tutor existente foi selecionado: ' + existente.nome, 'sucesso');
+              fecharModal('modalNovoTutor');
+            }
+          } catch {}
+        } else {
+          toast('Erro: ' + err.message, 'erro');
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Salvar e Vincular';
+      }
+    });
+
+    // ========== UPLOAD DE FOTO ==========
+    document.getElementById('fotoInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) { toast('Selecione uma imagem', 'erro'); return; }
+      if (file.size > 3 * 1024 * 1024) { toast('Imagem muito grande (máximo 3 MB)', 'erro'); return; }
+
+      try {
+        const base64 = await redimensionarImagem(file, 500, 500, 0.85);
+        document.getElementById('foto_base64').value = base64;
+        document.getElementById('fotoPreview').innerHTML = `<img src="${base64}" alt="Foto do animal">`;
+        document.getElementById('btnRemoverFoto').style.display = 'inline-flex';
+      } catch (err) {
+        toast('Erro ao processar imagem: ' + err.message, 'erro');
+      }
+    });
+
+    function removerFoto() {
+      document.getElementById('foto_base64').value = '';
+      document.getElementById('fotoPreview').innerHTML = '📷';
+      document.getElementById('btnRemoverFoto').style.display = 'none';
+      document.getElementById('fotoInput').value = '';
+    }
+
+    // Redimensiona imagem no navegador (não envia o arquivo bruto)
+    function redimensionarImagem(file, maxW, maxH, qualidade) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let w = img.width, h = img.height;
+            if (w > maxW || h > maxH) {
+              const ratio = Math.min(maxW / w, maxH / h);
+              w = Math.round(w * ratio);
+              h = Math.round(h * ratio);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', qualidade));
+          };
+          img.onerror = () => reject(new Error('Não foi possível carregar a imagem'));
+          img.src = e.target.result;
+        };
+        reader.onerror = () => reject(new Error('Erro ao ler o arquivo'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // ========== LISTA E CADASTRO ==========
+
+    async function carregarLista() {
+      conteudo.innerHTML = `
+        <div class="card mb-4">
+          <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div>
+              <strong style="font-size:16px;">Cadastro de Animais</strong>
+              <div class="text-sm text-cinza">Listagem geral com filtros e busca</div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secundario" id="btnLimparInativos" onclick="limparInativos()" style="display:none;" title="Remove definitivamente animais já excluídos">🧹 Limpar inativos</button>
+              <button class="btn btn-primario" onclick="abrirCadastro()">+ Novo Animal</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tabela-container">
+          <div class="tabela-toolbar">
+            <div class="busca">
+              <input type="text" id="busca" placeholder="Buscar por nome, código ou responsável...">
+            </div>
+            <select id="filtroEspecie">
+              <option value="">Todas as espécies</option>
+              <option>Canino</option><option>Felino</option><option>Equídeo</option>
+              <option>Bovídeo</option><option>Suídeo</option><option>Ave</option><option>Outro</option>
+            </select>
+          </div>
+          <div id="lista"></div>
+        </div>
+      `;
+
+      document.getElementById('busca').addEventListener('input', debounce(buscar, 300));
+      document.getElementById('filtroEspecie').addEventListener('change', buscar);
+
+      try {
+        const r = await api('/responsaveis?limite=500');
+        cacheResponsaveis = r.dados;
+      } catch (err) {
+        console.warn('Falha ao carregar responsáveis:', err.message);
+      }
+
+      buscar();
+
+      if (new URLSearchParams(location.search).get('novo') === '1') {
+        setTimeout(abrirCadastro, 200);
+      }
+    }
+
+    async function buscar() {
+      const busca = document.getElementById('busca').value;
+      const especie = document.getElementById('filtroEspecie').value;
+      const params = new URLSearchParams();
+      if (busca) params.set('busca', busca);
+      if (especie) params.set('especie', especie);
+
+      try {
+        const r = await api('/animais?' + params.toString());
+        renderizarLista(r.dados);
+      } catch (err) {
+        toast('Erro ao buscar: ' + err.message, 'erro');
+      }
+    }
+
+    function renderizarLista(animais) {
+      const div = document.getElementById('lista');
+      if (animais.length === 0) {
+        div.innerHTML = `<div class="vazio">
+          <div class="vazio-icone">🐾</div>
+          <div class="vazio-titulo">Nenhum animal encontrado</div>
+          <div class="vazio-texto">Cadastre o primeiro animal usando o botão acima.</div>
+        </div>`;
+        return;
+      }
+
+      div.innerHTML = `
+        <div id="barraLote" style="display:none;background:var(--azul-claro,#E3F2FD);border:1px solid var(--azul-bandeira);border-radius:8px;padding:10px 16px;margin-bottom:12px;align-items:center;gap:14px;">
+          <span id="loteContador" style="font-weight:600;"></span>
+          <button class="btn btn-secundario btn-sm" onclick="excluirSelecionados()" style="color:var(--vermelho);">✕ Excluir selecionados</button>
+          <button class="btn btn-secundario btn-sm" onclick="limparSelecao()">Limpar seleção</button>
+        </div>
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th style="width:34px;"><input type="checkbox" id="selTodos" onchange="alternarTodos(this)" title="Selecionar todos"></th>
+              <th></th>
+              <th>Código</th>
+              <th>Animal</th>
+              <th>Espécie / Raça</th>
+              <th>Sexo</th>
+              <th>Status</th>
+              <th>Responsável</th>
+              <th style="text-align:right;">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${animais.map(a => `
+              <tr>
+                <td><input type="checkbox" class="chkAnimal" value="${a.id}" onchange="atualizarSelecao()"></td>
+                <td>${a.foto ? `<img src="${a.foto}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:1px solid var(--cinza-200);">` : '<div style="width:40px;height:40px;border-radius:50%;background:var(--cinza-100);display:grid;place-items:center;font-size:18px;">🐾</div>'}</td>
+                <td><span class="codigo-cell">${escapeHtml(a.codigo)}</span></td>
+                <td><strong>${escapeHtml(a.nome)}</strong>
+                    ${a.idade_aproximada ? `<div class="text-xs text-cinza">${escapeHtml(a.idade_aproximada)}</div>` : ''}
+                </td>
+                <td>${escapeHtml(a.especie)}${a.raca ? ' · ' + escapeHtml(a.raca) : ''}</td>
+                <td>${escapeHtml(a.sexo || '—')}</td>
+                <td>${a.status_reprodutivo === 'Castrado(a)' ? '<span class="badge badge-verde">Castrado</span>' : '<span class="badge">' + escapeHtml(a.status_reprodutivo || '—') + '</span>'}</td>
+                <td>${a.responsavel_nome ? escapeHtml(a.responsavel_nome) : '<span class="text-cinza">—</span>'}
+                    ${a.responsavel_telefone ? `<div class="text-xs text-cinza">${escapeHtml(a.responsavel_telefone)}</div>` : ''}
+                </td>
+                <td>
+                  <div class="acoes">
+                    <button class="btn btn-secundario btn-sm" onclick="verCarteirinha(${a.id})">🪪 Carteirinha</button>
+                    <button class="btn btn-secundario btn-sm" onclick="verProntuario(${a.id})">🩺 Prontuário</button>
+                    <button class="btn btn-secundario btn-sm" onclick="editarAnimal(${a.id})">Editar</button>
+                    <button class="btn btn-secundario btn-sm" onclick="excluirAnimal(${a.id}, '${escapeHtml(a.nome)}')" title="Inativar">✕</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    // ===== SELEÇÃO EM LOTE =====
+    function alternarTodos(chk) {
+      document.querySelectorAll('.chkAnimal').forEach(c => { c.checked = chk.checked; });
+      atualizarSelecao();
+    }
+
+    function atualizarSelecao() {
+      const marcados = document.querySelectorAll('.chkAnimal:checked');
+      const barra = document.getElementById('barraLote');
+      const contador = document.getElementById('loteContador');
+      if (marcados.length > 0) {
+        barra.style.display = 'flex';
+        contador.textContent = `${marcados.length} animal(is) selecionado(s)`;
+      } else {
+        barra.style.display = 'none';
+      }
+      // Atualiza o "selecionar todos"
+      const todos = document.querySelectorAll('.chkAnimal');
+      const selTodos = document.getElementById('selTodos');
+      if (selTodos) selTodos.checked = (todos.length > 0 && marcados.length === todos.length);
+    }
+
+    function limparSelecao() {
+      document.querySelectorAll('.chkAnimal').forEach(c => { c.checked = false; });
+      const selTodos = document.getElementById('selTodos');
+      if (selTodos) selTodos.checked = false;
+      atualizarSelecao();
+    }
+
+    async function limparInativos() {
+      try {
+        const sim = await api('/animais/limpar-inativos', { method: 'POST', body: { simular: true } });
+        if (!sim.animais_inativos || sim.animais_inativos === 0) {
+          toast('Não há animais inativos para limpar.', 'info');
+          return;
+        }
+        if (!confirm(
+          `Existem ${sim.animais_inativos} animal(is) inativo(s) (já excluídos) ocupando o banco.\n\n` +
+          `Remover DEFINITIVAMENTE esses animais e seus registros de vacina/vermífugo/ectoparasitário?\n\n` +
+          `Isso libera a reimportação deles e não afeta os animais ativos. Não pode ser desfeito.`
+        )) return;
+        const r = await api('/animais/limpar-inativos', { method: 'POST', body: { simular: false } });
+        toast(`${r.removidos} animal(is) inativo(s) removido(s) definitivamente.`, 'sucesso');
+        carregarLista();
+      } catch (err) {
+        toast('Erro: ' + err.message, 'erro');
+      }
+    }
+
+    async function excluirSelecionados() {
+      const ids = Array.from(document.querySelectorAll('.chkAnimal:checked')).map(c => parseInt(c.value));
+      if (ids.length === 0) return;
+      const definitivo = confirm(
+        `Excluir ${ids.length} animal(is).\n\n` +
+        `• Clique OK para EXCLUSÃO DEFINITIVA (remove o animal e suas vacinas/vermífugos de vez — ideal para limpar importações erradas).\n` +
+        `• Clique Cancelar para apenas INATIVAR (reversível).`
+      );
+      // Se escolheu definitivo, confirma de novo (ação perigosa)
+      if (definitivo && !confirm(`ATENÇÃO: a exclusão DEFINITIVA não pode ser desfeita. Confirma remover ${ids.length} animal(is) e seus registros de saúde?`)) {
+        return;
+      }
+      try {
+        const r = await api('/animais/excluir-lote', { method: 'POST', body: { ids, definitivo } });
+        toast(`${r.inativados} animal(is) ${r.definitivo ? 'excluído(s) definitivamente' : 'inativado(s)'}.`, 'sucesso');
+        limparSelecao();
+        carregarLista();
+      } catch (err) {
+        toast('Erro: ' + err.message, 'erro');
+      }
+    }
+
+    function popularResponsaveis(selecionadoId = '') {
+      const sel = document.getElementById('responsavel_id');
+      sel.innerHTML = '<option value="">Sem responsável vinculado</option>' +
+        cacheResponsaveis.map(r =>
+          `<option value="${r.id}" ${r.id == selecionadoId ? 'selected' : ''}>${escapeHtml(r.nome)} — ${formatarCpf(r.cpf)}</option>`
+        ).join('');
+    }
+
+    function abrirCadastro() {
+      document.getElementById('formAnimal').reset();
+      document.getElementById('animalId').value = '';
+      document.getElementById('foto_base64').value = '';
+      removerFoto();
+      document.getElementById('tituloModalAnimal').textContent = 'Cadastro de Animal';
+      popularResponsaveis();
+      abrirModal('modalAnimal');
+    }
+
+    async function editarAnimal(id) {
+      try {
+        const a = await api('/animais/' + id);
+        document.getElementById('animalId').value = a.id;
+        document.getElementById('nome').value = a.nome || '';
+        document.getElementById('especie').value = a.especie || '';
+        document.getElementById('raca').value = a.raca || '';
+        document.getElementById('sexo').value = a.sexo || '';
+        document.getElementById('idade_aproximada').value = a.idade_aproximada || '';
+        document.getElementById('data_nascimento').value = a.data_nascimento || '';
+        document.getElementById('porte').value = a.porte || '';
+        document.getElementById('peso_kg').value = a.peso_kg || '';
+        document.getElementById('pelagem').value = a.pelagem || '';
+        document.getElementById('status_reprodutivo').value = a.status_reprodutivo || '';
+        document.getElementById('habitacao').value = a.habitacao || '';
+        document.getElementById('microchip').value = a.microchip || '';
+        document.getElementById('numero_identificacao').value = a.numero_identificacao || '';
+        document.getElementById('observacoes').value = a.observacoes || '';
+
+        // Carregar foto se existir
+        if (a.foto) {
+          document.getElementById('foto_base64').value = a.foto;
+          document.getElementById('fotoPreview').innerHTML = `<img src="${a.foto}" alt="Foto do animal">`;
+          document.getElementById('btnRemoverFoto').style.display = 'inline-flex';
+        } else {
+          removerFoto();
+        }
+
+        popularResponsaveis(a.responsavel_id);
+        document.getElementById('tituloModalAnimal').textContent = 'Editar Animal — ' + a.codigo;
+        abrirModal('modalAnimal');
+      } catch (err) {
+        toast('Erro: ' + err.message, 'erro');
+      }
+    }
+
+    document.getElementById('formAnimal').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('animalId').value;
+      const body = {
+        nome: document.getElementById('nome').value.trim(),
+        especie: document.getElementById('especie').value,
+        raca: document.getElementById('raca').value.trim(),
+        sexo: document.getElementById('sexo').value,
+        idade_aproximada: document.getElementById('idade_aproximada').value.trim(),
+        data_nascimento: document.getElementById('data_nascimento').value || null,
+        porte: document.getElementById('porte').value,
+        peso_kg: parseFloat(document.getElementById('peso_kg').value) || null,
+        pelagem: document.getElementById('pelagem').value.trim(),
+        status_reprodutivo: document.getElementById('status_reprodutivo').value,
+        habitacao: document.getElementById('habitacao').value,
+        microchip: document.getElementById('microchip').value.trim(),
+        numero_identificacao: document.getElementById('numero_identificacao').value.trim(),
+        responsavel_id: document.getElementById('responsavel_id').value || null,
+        observacoes: document.getElementById('observacoes').value.trim(),
+        foto: document.getElementById('foto_base64').value || null
+      };
+
+      const btn = document.getElementById('btnSalvarAnimal');
+      btn.disabled = true;
+      btn.textContent = 'Salvando...';
+
+      try {
+        if (id) {
+          await api('/animais/' + id, { method: 'PUT', body });
+          toast('Animal atualizado com sucesso!', 'sucesso');
+        } else {
+          const r = await api('/animais', { method: 'POST', body });
+          toast('Animal cadastrado! Código: ' + r.codigo, 'sucesso');
+        }
+        fecharModal('modalAnimal');
+        buscar();
+      } catch (err) {
+        toast('Erro ao salvar: ' + err.message, 'erro');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Salvar Animal';
+      }
+    });
+
+    async function excluirAnimal(id, nome) {
+      if (!confirm(`Inativar o animal "${nome}"?\nO registro será mantido no histórico.`)) return;
+      try {
+        await api('/animais/' + id, { method: 'DELETE' });
+        toast('Animal inativado', 'sucesso');
+        buscar();
+      } catch (err) {
+        toast('Erro: ' + err.message, 'erro');
+      }
+    }
+
+    function verCarteirinha(id) {
+      window.location.href = '/carteirinha.html?id=' + id;
+    }
+
+    function verProntuario(id) {
+      window.location.href = '/prontuario.html?animal_id=' + id;
+    }
+
+    function debounce(fn, ms) {
+      let t;
+      return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    }
+
+    // ===== Conversão idade <-> data de nascimento =====
+    let convertendo = false; // evita loop entre os dois campos
+
+    function idadeParaNascimento(texto) {
+      if (!texto) return null;
+      const t = texto.toLowerCase();
+      const num = parseFloat(t.replace(',', '.').replace(/[^\d.]/g, ''));
+      if (isNaN(num) || num <= 0) return null;
+      const d = new Date();
+      if (t.includes('mes') || t.includes('mês')) {
+        d.setMonth(d.getMonth() - Math.round(num));
+      } else {
+        d.setFullYear(d.getFullYear() - Math.round(num));
+      }
+      return d.toISOString().substring(0, 10);
+    }
+
+    function nascimentoParaIdade(dataStr) {
+      if (!dataStr) return '';
+      const nasc = new Date(dataStr + 'T00:00:00');
+      if (isNaN(nasc)) return '';
+      const hoje = new Date();
+      let anos = hoje.getFullYear() - nasc.getFullYear();
+      let meses = hoje.getMonth() - nasc.getMonth();
+      if (hoje.getDate() < nasc.getDate()) meses--;
+      if (meses < 0) { anos--; meses += 12; }
+      if (anos > 0) {
+        return meses > 0 ? `${anos} ano(s) e ${meses} mes(es)` : `${anos} ano(s)`;
+      }
+      return `${meses} mes(es)`;
+    }
+
+    const campoIdade = document.getElementById('idade_aproximada');
+    const campoNasc = document.getElementById('data_nascimento');
+
+    if (campoIdade) {
+      campoIdade.addEventListener('blur', () => {
+        if (convertendo) return;
+        const nasc = idadeParaNascimento(campoIdade.value);
+        if (nasc && !campoNasc.value) {
+          convertendo = true;
+          campoNasc.value = nasc;
+          convertendo = false;
+        }
+      });
+    }
+    if (campoNasc) {
+      campoNasc.addEventListener('change', () => {
+        if (convertendo) return;
+        const idade = nascimentoParaIdade(campoNasc.value);
+        if (idade) {
+          convertendo = true;
+          campoIdade.value = idade;
+          convertendo = false;
+        }
+      });
+    }
+
+    // Botão "Limpar inativos" só para admin/ti
+    (function() {
+      const u = JSON.parse(localStorage.getItem('sigaz_usuario') || 'null');
+      if (u && (u.perfil === 'admin' || u.perfil === 'ti')) {
+        const btn = document.getElementById('btnLimparInativos');
+        if (btn) btn.style.display = '';
+      }
+    })();
+
+    carregarLista();
+  </script>
+</body>
+</html>

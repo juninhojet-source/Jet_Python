@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prontuário Veterinário — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    .animal-header {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      padding: 18px;
+      background: linear-gradient(135deg, var(--azul-escuro), var(--azul-bandeira));
+      color: white;
+      border-radius: var(--raio);
+      margin-bottom: 16px;
+    }
+    .animal-header img, .animal-header .placeholder {
+      width: 80px; height: 80px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 3px solid white;
+      flex-shrink: 0;
+    }
+    .animal-header .placeholder {
+      background: rgba(255,255,255,0.2);
+      display: grid; place-items: center;
+      font-size: 36px;
+    }
+    .animal-header h2 { font-family: var(--fonte-display); font-size: 22px; margin: 0; }
+    .animal-header .info { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; font-size: 13px; opacity: 0.92; }
+    .consulta-card {
+      background: var(--branco);
+      border: 1px solid var(--cinza-200);
+      border-left: 4px solid var(--azul-bandeira);
+      border-radius: var(--raio);
+      padding: 18px 22px;
+      margin-bottom: 14px;
+    }
+    .consulta-card.emergencia { border-left-color: #b8252c; }
+    .consulta-card.retorno { border-left-color: #cc7a1f; }
+    .consulta-card.pre-cir, .consulta-card.pos-cir { border-left-color: #6b3aa0; }
+    .consulta-titulo {
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 10px;
+      padding-bottom: 12px; margin-bottom: 12px;
+      border-bottom: 1px dashed var(--cinza-200);
+    }
+    .consulta-titulo h4 {
+      font-family: var(--fonte-display); font-size: 16px; color: var(--cinza-800); margin: 0;
+    }
+    .consulta-meta { font-size: 12px; color: var(--cinza-500); }
+    .consulta-secao {
+      padding: 8px 0;
+    }
+    .consulta-secao strong {
+      display: inline-block; min-width: 100px;
+      color: var(--cinza-600); font-size: 12px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .consulta-secao .conteudo {
+      color: var(--cinza-800); margin-top: 2px;
+      white-space: pre-wrap;
+    }
+    .vitais-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px; margin: 8px 0;
+    }
+    .vital-item {
+      background: var(--cinza-50);
+      padding: 8px 10px; border-radius: 6px;
+      text-align: center;
+    }
+    .vital-item .lbl { font-size: 11px; color: var(--cinza-500); text-transform: uppercase; letter-spacing: 0.5px; }
+    .vital-item .vlr { font-size: 16px; font-weight: 700; color: var(--cinza-800); }
+    html[data-tema="escuro"] .consulta-card { background: var(--branco); }
+    html[data-tema="escuro"] .vital-item { background: var(--cinza-100); }
+  </style>
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <div class="modal-overlay" id="modalCon">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2 id="tituloCon">Nova Consulta</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalCon')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="formCon">
+          <input type="hidden" id="conId">
+          <div class="form-grid">
+            <div class="form-grupo">
+              <label class="form-label obrigatorio">Data</label>
+              <input type="date" id="data_consulta" class="form-controle" required>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Tipo</label>
+              <select id="tipo" class="form-controle">
+                <option>Consulta</option>
+                <option>Retorno</option>
+                <option>Emergência</option>
+                <option>Pré-cirúrgico</option>
+                <option>Pós-cirúrgico</option>
+                <option>Castração</option>
+                <option>Outro</option>
+              </select>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Motivo / Queixa</label>
+              <input type="text" id="motivo" class="form-controle" maxlength="200" placeholder="Ex: Cachorro vomitando há 2 dias">
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Anamnese (histórico clínico)</label>
+              <textarea id="anamnese" class="form-controle" rows="3" maxlength="1500" placeholder="Sintomas, evolução, medicações em uso..."></textarea>
+            </div>
+
+            <div class="form-grupo full" style="margin-top:6px;">
+              <strong style="font-family:var(--fonte-display);font-size:13px;color:var(--azul-bandeira);text-transform:uppercase;letter-spacing:1px;">Sinais Vitais</strong>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Peso (kg)</label>
+              <input type="number" step="0.1" id="peso_kg" class="form-controle" min="0" max="9999">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Temperatura (°C)</label>
+              <input type="number" step="0.1" id="temperatura" class="form-controle" min="0" max="50">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">FC (bpm)</label>
+              <input type="number" id="frequencia_cardiaca" class="form-controle" min="0" max="500">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">FR (rpm)</label>
+              <input type="number" id="frequencia_respiratoria" class="form-controle" min="0" max="300">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Escore Corporal (1-5)</label>
+              <input type="number" id="escore_corporal" class="form-controle" min="1" max="5">
+            </div>
+
+            <div class="form-grupo full" style="margin-top:6px;">
+              <strong style="font-family:var(--fonte-display);font-size:13px;color:var(--azul-bandeira);text-transform:uppercase;letter-spacing:1px;">Avaliação e Conduta</strong>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Exame Físico</label>
+              <textarea id="exame_fisico" class="form-controle" rows="3" maxlength="1500"></textarea>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Diagnóstico</label>
+              <input type="text" id="diagnostico" class="form-controle" maxlength="200">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Prognóstico</label>
+              <select id="prognostico" class="form-controle">
+                <option value="">Selecione...</option>
+                <option>Favorável</option>
+                <option>Reservado</option>
+                <option>Desfavorável</option>
+              </select>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Conduta / Plano Terapêutico</label>
+              <textarea id="conduta" class="form-controle" rows="3" maxlength="1500"></textarea>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Medicamentos / Prescrição</label>
+              <textarea id="medicamentos" class="form-controle" rows="3" maxlength="1500" placeholder="1. Amoxicilina 500mg - 1 cp 2x/dia por 7 dias..."></textarea>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Exames Solicitados</label>
+              <textarea id="exames_solicitados" class="form-controle" rows="2" maxlength="500"></textarea>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Retorno em</label>
+              <input type="date" id="retorno_data" class="form-controle">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Motivo do Retorno</label>
+              <input type="text" id="retorno_motivo" class="form-controle" maxlength="200">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">CRMV do Veterinário</label>
+              <input type="text" id="veterinario_crmv" class="form-controle" maxlength="20" placeholder="Ex: CRMV-MG 12345">
+            </div>
+          </div>
+          <div class="form-acoes">
+            <button type="button" class="btn btn-secundario" onclick="fecharModal('modalCon')">Cancelar</button>
+            <button type="submit" class="btn btn-primario" id="btnSalvarCon">Salvar Consulta</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/comum.js"></script>
+  <script>
+    montarShell({ paginaAtiva: 'prontuario', titulo: 'Prontuário Veterinário', subtitulo: 'Histórico clínico do animal' });
+    const conteudo = document.getElementById('conteudo');
+
+    const params = new URLSearchParams(location.search);
+    const animalId = params.get('animal_id');
+
+    if (!animalId) {
+      conteudo.innerHTML = `
+        <div class="card"><div class="card-body">
+          <div class="vazio">
+            <div class="vazio-icone">🩺</div>
+            <div class="vazio-titulo">Selecione um animal</div>
+            <div class="vazio-texto">O prontuário é acessado a partir do cadastro do animal.</div>
+            <a href="/animais.html" class="btn btn-primario mt-3" style="margin-top:14px;">Ir para Animais</a>
+          </div>
+        </div></div>
+      `;
+    } else {
+      carregar();
+    }
+
+    let animalAtual = null;
+
+    async function carregar() {
+      try {
+        animalAtual = await api('/animais/' + animalId);
+        const r = await api('/prontuario/animal/' + animalId);
+        render(animalAtual, r.dados);
+      } catch (err) {
+        toast('Erro: ' + err.message, 'erro');
+      }
+    }
+
+    function render(a, consultas) {
+      conteudo.innerHTML = `
+        <div class="animal-header">
+          ${a.foto ? `<img src="${a.foto}" alt="">` : '<div class="placeholder">🐾</div>'}
+          <div style="flex:1;">
+            <h2>${escapeHtml(a.nome)}</h2>
+            <div class="info">
+              <span>📋 ${escapeHtml(a.codigo)}</span>
+              <span>🐾 ${escapeHtml(a.especie)}${a.raca ? ' · '+escapeHtml(a.raca) : ''}</span>
+              <span>${escapeHtml(a.sexo || '—')}</span>
+              <span>${escapeHtml(a.idade_aproximada || 'idade não informada')}</span>
+              ${a.peso_kg ? `<span>⚖️ ${a.peso_kg} kg</span>` : ''}
+              ${a.responsavel_nome ? `<span>👤 ${escapeHtml(a.responsavel_nome)}</span>` : ''}
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <button class="btn btn-primario" onclick="novaConsulta()">+ Nova Consulta</button>
+            <a href="/animais.html" class="btn btn-secundario btn-sm">← Voltar</a>
+          </div>
+        </div>
+
+        <div class="card mb-4">
+          <div class="card-header">
+            <h2>📋 Histórico Clínico <small>${consultas.length} consulta(s)</small></h2>
+          </div>
+          <div class="card-body">
+            <div id="lista"></div>
+          </div>
+        </div>
+      `;
+      renderConsultas(consultas);
+    }
+
+    function renderConsultas(consultas) {
+      const div = document.getElementById('lista');
+      if (consultas.length === 0) {
+        div.innerHTML = '<div class="vazio"><div class="vazio-icone">📝</div><div class="vazio-titulo">Sem consultas registradas</div><div class="vazio-texto">Clique em "+ Nova Consulta" para registrar o primeiro atendimento.</div></div>';
+        return;
+      }
+      const classes = { 'Emergência':'emergencia', 'Retorno':'retorno', 'Pré-cirúrgico':'pre-cir', 'Pós-cirúrgico':'pos-cir' };
+      div.innerHTML = consultas.map(c => {
+        const cls = classes[c.tipo] || '';
+        const tipoBadge = `<span class="badge badge-${c.tipo==='Emergência'?'vermelho':'azul'}">${escapeHtml(c.tipo||'Consulta')}</span>`;
+
+        const vitais = [];
+        if (c.peso_kg) vitais.push(`<div class="vital-item"><div class="lbl">Peso</div><div class="vlr">${c.peso_kg} kg</div></div>`);
+        if (c.temperatura) vitais.push(`<div class="vital-item"><div class="lbl">Temp.</div><div class="vlr">${c.temperatura}°C</div></div>`);
+        if (c.frequencia_cardiaca) vitais.push(`<div class="vital-item"><div class="lbl">FC</div><div class="vlr">${c.frequencia_cardiaca} bpm</div></div>`);
+        if (c.frequencia_respiratoria) vitais.push(`<div class="vital-item"><div class="lbl">FR</div><div class="vlr">${c.frequencia_respiratoria} rpm</div></div>`);
+        if (c.escore_corporal) vitais.push(`<div class="vital-item"><div class="lbl">Escore</div><div class="vlr">${c.escore_corporal}/5</div></div>`);
+
+        return `
+          <div class="consulta-card ${cls}">
+            <div class="consulta-titulo">
+              <div>
+                <h4>${formatarData(c.data_consulta)} · ${tipoBadge}</h4>
+                <div class="consulta-meta">
+                  ${escapeHtml(c.veterinario_nome || '—')}${c.veterinario_crmv ? ' · '+escapeHtml(c.veterinario_crmv) : ''}
+                </div>
+              </div>
+              <div class="acoes">
+                <button class="btn btn-secundario btn-sm" onclick="gerarPdfConsulta(${c.id})">📄 PDF</button>
+                <button class="btn btn-secundario btn-sm" onclick='editar(${JSON.stringify(c).replace(/'/g,"&#39;")})'>Editar</button>
+                <button class="btn btn-secundario btn-sm" onclick="excluir(${c.id})">✕</button>
+              </div>
+            </div>
+
+            ${c.motivo ? `<div class="consulta-secao"><strong>Motivo</strong><div class="conteudo">${escapeHtml(c.motivo)}</div></div>` : ''}
+            ${c.anamnese ? `<div class="consulta-secao"><strong>Anamnese</strong><div class="conteudo">${escapeHtml(c.anamnese)}</div></div>` : ''}
+
+            ${vitais.length > 0 ? `<div class="vitais-grid">${vitais.join('')}</div>` : ''}
+
+            ${c.exame_fisico ? `<div class="consulta-secao"><strong>Exame físico</strong><div class="conteudo">${escapeHtml(c.exame_fisico)}</div></div>` : ''}
+            ${c.diagnostico ? `<div class="consulta-secao"><strong>Diagnóstico</strong><div class="conteudo">${escapeHtml(c.diagnostico)}</div></div>` : ''}
+            ${c.prognostico ? `<div class="consulta-secao"><strong>Prognóstico</strong><div class="conteudo">${escapeHtml(c.prognostico)}</div></div>` : ''}
+            ${c.conduta ? `<div class="consulta-secao"><strong>Conduta</strong><div class="conteudo">${escapeHtml(c.conduta)}</div></div>` : ''}
+            ${c.medicamentos ? `<div class="consulta-secao"><strong>Prescrição</strong><div class="conteudo">${escapeHtml(c.medicamentos)}</div></div>` : ''}
+            ${c.exames_solicitados ? `<div class="consulta-secao"><strong>Exames</strong><div class="conteudo">${escapeHtml(c.exames_solicitados)}</div></div>` : ''}
+            ${c.retorno_data ? `<div class="consulta-secao" style="background:var(--azul-claro);padding:8px 12px;border-radius:6px;margin-top:8px;"><strong>📅 Retorno</strong><div class="conteudo">${formatarData(c.retorno_data)}${c.retorno_motivo ? ' — '+escapeHtml(c.retorno_motivo) : ''}</div></div>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function novaConsulta() {
+      document.getElementById('formCon').reset();
+      document.getElementById('conId').value = '';
+      document.getElementById('data_consulta').valueAsDate = new Date();
+      document.getElementById('tipo').value = 'Consulta';
+      if (animalAtual && animalAtual.peso_kg) {
+        document.getElementById('peso_kg').value = animalAtual.peso_kg;
+      }
+      document.getElementById('tituloCon').textContent = 'Nova Consulta';
+      abrirModal('modalCon');
+    }
+
+    function editar(c) {
+      document.getElementById('conId').value = c.id;
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+      set('data_consulta', c.data_consulta);
+      set('tipo', c.tipo || 'Consulta');
+      set('motivo', c.motivo);
+      set('anamnese', c.anamnese);
+      set('peso_kg', c.peso_kg);
+      set('temperatura', c.temperatura);
+      set('frequencia_cardiaca', c.frequencia_cardiaca);
+      set('frequencia_respiratoria', c.frequencia_respiratoria);
+      set('escore_corporal', c.escore_corporal);
+      set('exame_fisico', c.exame_fisico);
+      set('diagnostico', c.diagnostico);
+      set('prognostico', c.prognostico);
+      set('conduta', c.conduta);
+      set('medicamentos', c.medicamentos);
+      set('exames_solicitados', c.exames_solicitados);
+      set('retorno_data', c.retorno_data);
+      set('retorno_motivo', c.retorno_motivo);
+      set('veterinario_crmv', c.veterinario_crmv);
+      document.getElementById('tituloCon').textContent = 'Editar Consulta';
+      abrirModal('modalCon');
+    }
+
+    document.getElementById('formCon').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('conId').value;
+      const body = {
+        animal_id: animalId,
+        data_consulta: document.getElementById('data_consulta').value,
+        tipo: document.getElementById('tipo').value,
+        motivo: document.getElementById('motivo').value.trim(),
+        anamnese: document.getElementById('anamnese').value.trim(),
+        peso_kg: document.getElementById('peso_kg').value || null,
+        temperatura: document.getElementById('temperatura').value || null,
+        frequencia_cardiaca: document.getElementById('frequencia_cardiaca').value || null,
+        frequencia_respiratoria: document.getElementById('frequencia_respiratoria').value || null,
+        escore_corporal: document.getElementById('escore_corporal').value || null,
+        exame_fisico: document.getElementById('exame_fisico').value.trim(),
+        diagnostico: document.getElementById('diagnostico').value.trim(),
+        prognostico: document.getElementById('prognostico').value,
+        conduta: document.getElementById('conduta').value.trim(),
+        medicamentos: document.getElementById('medicamentos').value.trim(),
+        exames_solicitados: document.getElementById('exames_solicitados').value.trim(),
+        retorno_data: document.getElementById('retorno_data').value || null,
+        retorno_motivo: document.getElementById('retorno_motivo').value.trim(),
+        veterinario_crmv: document.getElementById('veterinario_crmv').value.trim()
+      };
+      const btn = document.getElementById('btnSalvarCon');
+      btn.disabled = true;
+      try {
+        if (id) await api('/prontuario/' + id, { method: 'PUT', body });
+        else await api('/prontuario', { method: 'POST', body });
+        toast('Consulta salva', 'sucesso');
+        fecharModal('modalCon');
+        carregar();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+      finally { btn.disabled = false; }
+    });
+
+    async function excluir(id) {
+      if (!confirm('Excluir esta consulta? A ação não pode ser desfeita.')) return;
+      try { await api('/prontuario/' + id, { method: 'DELETE' }); toast('Excluído','sucesso'); carregar(); }
+      catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    async function gerarPdfConsulta(id) {
+      const c = await api('/prontuario/' + id);
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+      const img = new Image();
+      img.src = '/assets/brasao_small.png';
+      await new Promise(r => { img.onload = r; img.onerror = r; });
+      try { doc.addImage(img, 'PNG', 95, 10, 20, 20); } catch {}
+
+      doc.setFontSize(9).setFont('helvetica','bold');
+      doc.text('PREFEITURA MUNICIPAL DE BARÃO DE COCAIS', 105, 36, { align: 'center' });
+      doc.setFontSize(8).setFont('helvetica','normal');
+      doc.text('Secretaria Municipal de Saúde · Centro de Controle de Zoonoses', 105, 40, { align: 'center' });
+
+      doc.setFontSize(14).setFont('helvetica','bold');
+      doc.text('REGISTRO DE ATENDIMENTO VETERINÁRIO', 105, 50, { align: 'center' });
+
+      doc.setDrawColor(0, 60, 124); doc.setLineWidth(0.4);
+      doc.line(14, 55, 196, 55);
+
+      let y = 62;
+      doc.setFontSize(9).setFont('helvetica','bold');
+      doc.text('ANIMAL', 14, y); y += 4;
+      doc.setFont('helvetica','normal').setFontSize(9);
+      doc.text(`${c.animal_nome} (${c.animal_codigo}) — ${c.especie}${c.raca?' / '+c.raca:''}`, 14, y);
+      y += 4;
+      if (c.responsavel_nome) {
+        doc.text(`Responsável: ${c.responsavel_nome}${c.responsavel_telefone?' — '+c.responsavel_telefone:''}`, 14, y);
+        y += 4;
+      }
+      y += 4;
+
+      doc.setFont('helvetica','bold');
+      doc.text(`Data: ${new Date(c.data_consulta).toLocaleDateString('pt-BR')}`, 14, y);
+      doc.text(`Tipo: ${c.tipo || 'Consulta'}`, 110, y);
+      y += 7;
+
+      const linha = (lbl, val) => {
+        if (!val) return;
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.setFont('helvetica','bold').setFontSize(9);
+        doc.text(lbl + ':', 14, y);
+        doc.setFont('helvetica','normal');
+        const split = doc.splitTextToSize(String(val), 180);
+        if (split.length === 1) {
+          doc.text(split[0], 50, y);
+          y += 5;
+        } else {
+          y += 4;
+          doc.text(split, 14, y);
+          y += split.length * 4 + 2;
+        }
+      };
+
+      linha('Motivo', c.motivo);
+      linha('Anamnese', c.anamnese);
+
+      // Sinais vitais
+      const vitais = [];
+      if (c.peso_kg) vitais.push(`Peso ${c.peso_kg}kg`);
+      if (c.temperatura) vitais.push(`Temp ${c.temperatura}°C`);
+      if (c.frequencia_cardiaca) vitais.push(`FC ${c.frequencia_cardiaca}bpm`);
+      if (c.frequencia_respiratoria) vitais.push(`FR ${c.frequencia_respiratoria}rpm`);
+      if (c.escore_corporal) vitais.push(`Escore ${c.escore_corporal}/5`);
+      if (vitais.length > 0) linha('Sinais vitais', vitais.join(' · '));
+
+      linha('Exame físico', c.exame_fisico);
+      linha('Diagnóstico', c.diagnostico);
+      if (c.prognostico) linha('Prognóstico', c.prognostico);
+      linha('Conduta', c.conduta);
+      linha('Prescrição', c.medicamentos);
+      linha('Exames solicitados', c.exames_solicitados);
+      if (c.retorno_data) linha('Retorno', new Date(c.retorno_data).toLocaleDateString('pt-BR') + (c.retorno_motivo ? ' — '+c.retorno_motivo : ''));
+
+      // Assinatura
+      y += 20;
+      if (y > 250) { doc.addPage(); y = 100; }
+      doc.line(60, y, 150, y);
+      y += 5;
+      doc.setFontSize(8).text('Médico(a) Veterinário(a)', 105, y, { align: 'center' });
+      y += 4;
+      doc.text((c.veterinario_nome || '') + (c.veterinario_crmv ? ' — '+c.veterinario_crmv : ''), 105, y, { align: 'center' });
+
+      doc.setFontSize(7).setTextColor(120);
+      doc.text('SIGAZ • Dep. de Informática e Tecnologia • PMBC • (31) 3837-7661', 105, 290, { align: 'center' });
+
+      doc.save(`prontuario_${c.animal_codigo}_${c.data_consulta}.pdf`);
+      toast('PDF gerado', 'sucesso');
+    }
+  </script>
+</body>
+</html>

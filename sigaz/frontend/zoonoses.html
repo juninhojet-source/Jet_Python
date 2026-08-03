@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zoonoses — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <div class="modal-overlay" id="modalZoo">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2 id="tituloModalZoo">Nova Ocorrência de Zoonose</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalZoo')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="formZoo">
+          <input type="hidden" id="zooId">
+          <div class="form-grid">
+            <div class="form-grupo full">
+              <label class="form-label obrigatorio">Animal</label>
+              <select id="animal_id" class="form-controle" required>
+                <option value="">Selecione o animal...</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label obrigatorio">Zoonose</label>
+              <select id="zoonose" class="form-controle" required>
+                <option value="">Selecione...</option>
+                <option>Raiva</option>
+                <option>Leishmaniose</option>
+                <option>Esporotricose</option>
+                <option>Leptospirose</option>
+                <option>Toxoplasmose</option>
+                <option>Brucelose</option>
+                <option>Tuberculose</option>
+                <option>Sarna</option>
+                <option>Dermatofitose (Micose)</option>
+                <option>Outra</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label obrigatorio">Data da Notificação</label>
+              <input type="date" id="data_notificacao" class="form-controle" required>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Status da Investigação</label>
+              <select id="status_investigacao" class="form-controle">
+                <option>À investigar</option>
+                <option>Em análise</option>
+                <option>Investigação concluída</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Diagnóstico</label>
+              <select id="diagnostico" class="form-controle">
+                <option>Aguardando</option>
+                <option>Positivo</option>
+                <option>Negativo</option>
+                <option>Inconclusivo</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Método de Diagnóstico</label>
+              <input type="text" id="metodo_diagnostico" class="form-controle" placeholder="Ex: ELISA, PCR, microscopia...">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Prognóstico</label>
+              <select id="prognostico_sel" class="form-controle" onchange="togglePrognosticoOutro()">
+                <option value="">Selecione...</option>
+                <option>Favorável</option>
+                <option>Reservado</option>
+                <option>Desfavorável</option>
+                <option value="__outro__">Outro (especificar)</option>
+              </select>
+              <input type="text" id="prognostico" class="form-controle" style="display:none;margin-top:8px;"
+                     placeholder="Especifique o prognóstico" maxlength="100">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Bairro de Ocorrência</label>
+              <select id="bairro_ocorrencia" class="form-controle"></select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Óbito?</label>
+              <select id="obito" class="form-controle">
+                <option value="0">Não</option>
+                <option value="1">Sim</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Data do Óbito</label>
+              <input type="date" id="data_obito" class="form-controle">
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Observações</label>
+              <textarea id="observacoes" class="form-controle"></textarea>
+            </div>
+          </div>
+          <div class="form-acoes">
+            <button type="button" class="btn btn-secundario" onclick="fecharModal('modalZoo')">Cancelar</button>
+            <button type="submit" class="btn btn-primario" id="btnSalvarZoo">Salvar Ocorrência</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/comum.js"></script>
+  <script src="/js/bairros.js"></script>
+  <script>
+    montarShell({ paginaAtiva: 'zoonoses', titulo: 'Vigilância de Zoonoses', subtitulo: 'Notificação, investigação e monitoramento epidemiológico' });
+    const conteudo = document.getElementById('conteudo');
+    let cacheAnimais = [];
+
+    // Inicializar dropdown de bairros oficiais
+    BairrosHelper.inicializar('bairro_ocorrencia');
+
+    function montar() {
+      conteudo.innerHTML = `
+        <div class="card mb-4">
+          <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div>
+              <strong style="font-size:16px;">Notificações de Zoonoses</strong>
+              <div class="text-sm text-cinza">Vigilância em Saúde — Secretaria Municipal de Saúde</div>
+            </div>
+            <button class="btn btn-primario" onclick="abrirCadastro()">+ Nova Ocorrência</button>
+          </div>
+        </div>
+
+        <div class="tabela-container">
+          <div class="tabela-toolbar">
+            <select id="filtroZoonose">
+              <option value="">Todas as zoonoses</option>
+              <option>Raiva</option><option>Leishmaniose</option><option>Esporotricose</option>
+              <option>Leptospirose</option><option>Toxoplasmose</option><option>Brucelose</option>
+              <option>Tuberculose</option><option>Sarna</option><option>Outra</option>
+            </select>
+            <select id="filtroStatus">
+              <option value="">Todos os status</option>
+              <option>À investigar</option><option>Em análise</option><option>Investigação concluída</option>
+            </select>
+            <input type="text" id="filtroBairro" placeholder="Bairro..." style="padding:8px 10px;border:1px solid var(--cinza-300);border-radius:6px;">
+          </div>
+          <div id="lista"></div>
+        </div>
+      `;
+
+      document.getElementById('filtroZoonose').addEventListener('change', carregar);
+      document.getElementById('filtroStatus').addEventListener('change', carregar);
+      document.getElementById('filtroBairro').addEventListener('input', debounce(carregar, 300));
+
+      carregarAnimais().then(carregar);
+
+      if (new URLSearchParams(location.search).get('novo') === '1') {
+        setTimeout(abrirCadastro, 200);
+      }
+    }
+
+    async function carregarAnimais() {
+      try {
+        const r = await api('/animais?limite=500');
+        cacheAnimais = r.dados;
+      } catch (err) { console.warn(err.message); }
+    }
+
+    async function carregar() {
+      const params = new URLSearchParams();
+      const z = document.getElementById('filtroZoonose').value;
+      const s = document.getElementById('filtroStatus').value;
+      const b = document.getElementById('filtroBairro').value;
+      if (z) params.set('zoonose', z);
+      if (s) params.set('status', s);
+      if (b) params.set('bairro', b);
+      try {
+        const r = await api('/zoonoses?' + params.toString());
+        render(r.dados);
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    function render(dados) {
+      const div = document.getElementById('lista');
+      if (dados.length === 0) {
+        div.innerHTML = '<div class="vazio"><div class="vazio-icone">🦠</div><div class="vazio-titulo">Nenhuma ocorrência registrada</div></div>';
+        return;
+      }
+      div.innerHTML = `
+        <table class="tabela">
+          <thead><tr>
+            <th>Animal</th><th>Zoonose</th><th>Notificação</th>
+            <th>Status</th><th>Diagnóstico</th><th>Bairro</th><th>Óbito</th>
+            <th style="text-align:right;">Ações</th>
+          </tr></thead>
+          <tbody>${dados.map(z => {
+            const badgeStatus = {
+              'À investigar': 'badge-laranja',
+              'Em análise': 'badge-azul',
+              'Investigação concluída': 'badge-verde'
+            }[z.status_investigacao] || 'badge-cinza';
+            const badgeDiag = {
+              'Positivo': 'badge-vermelho',
+              'Negativo': 'badge-verde',
+              'Inconclusivo': 'badge-laranja',
+              'Aguardando': 'badge-cinza'
+            }[z.diagnostico] || 'badge-cinza';
+            return `
+              <tr>
+                <td><strong>${escapeHtml(z.animal_nome)}</strong><br>
+                    <span class="codigo-cell">${escapeHtml(z.animal_codigo)}</span></td>
+                <td><strong>${escapeHtml(z.zoonose)}</strong></td>
+                <td>${formatarData(z.data_notificacao)}</td>
+                <td><span class="badge ${badgeStatus}">${escapeHtml(z.status_investigacao || '—')}</span></td>
+                <td><span class="badge ${badgeDiag}">${escapeHtml(z.diagnostico || '—')}</span></td>
+                <td>${escapeHtml(z.bairro_ocorrencia || '—')}</td>
+                <td>${z.obito ? '<span class="badge badge-vermelho">Sim</span>' : '<span class="text-cinza">Não</span>'}</td>
+                <td>
+                  <div class="acoes">
+                    <button class="btn btn-secundario btn-sm" onclick="editar(${z.id})">Editar</button>
+                    <button class="btn btn-secundario btn-sm" onclick="excluir(${z.id})">✕</button>
+                  </div>
+                </td>
+              </tr>`;
+          }).join('')}</tbody>
+        </table>
+      `;
+    }
+
+    function popularAnimais(selecionado = '') {
+      const sel = document.getElementById('animal_id');
+      sel.innerHTML = '<option value="">Selecione o animal...</option>' +
+        cacheAnimais.map(a => `<option value="${a.id}" ${a.id == selecionado ? 'selected' : ''}>${escapeHtml(a.codigo)} — ${escapeHtml(a.nome)}</option>`).join('');
+    }
+
+    function togglePrognosticoOutro() {
+      const sel = document.getElementById('prognostico_sel').value;
+      const inp = document.getElementById('prognostico');
+      if (sel === '__outro__') {
+        inp.style.display = '';
+        inp.focus();
+      } else {
+        inp.style.display = 'none';
+        inp.value = '';
+      }
+    }
+
+    function abrirCadastro() {
+      document.getElementById('formZoo').reset();
+      document.getElementById('zooId').value = '';
+      document.getElementById('prognostico_sel').value = '';
+      document.getElementById('prognostico').style.display = 'none';
+      document.getElementById('tituloModalZoo').textContent = 'Nova Ocorrência de Zoonose';
+      document.getElementById('data_notificacao').value = new Date().toISOString().substring(0, 10);
+      popularAnimais();
+      abrirModal('modalZoo');
+    }
+
+    async function editar(id) {
+      try {
+        const z = await api('/zoonoses/' + id);
+        document.getElementById('zooId').value = z.id;
+        document.getElementById('zoonose').value = z.zoonose;
+        document.getElementById('data_notificacao').value = z.data_notificacao;
+        document.getElementById('status_investigacao').value = z.status_investigacao || 'À investigar';
+        document.getElementById('diagnostico').value = z.diagnostico || 'Aguardando';
+        document.getElementById('metodo_diagnostico').value = z.metodo_diagnostico || '';
+        // Prognóstico: decide entre opção padrão ou "Outro"
+        const progPadrao = ['Favorável', 'Reservado', 'Desfavorável'];
+        const progVal = z.prognostico || '';
+        if (progVal && progPadrao.includes(progVal)) {
+          document.getElementById('prognostico_sel').value = progVal;
+          document.getElementById('prognostico').style.display = 'none';
+          document.getElementById('prognostico').value = '';
+        } else if (progVal) {
+          document.getElementById('prognostico_sel').value = '__outro__';
+          document.getElementById('prognostico').style.display = '';
+          document.getElementById('prognostico').value = progVal;
+        } else {
+          document.getElementById('prognostico_sel').value = '';
+          document.getElementById('prognostico').style.display = 'none';
+          document.getElementById('prognostico').value = '';
+        }
+        BairrosHelper.definirValor('bairro_ocorrencia', z.bairro_ocorrencia);
+        document.getElementById('obito').value = z.obito || 0;
+        document.getElementById('data_obito').value = z.data_obito || '';
+        document.getElementById('observacoes').value = z.observacoes || '';
+        popularAnimais(z.animal_id);
+        document.getElementById('tituloModalZoo').textContent = 'Editar Ocorrência';
+        abrirModal('modalZoo');
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    document.getElementById('formZoo').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('zooId').value;
+      const body = {
+        animal_id: document.getElementById('animal_id').value,
+        zoonose: document.getElementById('zoonose').value,
+        data_notificacao: document.getElementById('data_notificacao').value,
+        status_investigacao: document.getElementById('status_investigacao').value,
+        diagnostico: document.getElementById('diagnostico').value,
+        metodo_diagnostico: document.getElementById('metodo_diagnostico').value,
+        prognostico: (function(){
+          const sel = document.getElementById('prognostico_sel').value;
+          if (sel === '__outro__') return document.getElementById('prognostico').value.trim();
+          return sel;
+        })(),
+        bairro_ocorrencia: BairrosHelper.lerValor('bairro_ocorrencia'),
+        obito: document.getElementById('obito').value === '1',
+        data_obito: document.getElementById('data_obito').value || null,
+        observacoes: document.getElementById('observacoes').value
+      };
+      const btn = document.getElementById('btnSalvarZoo');
+      btn.disabled = true;
+      try {
+        if (id) {
+          await api('/zoonoses/' + id, { method: 'PUT', body });
+          toast('Ocorrência atualizada', 'sucesso');
+        } else {
+          await api('/zoonoses', { method: 'POST', body });
+          toast('Ocorrência registrada', 'sucesso');
+        }
+        fecharModal('modalZoo');
+        carregar();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+      finally { btn.disabled = false; }
+    });
+
+    async function excluir(id) {
+      if (!confirm('Excluir esta ocorrência?')) return;
+      try {
+        await api('/zoonoses/' + id, { method: 'DELETE' });
+        toast('Excluída', 'sucesso');
+        carregar();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+    montar();
+  </script>
+</body>
+</html>

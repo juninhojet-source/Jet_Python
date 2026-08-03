@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sobre o Sistema — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+    .info-card { background: var(--cinza-50); border: 1px solid var(--cinza-200); border-radius: var(--raio); padding: 16px; }
+    .info-card h4 { font-family: var(--fonte-display); font-size: 14px; color: var(--azul-bandeira); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .info-card p, .info-card li { font-size: 13px; line-height: 1.6; }
+    .info-card ul { padding-left: 16px; margin: 6px 0; }
+    .info-card .num { font-size: 24px; font-weight: 700; color: var(--azul-bandeira); display: block; margin-bottom: 4px; }
+    .badge-lgpd { display: inline-block; background: var(--verde-claro); color: var(--verde-bandeira); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+    .item-conformidade { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--cinza-200); align-items: flex-start; }
+    .item-conformidade:last-child { border-bottom: none; }
+    .item-conformidade .check { color: var(--verde-bandeira); font-size: 18px; flex-shrink: 0; }
+    html[data-tema="escuro"] .info-card { background: var(--cinza-100); }
+  </style>
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <script src="/js/comum.js"></script>
+  <script>
+    montarShell({
+      paginaAtiva: 'sobre',
+      titulo: 'Sobre o Sistema',
+      subtitulo: 'Informações técnicas, conformidade LGPD e tratamento de dados'
+    });
+
+    document.getElementById('conteudo').innerHTML = `
+      <!-- Identificação do Sistema -->
+      <div class="card mb-4">
+        <div class="card-header"><h2>🏛️ Identificação do Sistema</h2></div>
+        <div class="card-body">
+          <div class="info-grid">
+            <div class="info-card">
+              <h4>Sistema</h4>
+              <p><strong>SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses</strong></p>
+              <p>Versão 1.0 · Web/PWA</p>
+            </div>
+            <div class="info-card">
+              <h4>Órgão Responsável</h4>
+              <p><strong>Prefeitura Municipal de Barão de Cocais — MG</strong></p>
+              <p>Secretaria Municipal de Saúde<br>Vigilância em Saúde Animal</p>
+            </div>
+            <div class="info-card">
+              <h4>Suporte Técnico</h4>
+              <p><strong>Departamento de Informática e Tecnologia</strong></p>
+              <p>📞 (31) 3837-7661</p>
+            </div>
+            <div class="info-card">
+              <h4>Finalidade</h4>
+              <p>Cadastro de animais, controle sanitário, vigilância epidemiológica de zoonoses e atendimento ao cidadão em demandas relacionadas.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conformidade LGPD -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h2>🛡️ Conformidade com a LGPD <small>Lei nº 13.709/2018</small></h2>
+          <span class="badge-lgpd">✓ EM CONFORMIDADE</span>
+        </div>
+        <div class="card-body">
+          <p style="margin-bottom:14px;">O SIGAZ foi projetado seguindo os princípios da Lei Geral de Proteção de Dados Pessoais e suas regulamentações para a Administração Pública (Decreto Federal nº 11.137/2022). Os controles implementados são:</p>
+
+          <div class="item-conformidade">
+            <span class="check">✓</span>
+            <div>
+              <strong>Finalidade legítima e específica</strong><br>
+              <small>Cada dado é coletado para uma finalidade clara, vinculada a obrigação legal ou política pública de saúde.</small>
+            </div>
+          </div>
+          <div class="item-conformidade">
+            <span class="check">✓</span>
+            <div>
+              <strong>Minimização de dados</strong><br>
+              <small>O sistema coleta apenas o estritamente necessário — não há requisição de dados bancários, biometria ou GPS.</small>
+            </div>
+          </div>
+          <div class="item-conformidade">
+            <span class="check">✓</span>
+            <div>
+              <strong>Transparência ao cidadão</strong><br>
+              <small>Política de Privacidade pública e acessível em <a href="/privacidade.html" target="_blank">/privacidade.html</a>, com download em PDF.</small>
+            </div>
+          </div>
+          <div class="item-conformidade">
+            <span class="check">✓</span>
+            <div>
+              <strong>Segurança técnica</strong><br>
+              <small>Autenticação JWT, senha forte, bloqueio por tentativas, troca obrigatória no 1º acesso, perfis segmentados, auditoria de todas as ações.</small>
+            </div>
+          </div>
+          <div class="item-conformidade">
+            <span class="check">✓</span>
+            <div>
+              <strong>Segurança administrativa</strong><br>
+              <small>Backups automáticos diários, controle de acesso por perfil, log auditável com diff de alterações.</small>
+            </div>
+          </div>
+          <div class="item-conformidade">
+            <span class="check">✓</span>
+            <div>
+              <strong>Direito do titular</strong><br>
+              <small>Cidadão pode solicitar confirmação, acesso, correção, eliminação ou portabilidade dos seus dados via Dep. de TI — prazo de 15 dias.</small>
+            </div>
+          </div>
+          <div class="item-conformidade">
+            <span class="check">✓</span>
+            <div>
+              <strong>Encarregado indicado (DPO)</strong><br>
+              <small>Departamento de Informática e Tecnologia da PMBC — telefone (31) 3837-7661.</small>
+            </div>
+          </div>
+          <div class="item-conformidade">
+            <span class="check">✓</span>
+            <div>
+              <strong>Denúncia anônima preservada</strong><br>
+              <small>Cidadão pode reportar maus-tratos sem se identificar — dado do denunciante só é coletado se houver opção expressa.</small>
+            </div>
+          </div>
+
+          <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
+            <a href="/privacidade.html" target="_blank" class="btn btn-primario">📋 Ver Política Completa</a>
+            <a href="/privacidade.html#direitos" target="_blank" class="btn btn-secundario">⚖️ Direitos do Cidadão</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Infraestrutura Tecnológica -->
+      <div class="card mb-4">
+        <div class="card-header"><h2>🖥️ Infraestrutura Tecnológica</h2></div>
+        <div class="card-body">
+          <div class="info-grid">
+            <div class="info-card">
+              <h4>🪟 Servidor de Aplicação</h4>
+              <p><strong>Windows Server 2022</strong></p>
+              <ul>
+                <li>Estrutura física interna da PMBC</li>
+                <li>Acesso restrito ao Dep. de TI</li>
+                <li>Atualizações de segurança via WSUS</li>
+              </ul>
+            </div>
+            <div class="info-card">
+              <h4>🛡️ Firewall de Borda</h4>
+              <p><strong>Fortinet FortiGate</strong></p>
+              <ul>
+                <li>Regras de filtragem por origem e destino</li>
+                <li>IPS (prevenção de intrusão) ativo</li>
+                <li>Inspeção de tráfego HTTPS</li>
+                <li>VPN corporativa quando aplicável</li>
+              </ul>
+            </div>
+            <div class="info-card">
+              <h4>🔑 Gestão de Identidades</h4>
+              <p><strong>Active Directory + Domínio PMBC</strong></p>
+              <ul>
+                <li>Contas nominais por servidor</li>
+                <li>Bloqueio imediato no desligamento</li>
+                <li>Política de senha do domínio aplicada</li>
+              </ul>
+            </div>
+            <div class="info-card">
+              <h4>⚙️ Stack do Sistema</h4>
+              <p><strong>Node.js + SQLite</strong></p>
+              <ul>
+                <li>Backend: Node.js (Express)</li>
+                <li>Banco: SQLite (arquivo único)</li>
+                <li>Frontend: HTML/CSS/JS (PWA)</li>
+                <li>Autenticação: JWT + bcrypt</li>
+              </ul>
+            </div>
+            <div class="info-card">
+              <h4>💾 Backup</h4>
+              <p><strong>Automático diário</strong></p>
+              <ul>
+                <li>Agendamento interno (sem cron externo)</li>
+                <li>Retenção configurável (padrão 30 dias)</li>
+                <li>Backup pré-restauração automático</li>
+                <li>Pode ser exportado para nuvem/HD externo</li>
+              </ul>
+            </div>
+            <div class="info-card">
+              <h4>📋 Auditoria</h4>
+              <p><strong>Log completo</strong></p>
+              <ul>
+                <li>Toda ação de criação, edição, exclusão registrada</li>
+                <li>Diff de alterações (campo a campo)</li>
+                <li>Tentativas de login monitoradas</li>
+                <li>IP, data e hora de cada evento</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dados Tratados -->
+      <div class="card mb-4">
+        <div class="card-header"><h2>📊 Categorias de Dados Tratados</h2></div>
+        <div class="card-body">
+          <table class="tabela">
+            <thead>
+              <tr><th>Categoria</th><th>Tipo</th><th>Retenção</th><th>Base Legal</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Dados do tutor</strong></td>
+                <td>Nome, CPF, RG, endereço, contato</td>
+                <td>Enquanto ativo + 5 anos</td>
+                <td>Art. 7º, III (LGPD)</td>
+              </tr>
+              <tr>
+                <td><strong>Dados do animal</strong></td>
+                <td>Identificação, raça, foto, histórico</td>
+                <td>Enquanto ativo + 5 anos</td>
+                <td>Art. 7º, III</td>
+              </tr>
+              <tr>
+                <td><strong>Saúde pública</strong></td>
+                <td>Zoonoses, exames laboratoriais</td>
+                <td><strong>20 anos</strong></td>
+                <td>Art. 11, II, "f"</td>
+              </tr>
+              <tr>
+                <td><strong>Denúncias</strong></td>
+                <td>Descrição, endereço, denunciante (opcional)</td>
+                <td>5 anos após desfecho</td>
+                <td>Art. 7º, VI</td>
+              </tr>
+              <tr>
+                <td><strong>Servidores</strong></td>
+                <td>Login, perfil, logs de ação</td>
+                <td>5 anos após desligamento</td>
+                <td>Art. 7º, II e IX</td>
+              </tr>
+              <tr>
+                <td><strong>Técnicos</strong></td>
+                <td>IP, data/hora, ações</td>
+                <td>5 anos</td>
+                <td>Art. 7º, IX (legítimo interesse)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Compartilhamento -->
+      <div class="card mb-4">
+        <div class="card-header"><h2>🔗 Compartilhamento de Dados</h2></div>
+        <div class="card-body">
+          <p style="margin-bottom:12px;">Os dados são compartilhados apenas quando há determinação legal:</p>
+          <div class="info-grid">
+            <div class="info-card">
+              <h4>Ministério da Saúde / SINAN</h4>
+              <p>Exportação obrigatória de notificações de zoonoses (Portaria GM/MS nº 264/2020).</p>
+            </div>
+            <div class="info-card">
+              <h4>Secretaria Estadual de Saúde</h4>
+              <p>Dados consolidados para vigilância em saúde no estado de Minas Gerais.</p>
+            </div>
+            <div class="info-card">
+              <h4>Polícia Civil / Ministério Público</h4>
+              <p>Apenas mediante requisição formal em apuração de crimes (Lei nº 14.064/2020).</p>
+            </div>
+            <div class="info-card">
+              <h4>Órgãos de Controle</h4>
+              <p>TCU, TCE-MG e CGM em auditorias periódicas conforme legislação aplicável.</p>
+            </div>
+          </div>
+          <div style="background:var(--verde-claro);border-left:4px solid var(--verde-bandeira);padding:12px 16px;border-radius:6px;margin-top:14px;color:var(--verde-bandeira);font-size:13px;">
+            <strong>⚠️ Importante:</strong> O SIGAZ NÃO compartilha dados com empresas privadas, agências de marketing ou qualquer terceiro com fins comerciais.
+          </div>
+        </div>
+      </div>
+
+      <!-- Atendendo à LGPD na prática -->
+      <div class="card mb-4">
+        <div class="card-header"><h2>👨‍⚖️ Orientações ao Servidor Municipal</h2></div>
+        <div class="card-body">
+          <p style="margin-bottom:14px;">Servidor(a), ao utilizar o SIGAZ, observe estas boas práticas para garantir a conformidade da Prefeitura com a LGPD:</p>
+
+          <div class="item-conformidade">
+            <span class="check">📌</span>
+            <div>
+              <strong>Não compartilhe suas credenciais</strong><br>
+              <small>Seu login é nominal e todas as ações ficam registradas em seu nome.</small>
+            </div>
+          </div>
+          <div class="item-conformidade">
+            <span class="check">📌</span>
+            <div>
+              <strong>Acesse apenas dados necessários ao seu trabalho</strong><br>
+              <small>Curiosidade sobre vida alheia, fora de necessidade funcional, configura infração funcional.</small>
+            </div>
+          </div>
+          <div class="item-conformidade">
+            <span class="check">📌</span>
+            <div>
+              <strong>Trate dados do cidadão com sigilo</strong><br>
+              <small>Não divulgue informações pessoais (CPF, telefone, endereço) fora dos canais institucionais.</small>
+            </div>
+          </div>
+          <div class="item-conformidade">
+            <span class="check">📌</span>
+            <div>
+              <strong>Encaminhe solicitações LGPD ao Dep. de TI</strong><br>
+              <small>Se o cidadão pedir acesso, correção ou exclusão dos próprios dados, oriente-o a procurar o Dep. de TI (31) 3837-7661.</small>
+            </div>
+          </div>
+          <div class="item-conformidade">
+            <span class="check">📌</span>
+            <div>
+              <strong>Em caso de incidente, comunique imediatamente</strong><br>
+              <small>Suspeita de acesso indevido, perda de dispositivo, vazamento — avise o Dep. de TI no mesmo dia.</small>
+            </div>
+          </div>
+          <div class="item-conformidade">
+            <span class="check">📌</span>
+            <div>
+              <strong>Bloqueie sua sessão ao se ausentar</strong><br>
+              <small>Use <code>Win + L</code> para travar o computador sempre que sair da estação.</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contato -->
+      <div class="card mb-4">
+        <div class="card-header"><h2>📞 Contato e Encarregado de Dados (DPO)</h2></div>
+        <div class="card-body">
+          <div style="background:var(--azul-claro);border-left:4px solid var(--azul-bandeira);padding:16px 20px;border-radius:6px;">
+            <strong style="font-size:16px;color:var(--azul-bandeira);">Departamento de Informática e Tecnologia</strong><br>
+            <span style="line-height:2;">
+              Prefeitura Municipal de Barão de Cocais — MG<br>
+              📞 Telefone: <strong>(31) 3837-7661</strong><br>
+              🏛️ Sede da Prefeitura Municipal
+            </span>
+          </div>
+          <p style="margin-top:14px;font-size:13px;color:var(--cinza-600);line-height:1.6;">
+            O cidadão também pode acionar a <strong>Autoridade Nacional de Proteção de Dados (ANPD)</strong>:<br>
+            <a href="https://www.gov.br/anpd/pt-br" target="_blank" rel="noopener">https://www.gov.br/anpd</a>
+          </p>
+        </div>
+      </div>
+    `;
+  </script>
+</body>
+</html>

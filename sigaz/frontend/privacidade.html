@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Política de Privacidade e LGPD — SIGAZ | PMBC</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body { background: var(--fundo-pagina); }
+    .topo-pub {
+      background: linear-gradient(135deg, var(--azul-escuro), var(--azul-bandeira));
+      color: var(--branco); padding: 32px 20px; text-align: center;
+      border-bottom: 4px solid var(--dourado);
+    }
+    .topo-pub .brasao-pub { width: 70px; height: 70px; border-radius: 10px; background: var(--branco); display: inline-grid; place-items: center; padding: 6px; margin-bottom: 12px; }
+    .topo-pub .brasao-pub img { width: 100%; height: 100%; object-fit: contain; }
+    .topo-pub strong { display: block; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.9; }
+    .topo-pub h1 { font-family: var(--fonte-display); font-size: 26px; margin-top: 6px; }
+    .topo-pub p { font-size: 14px; opacity: 0.85; margin-top: 4px; }
+    .container-pub { max-width: 880px; margin: 24px auto; padding: 0 20px; }
+    .indice-rapido {
+      background: var(--branco);
+      border: 1px solid var(--cinza-200);
+      border-radius: var(--raio);
+      padding: 18px 22px;
+      margin-bottom: 24px;
+    }
+    .indice-rapido h3 { font-family: var(--fonte-display); font-size: 14px; color: var(--cinza-600); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+    .indice-rapido ol { padding-left: 22px; }
+    .indice-rapido a { color: var(--azul-bandeira); text-decoration: none; line-height: 1.9; }
+    .indice-rapido a:hover { text-decoration: underline; }
+
+    .secao {
+      background: var(--branco);
+      border: 1px solid var(--cinza-200);
+      border-radius: var(--raio);
+      padding: 26px 30px;
+      margin-bottom: 20px;
+      scroll-margin-top: 20px;
+    }
+    .secao h2 {
+      font-family: var(--fonte-display);
+      font-size: 22px;
+      color: var(--azul-bandeira);
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--dourado);
+      margin-bottom: 16px;
+    }
+    .secao h3 {
+      font-family: var(--fonte-display);
+      font-size: 16px;
+      color: var(--cinza-800);
+      margin: 18px 0 10px;
+    }
+    .secao p, .secao li { font-size: 15px; line-height: 1.75; color: var(--cinza-700); margin-bottom: 10px; }
+    .secao ul, .secao ol { padding-left: 22px; }
+    .secao li { margin-bottom: 6px; }
+    .secao strong { color: var(--cinza-800); }
+
+    .caixa-destaque {
+      background: var(--azul-claro);
+      border-left: 4px solid var(--azul-bandeira);
+      padding: 14px 18px;
+      border-radius: 6px;
+      margin: 14px 0;
+    }
+    .caixa-aviso {
+      background: var(--laranja-claro);
+      border-left: 4px solid #cc7a1f;
+      padding: 14px 18px;
+      border-radius: 6px;
+      margin: 14px 0;
+    }
+    .caixa-tecnica {
+      background: var(--cinza-50);
+      border: 1px solid var(--cinza-200);
+      border-radius: 6px;
+      padding: 14px 18px;
+      margin: 14px 0;
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .grid-direitos { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 18px 0; }
+    .card-direito {
+      background: var(--cinza-50);
+      border-radius: 8px;
+      padding: 16px;
+      border: 1px solid var(--cinza-200);
+    }
+    .card-direito .ico { font-size: 24px; margin-bottom: 6px; }
+    .card-direito h4 { font-family: var(--fonte-display); font-size: 14px; color: var(--azul-bandeira); margin-bottom: 6px; }
+    .card-direito p { font-size: 13px; margin: 0; line-height: 1.5; }
+
+    .barra-acoes {
+      display: flex; gap: 10px; justify-content: center;
+      padding: 24px 20px; flex-wrap: wrap;
+    }
+
+    .rodape-pub {
+      text-align: center;
+      padding: 28px 20px;
+      color: var(--cinza-500);
+      font-size: 13px;
+      line-height: 1.7;
+      border-top: 1px solid var(--cinza-200);
+      margin-top: 30px;
+    }
+    .rodape-pub strong { color: var(--cinza-700); }
+
+    .tabela-tratamento {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+    }
+    .tabela-tratamento th, .tabela-tratamento td {
+      border: 1px solid var(--cinza-200);
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 13px;
+      vertical-align: top;
+    }
+    .tabela-tratamento th {
+      background: var(--cinza-50);
+      font-weight: 700;
+      color: var(--cinza-700);
+    }
+    .tabela-tratamento tr:nth-child(even) td { background: var(--cinza-50); }
+
+    html[data-tema="escuro"] .indice-rapido,
+    html[data-tema="escuro"] .secao { background: var(--branco); }
+    html[data-tema="escuro"] .card-direito,
+    html[data-tema="escuro"] .caixa-tecnica { background: var(--cinza-100); }
+
+    @media print {
+      .topo-pub, .barra-acoes, .rodape-pub { display: none; }
+      .secao { break-inside: avoid; box-shadow: none; border: 1px solid #ccc; }
+      body { background: white; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="topo-pub">
+    <div class="brasao-pub"><img src="/assets/brasao.png" alt="Brasão"></div>
+    <strong>Prefeitura Municipal de Barão de Cocais</strong>
+    <h1>Política de Privacidade e LGPD</h1>
+    <p>Como tratamos os dados pessoais no SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses</p>
+  </header>
+
+  <main class="container-pub">
+
+    <div class="indice-rapido">
+      <h3>📋 Conteúdo desta página</h3>
+      <ol>
+        <li><a href="#apresentacao">Apresentação</a></li>
+        <li><a href="#base-legal">Base legal do tratamento</a></li>
+        <li><a href="#dados-coletados">Quais dados são coletados</a></li>
+        <li><a href="#finalidades">Para que usamos os dados</a></li>
+        <li><a href="#compartilhamento">Com quem compartilhamos</a></li>
+        <li><a href="#seguranca">Como protegemos os dados</a></li>
+        <li><a href="#retencao">Por quanto tempo guardamos</a></li>
+        <li><a href="#direitos">Seus direitos como titular</a></li>
+        <li><a href="#cookies">Cookies e armazenamento local</a></li>
+        <li><a href="#contato">Encarregado (DPO) e contato</a></li>
+        <li><a href="#alteracoes">Alterações desta política</a></li>
+      </ol>
+    </div>
+
+    <section class="secao" id="apresentacao">
+      <h2>1. Apresentação</h2>
+      <p>
+        A <strong>Prefeitura Municipal de Barão de Cocais — MG</strong>, por meio da Secretaria Municipal de Saúde e do Departamento de Informática e Tecnologia, opera o <strong>SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses</strong>, ferramenta usada para o controle sanitário, cadastro de animais, vigilância epidemiológica de zoonoses e atendimento ao cidadão em assuntos relacionados.
+      </p>
+      <p>
+        Este documento explica, de forma clara, <strong>quais dados pessoais o sistema trata, com qual finalidade, por quanto tempo e como o cidadão pode exercer seus direitos</strong>, em estrita observância à <strong>Lei nº 13.709/2018 — Lei Geral de Proteção de Dados Pessoais (LGPD)</strong>.
+      </p>
+      <div class="caixa-destaque">
+        <strong>📌 Resumo em uma frase:</strong> a Prefeitura coleta apenas os dados necessários para cumprir suas obrigações legais de saúde pública, armazena-os com segurança em servidor próprio dentro da estrutura municipal, e respeita todos os direitos do cidadão previstos em lei.
+      </div>
+    </section>
+
+    <section class="secao" id="base-legal">
+      <h2>2. Base legal do tratamento</h2>
+      <p>O tratamento de dados pessoais no SIGAZ é fundamentado nas seguintes hipóteses do art. 7º da LGPD:</p>
+      <ul>
+        <li><strong>Art. 7º, II — Cumprimento de obrigação legal ou regulatória:</strong> o Município tem competência legal para a vigilância em saúde, controle de zoonoses e atendimento de denúncias de maus-tratos a animais.</li>
+        <li><strong>Art. 7º, III — Execução de políticas públicas pela administração pública:</strong> programas municipais de castração, vacinação antirrábica e fiscalização sanitária.</li>
+        <li><strong>Art. 7º, VI — Exercício regular de direitos em processo administrativo:</strong> apuração de denúncias e processos sanitários.</li>
+        <li><strong>Art. 7º, IX — Legítimo interesse:</strong> para fins administrativos internos, sempre observados os direitos do titular.</li>
+        <li><strong>Art. 11 — Dados sensíveis de saúde:</strong> tratados exclusivamente para tutela da saúde pública por profissionais e órgãos de saúde, conforme art. 11, II, "f".</li>
+      </ul>
+      <p>
+        Marco normativo complementar: <strong>Lei nº 8.080/1990</strong> (SUS), <strong>Portaria GM/MS nº 264/2020</strong> (notificação compulsória), <strong>Decreto Federal nº 11.137/2022</strong> (regulamentação da LGPD na Administração Pública), além das normativas municipais aplicáveis.
+      </p>
+    </section>
+
+    <section class="secao" id="dados-coletados">
+      <h2>3. Quais dados são coletados</h2>
+      <p>O SIGAZ coleta os seguintes dados, organizados conforme a finalidade:</p>
+
+      <h3>3.1. Dados do responsável (tutor) pelo animal</h3>
+      <ul>
+        <li>Nome completo, CPF e RG</li>
+        <li>Endereço residencial (rua, número, bairro, cidade, UF, CEP)</li>
+        <li>Telefone de contato e e-mail (quando informados voluntariamente)</li>
+      </ul>
+
+      <h3>3.2. Dados do animal</h3>
+      <ul>
+        <li>Identificação (nome, espécie, raça, sexo, idade, pelagem, porte)</li>
+        <li>Microchip, número de identificação externa (se houver)</li>
+        <li>Fotografia (opcional)</li>
+        <li>Histórico de vacinação, vermifugação e tratamentos veterinários</li>
+        <li>Status reprodutivo (castrado ou não)</li>
+      </ul>
+
+      <h3>3.3. Dados de saúde pública (zoonoses)</h3>
+      <ul>
+        <li>Notificações de zoonoses (Raiva, Leishmaniose, Esporotricose etc.)</li>
+        <li>Resultado de exames laboratoriais</li>
+        <li>Bairro de ocorrência e dados clínicos do animal</li>
+      </ul>
+
+      <h3>3.4. Dados de denúncias de maus-tratos</h3>
+      <ul>
+        <li>Descrição da ocorrência, endereço e bairro</li>
+        <li>Dados do denunciante (nome e telefone) <strong>quando o cidadão optar por se identificar</strong> — a denúncia anônima é sempre uma opção</li>
+      </ul>
+
+      <h3>3.5. Dados dos servidores municipais (usuários do sistema)</h3>
+      <ul>
+        <li>Nome, CPF, e-mail funcional, telefone, perfil de acesso, registro de logins</li>
+      </ul>
+
+      <h3>3.6. Dados técnicos automáticos</h3>
+      <ul>
+        <li>Endereço IP da máquina que acessou o sistema</li>
+        <li>Data e hora de cada ação relevante (login, criação, edição, exclusão)</li>
+      </ul>
+
+      <div class="caixa-aviso">
+        <strong>O que o SIGAZ NÃO coleta:</strong> dados bancários, biometria, geolocalização precisa (GPS), histórico de navegação fora do próprio sistema, dados de redes sociais ou cookies de rastreamento de terceiros.
+      </div>
+    </section>
+
+    <section class="secao" id="finalidades">
+      <h2>4. Para que usamos os dados</h2>
+      <table class="tabela-tratamento">
+        <thead>
+          <tr><th>Finalidade</th><th>Dados utilizados</th><th>Base legal</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Cadastro e identificação de animais e tutores</td>
+            <td>Dados do tutor e do animal</td>
+            <td>Política pública (Art. 7º, III)</td>
+          </tr>
+          <tr>
+            <td>Controle vacinal e sanitário</td>
+            <td>Histórico do animal, dados do tutor</td>
+            <td>Obrigação legal (Art. 7º, II)</td>
+          </tr>
+          <tr>
+            <td>Vigilância epidemiológica de zoonoses e envio de boletim ao SINAN/Ministério da Saúde</td>
+            <td>Dados de saúde pública, animal e endereço</td>
+            <td>Tutela da saúde (Art. 11, II, "f")</td>
+          </tr>
+          <tr>
+            <td>Apuração de denúncias de maus-tratos</td>
+            <td>Descrição, endereço, dados do denunciante (se identificado)</td>
+            <td>Exercício regular de direitos (Art. 7º, VI)</td>
+          </tr>
+          <tr>
+            <td>Agendamento e execução de mutirões/castrações</td>
+            <td>Dados do tutor e animal</td>
+            <td>Política pública (Art. 7º, III)</td>
+          </tr>
+          <tr>
+            <td>Emissão de carteirinha, termo de posse, atestado antirrábico</td>
+            <td>Dados do tutor e do animal</td>
+            <td>Política pública (Art. 7º, III)</td>
+          </tr>
+          <tr>
+            <td>Auditoria interna e segurança da informação</td>
+            <td>Registros de acesso e ações dos servidores</td>
+            <td>Legítimo interesse (Art. 7º, IX)</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="secao" id="compartilhamento">
+      <h2>5. Com quem compartilhamos os dados</h2>
+      <p>Os dados são compartilhados <strong>apenas quando há determinação legal ou interesse público devidamente justificado</strong>:</p>
+      <ul>
+        <li><strong>Ministério da Saúde / SINAN — Sistema de Informação de Agravos de Notificação:</strong> exportação obrigatória de notificações de zoonoses, conforme legislação sanitária.</li>
+        <li><strong>Secretaria Estadual de Saúde de Minas Gerais:</strong> dados consolidados para vigilância em saúde estadual.</li>
+        <li><strong>Polícia Civil / Ministério Público:</strong> apenas mediante requisição formal em apuração de crimes de maus-tratos (Lei nº 14.064/2020).</li>
+        <li><strong>Órgãos de controle (TCU, TCE, CGM):</strong> em auditorias regulares, conforme legislação aplicável.</li>
+      </ul>
+      <div class="caixa-destaque">
+        <strong>O SIGAZ NÃO vende, aluga, cede ou compartilha dados pessoais com empresas privadas, agências de marketing ou qualquer terceiro com fins comerciais.</strong>
+      </div>
+    </section>
+
+    <section class="secao" id="seguranca">
+      <h2>6. Como protegemos os dados</h2>
+      <p>A Prefeitura adota medidas técnicas e administrativas para proteger os dados pessoais contra acesso não autorizado, perda, alteração ou divulgação indevida:</p>
+
+      <h3>6.1. Infraestrutura</h3>
+      <ul>
+        <li>O sistema é hospedado em <strong>servidor municipal próprio</strong> com <strong>Windows Server 2022</strong>, dentro da estrutura física da Prefeitura.</li>
+        <li>A rede municipal é protegida por <strong>firewall corporativo Fortinet (FortiGate)</strong>, com regras de filtragem, inspeção de tráfego e prevenção de intrusão (IPS).</li>
+        <li>O ambiente conta com <strong>Active Directory (AD)</strong> e domínio corporativo, permitindo gestão centralizada de identidades e bloqueio imediato de acessos quando necessário.</li>
+        <li>O acesso ao servidor é restrito ao Departamento de Informática e Tecnologia, mediante credenciais nominais e registro de log.</li>
+      </ul>
+
+      <h3>6.2. Aplicação</h3>
+      <ul>
+        <li><strong>Autenticação:</strong> login obrigatório com usuário/e-mail e senha, com tokens JWT de sessão expirável.</li>
+        <li><strong>Política de senha forte:</strong> mínimo de 8 caracteres, com letra maiúscula e número (configurável).</li>
+        <li><strong>Bloqueio automático</strong> após 5 tentativas de login falhas (por 15 minutos).</li>
+        <li><strong>Troca obrigatória da senha</strong> no primeiro acesso e após reset administrativo.</li>
+        <li><strong>Perfis de acesso segmentados</strong> (administrador, veterinário, auxiliar, agente de endemias, secretaria, TI) — cada um vê apenas o que precisa.</li>
+        <li><strong>Log de auditoria</strong> registra todas as ações com diff de campos alterados, autor, IP e timestamp.</li>
+        <li><strong>Backup automático diário</strong> com retenção configurável (padrão 30 dias).</li>
+        <li><strong>Tráfego HTTPS</strong> recomendado para acesso externo (via FortiGate ou proxy reverso).</li>
+      </ul>
+
+      <h3>6.3. Pessoas</h3>
+      <ul>
+        <li>Acesso ao sistema concedido apenas a servidores com função compatível.</li>
+        <li>Servidores são orientados sobre sigilo profissional e responsabilidade no manuseio dos dados.</li>
+        <li>O desligamento de um servidor implica em imediato bloqueio da conta correspondente.</li>
+      </ul>
+
+      <div class="caixa-tecnica">
+        <strong>Resumo do ambiente técnico:</strong><br>
+        • Servidor: Windows Server 2022 (estrutura interna PMBC)<br>
+        • Banco de dados: SQLite (arquivo único, criptografável em backup)<br>
+        • Firewall de borda: FortiGate (regras restritivas + IPS)<br>
+        • Diretório: Active Directory + domínio corporativo PMBC<br>
+        • Acesso administrativo: restrito ao Dep. de TI<br>
+        • Backups: automáticos diários, com retenção configurável<br>
+        • Auditoria: log completo com diff de alterações
+      </div>
+    </section>
+
+    <section class="secao" id="retencao">
+      <h2>7. Por quanto tempo guardamos os dados</h2>
+      <p>O tempo de retenção dos dados varia conforme a finalidade e exigências legais:</p>
+      <ul>
+        <li><strong>Cadastro de animais e tutores:</strong> mantido enquanto o cadastro estiver ativo e por mais 5 anos após inativação, para fins de histórico sanitário.</li>
+        <li><strong>Notificações de zoonoses:</strong> 20 anos, conforme orientações da vigilância epidemiológica do Ministério da Saúde.</li>
+        <li><strong>Denúncias de maus-tratos:</strong> 5 anos após o desfecho da apuração, ou até o trânsito em julgado de eventual ação criminal/cível.</li>
+        <li><strong>Logs de auditoria do sistema:</strong> 5 anos.</li>
+        <li><strong>Dados de servidores que deixaram o quadro municipal:</strong> conta inativada imediatamente; histórico mantido pelo mesmo prazo dos logs.</li>
+        <li><strong>Backups:</strong> conforme configuração, geralmente 30 dias para backups automáticos e indefinidamente para backups oficiais arquivados.</li>
+      </ul>
+      <p>Encerrado o prazo de retenção, os dados são anonimizados ou excluídos, conforme aplicável.</p>
+    </section>
+
+    <section class="secao" id="direitos">
+      <h2>8. Seus direitos como titular dos dados</h2>
+      <p>A LGPD assegura ao cidadão os seguintes direitos sobre seus dados pessoais:</p>
+
+      <div class="grid-direitos">
+        <div class="card-direito">
+          <div class="ico">📋</div>
+          <h4>Confirmação e acesso</h4>
+          <p>Saber se a Prefeitura trata dados seus e ter acesso a eles.</p>
+        </div>
+        <div class="card-direito">
+          <div class="ico">✏️</div>
+          <h4>Correção</h4>
+          <p>Solicitar correção de dados incompletos, inexatos ou desatualizados.</p>
+        </div>
+        <div class="card-direito">
+          <div class="ico">🔒</div>
+          <h4>Anonimização ou bloqueio</h4>
+          <p>De dados desnecessários, excessivos ou tratados em desconformidade com a lei.</p>
+        </div>
+        <div class="card-direito">
+          <div class="ico">🗑️</div>
+          <h4>Eliminação</h4>
+          <p>Dos dados tratados com base no seu consentimento, respeitadas as retenções legais.</p>
+        </div>
+        <div class="card-direito">
+          <div class="ico">📤</div>
+          <h4>Portabilidade</h4>
+          <p>Receber seus dados em formato estruturado para uso próprio.</p>
+        </div>
+        <div class="card-direito">
+          <div class="ico">ℹ️</div>
+          <h4>Informação</h4>
+          <p>Sobre com quem a Prefeitura compartilha seus dados.</p>
+        </div>
+        <div class="card-direito">
+          <div class="ico">⛔</div>
+          <h4>Revogar consentimento</h4>
+          <p>Quando o tratamento foi baseado em consentimento.</p>
+        </div>
+        <div class="card-direito">
+          <div class="ico">⚖️</div>
+          <h4>Reclamar à ANPD</h4>
+          <p>Direito de peticionar à Autoridade Nacional de Proteção de Dados.</p>
+        </div>
+      </div>
+
+      <h3>Como exercer seus direitos</h3>
+      <p>Para exercer qualquer dos direitos acima, o cidadão pode:</p>
+      <ul>
+        <li>📞 Telefonar para o <strong>Departamento de Informática e Tecnologia: (31) 3837-7661</strong></li>
+        <li>📧 Enviar e-mail com sua solicitação (canal a ser informado pela Prefeitura)</li>
+        <li>🏛️ Comparecer pessoalmente à sede da Prefeitura Municipal</li>
+      </ul>
+      <p>A Prefeitura responderá à solicitação no <strong>prazo máximo de 15 dias</strong>, conforme art. 19 da LGPD, exceto quando houver impossibilidade legal de atendimento, hipótese em que a recusa será fundamentada.</p>
+    </section>
+
+    <section class="secao" id="cookies">
+      <h2>9. Cookies e armazenamento local</h2>
+      <p>O SIGAZ utiliza apenas tecnologias de armazenamento <strong>estritamente necessárias ao funcionamento do sistema</strong>:</p>
+      <ul>
+        <li><strong>localStorage</strong> do navegador para guardar o token de sessão do usuário logado e suas preferências (tema claro/escuro).</li>
+        <li><strong>Service Worker</strong> (PWA) para acelerar o carregamento de recursos estáticos (CSS, JS, imagens).</li>
+        <li>Não utilizamos cookies de rastreamento, analytics de terceiros ou tags publicitárias.</li>
+      </ul>
+      <p>Por se tratar de tecnologias essenciais à prestação do serviço público, a base legal aplicável é o legítimo interesse e a execução de políticas públicas — não há necessidade de consentimento, conforme art. 7º, IX, da LGPD, mas o cidadão é informado sobre o uso.</p>
+    </section>
+
+    <section class="secao" id="contato">
+      <h2>10. Encarregado pelo tratamento de dados (DPO) e contato</h2>
+      <p>Conforme art. 41 da LGPD, a Prefeitura indicou o <strong>Departamento de Informática e Tecnologia</strong> como ponto de contato para assuntos relacionados à proteção de dados pessoais.</p>
+      <div class="caixa-destaque">
+        <strong>Departamento de Informática e Tecnologia</strong><br>
+        Prefeitura Municipal de Barão de Cocais — MG<br>
+        📞 Telefone: <strong>(31) 3837-7661</strong><br>
+        🏛️ Endereço institucional: sede da Prefeitura Municipal
+      </div>
+      <p>O cidadão também pode acionar a <strong>Autoridade Nacional de Proteção de Dados (ANPD)</strong> em casos de violação aos seus direitos: <a href="https://www.gov.br/anpd/pt-br" target="_blank" rel="noopener">https://www.gov.br/anpd</a></p>
+    </section>
+
+    <section class="secao" id="alteracoes">
+      <h2>11. Alterações desta política</h2>
+      <p>Esta política pode ser revisada periodicamente para refletir alterações legais, técnicas ou operacionais. A versão vigente está sempre disponível neste endereço e a data da última atualização é apresentada no rodapé.</p>
+      <p><strong>Versão:</strong> 1.0 — <strong>Última atualização:</strong> <span id="dataAtualizacao">—</span></p>
+    </section>
+
+    <div class="barra-acoes">
+      <button class="btn btn-primario" onclick="baixarPdf()">📄 Baixar esta política em PDF</button>
+      <button class="btn btn-secundario" onclick="window.print()">🖨️ Imprimir</button>
+      <a href="/" class="btn btn-secundario">← Voltar ao sistema</a>
+    </div>
+  </main>
+
+  <footer class="rodape-pub">
+    <strong>SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses</strong><br>
+    Secretaria Municipal de Saúde · <strong>Departamento de Informática e Tecnologia</strong><br>
+    Prefeitura Municipal de Barão de Cocais — MG · 📞 (31) 3837-7661<br>
+    <small style="margin-top:8px;display:inline-block;">Documento elaborado em conformidade com a Lei nº 13.709/2018 (LGPD)</small>
+  </footer>
+
+  <script>
+    // Aplicar tema imediatamente
+    (function() {
+      const tema = localStorage.getItem('sigaz_tema') || 'claro';
+      document.documentElement.setAttribute('data-tema', tema);
+    })();
+
+    document.getElementById('dataAtualizacao').textContent = new Date().toLocaleDateString('pt-BR', {
+      year: 'numeric', month: 'long', day: '2-digit'
+    });
+
+    async function baixarPdf() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+      // Brasão
+      const img = new Image();
+      img.src = '/assets/brasao_small.png';
+      await new Promise(r => { img.onload = r; img.onerror = r; });
+      try { doc.addImage(img, 'PNG', 95, 12, 22, 22); } catch {}
+
+      // Cabeçalho
+      doc.setFontSize(10).setFont('helvetica','bold');
+      doc.text('PREFEITURA MUNICIPAL DE BARÃO DE COCAIS', 105, 40, { align: 'center' });
+      doc.setFontSize(9).setFont('helvetica','normal');
+      doc.text('Secretaria Municipal de Saúde', 105, 45, { align: 'center' });
+      doc.text('Departamento de Informática e Tecnologia', 105, 50, { align: 'center' });
+
+      doc.setFontSize(16).setFont('helvetica','bold');
+      doc.text('POLÍTICA DE PRIVACIDADE E LGPD', 105, 62, { align: 'center' });
+      doc.setFontSize(10).setFont('helvetica','normal');
+      doc.text('SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses', 105, 68, { align: 'center' });
+      doc.setDrawColor(0, 60, 124);
+      doc.setLineWidth(0.5);
+      doc.line(14, 73, 196, 73);
+
+      let y = 82;
+      doc.setFontSize(10).setFont('helvetica','normal');
+
+      const secoes = [
+        ['1. APRESENTAÇÃO',
+         'A Prefeitura Municipal de Barão de Cocais — MG, por meio da Secretaria Municipal de Saúde e do Departamento de Informática e Tecnologia, opera o SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses, ferramenta usada para o controle sanitário, cadastro de animais, vigilância epidemiológica de zoonoses e atendimento ao cidadão.\n\nEste documento explica, de forma clara, quais dados pessoais o sistema trata, com qual finalidade, por quanto tempo e como o cidadão pode exercer seus direitos, em estrita observância à Lei nº 13.709/2018 (LGPD).'],
+
+        ['2. BASE LEGAL DO TRATAMENTO',
+         'O tratamento de dados pessoais no SIGAZ é fundamentado nas seguintes hipóteses do art. 7º da LGPD:\n\n• Art. 7º, II — Cumprimento de obrigação legal ou regulatória\n• Art. 7º, III — Execução de políticas públicas\n• Art. 7º, VI — Exercício regular de direitos\n• Art. 7º, IX — Legítimo interesse\n• Art. 11, II, "f" — Tutela da saúde pública (dados sensíveis)\n\nMarco normativo complementar: Lei nº 8.080/1990 (SUS), Portaria GM/MS nº 264/2020, Decreto Federal nº 11.137/2022.'],
+
+        ['3. DADOS COLETADOS',
+         'Do tutor: nome, CPF, RG, endereço, telefone, e-mail.\n\nDo animal: identificação, raça, sexo, idade, microchip, foto (opcional), histórico vacinal.\n\nDe saúde pública: notificações de zoonoses, exames, bairro de ocorrência.\n\nDe denúncias: descrição, endereço; dados do denunciante apenas se identificado (opção de denúncia anônima sempre disponível).\n\nDe servidores: nome, CPF, e-mail funcional, perfil de acesso, logs.\n\nTécnicos automáticos: IP de acesso, data/hora de ações.\n\nNÃO COLETAMOS: dados bancários, biometria, GPS, redes sociais, cookies de rastreamento.'],
+
+        ['4. FINALIDADES',
+         '• Cadastro e identificação de animais e tutores\n• Controle vacinal e sanitário\n• Vigilância epidemiológica (boletins ao SINAN)\n• Apuração de denúncias de maus-tratos\n• Campanhas e mutirões de castração/vacinação\n• Emissão de documentos (carteirinha, termo de posse, atestado)\n• Auditoria interna e segurança da informação'],
+
+        ['5. COMPARTILHAMENTO',
+         'Os dados são compartilhados apenas com:\n\n• Ministério da Saúde / SINAN (obrigação legal)\n• Secretaria Estadual de Saúde MG\n• Polícia Civil / Ministério Público (mediante requisição em apuração de maus-tratos)\n• Órgãos de controle (TCU, TCE, CGM) em auditorias\n\nO SIGAZ NÃO vende, aluga ou cede dados pessoais a empresas privadas ou para fins comerciais.'],
+
+        ['6. SEGURANÇA — INFRAESTRUTURA',
+         'O sistema é hospedado em servidor municipal próprio com Windows Server 2022, dentro da estrutura física da Prefeitura.\n\nA rede municipal é protegida por firewall corporativo Fortinet (FortiGate), com regras de filtragem, inspeção de tráfego e prevenção de intrusão (IPS).\n\nO ambiente conta com Active Directory (AD) e domínio corporativo, permitindo gestão centralizada de identidades.\n\nO acesso administrativo é restrito ao Departamento de Informática e Tecnologia, mediante credenciais nominais e registro de log.'],
+
+        ['6. SEGURANÇA — APLICAÇÃO',
+         '• Autenticação com tokens JWT expiráveis\n• Política de senha forte (mínimo 8 caracteres, maiúscula e número)\n• Bloqueio automático após 5 tentativas falhas\n• Troca obrigatória de senha no 1º acesso\n• Perfis de acesso segmentados\n• Log de auditoria com diff de alterações\n• Backup automático diário (retenção 30 dias)\n• Tráfego HTTPS recomendado'],
+
+        ['7. RETENÇÃO',
+         '• Cadastro de animais e tutores: enquanto ativo + 5 anos\n• Notificações de zoonoses: 20 anos (vigilância epidemiológica)\n• Denúncias: 5 anos após desfecho\n• Logs de auditoria: 5 anos\n• Servidores desligados: conta inativada imediatamente\n• Backups: 30 dias (configurável)\n\nEncerrado o prazo, dados são anonimizados ou excluídos.'],
+
+        ['8. DIREITOS DO TITULAR (LGPD Art. 18)',
+         '• Confirmação e acesso\n• Correção\n• Anonimização, bloqueio ou eliminação\n• Portabilidade\n• Informação sobre compartilhamento\n• Revogação de consentimento\n• Reclamação à ANPD\n\nPrazo para resposta: 15 dias (art. 19 LGPD).'],
+
+        ['9. COOKIES E ARMAZENAMENTO LOCAL',
+         'O SIGAZ usa apenas:\n• localStorage para token de sessão e preferências\n• Service Worker (PWA) para cache de recursos\n\nNão há cookies de rastreamento, analytics de terceiros ou tags publicitárias.'],
+
+        ['10. ENCARREGADO (DPO) E CONTATO',
+         'Departamento de Informática e Tecnologia\nPrefeitura Municipal de Barão de Cocais — MG\nTelefone: (31) 3837-7661\n\nO cidadão também pode acionar a Autoridade Nacional de Proteção de Dados (ANPD):\nhttps://www.gov.br/anpd'],
+
+        ['11. ALTERAÇÕES',
+         'Esta política pode ser revisada periodicamente. A versão vigente está sempre disponível em /privacidade.html\n\nVersão: 1.0\nÚltima atualização: ' + new Date().toLocaleDateString('pt-BR')]
+      ];
+
+      for (const [titulo, texto] of secoes) {
+        if (y > 260) { doc.addPage(); y = 20; }
+        doc.setFontSize(11).setFont('helvetica','bold');
+        doc.setTextColor(0, 60, 124);
+        doc.text(titulo, 14, y);
+        y += 6;
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(9).setFont('helvetica','normal');
+        const linhas = doc.splitTextToSize(texto, 180);
+        for (const l of linhas) {
+          if (y > 280) { doc.addPage(); y = 20; }
+          doc.text(l, 14, y);
+          y += 4.5;
+        }
+        y += 4;
+      }
+
+      // Rodapé em cada página
+      const totalPaginas = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPaginas; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7).setTextColor(120);
+        doc.text('SIGAZ • Dep. de Informática e Tecnologia • PMBC • (31) 3837-7661', 14, 290);
+        doc.text(`Página ${i} de ${totalPaginas}`, 196, 290, { align: 'right' });
+      }
+
+      doc.save('politica_privacidade_sigaz.pdf');
+    }
+  </script>
+</body>
+</html>

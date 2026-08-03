@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mordeduras (SINAN) — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    .grupo-titulo {
+      font-family: var(--fonte-display);
+      font-size: 13px;
+      color: var(--azul-bandeira);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 14px 0 8px;
+      border-bottom: 1px solid var(--cinza-200);
+      margin-bottom: 12px;
+      grid-column: 1 / -1;
+    }
+    .obs-card {
+      background: var(--cinza-50);
+      border-left: 3px solid var(--azul-bandeira);
+      padding: 12px 14px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    html[data-tema="escuro"] .obs-card { background: var(--cinza-100); }
+    .dia-badge {
+      display: inline-block;
+      background: var(--azul-bandeira);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <!-- Modal de cadastro/edição -->
+  <div class="modal-overlay" id="modalMor">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2 id="tituloModalMor">Nova Notificação SINAN — Atendimento Antirrábico Humano</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalMor')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="formMor">
+          <input type="hidden" id="morId">
+
+          <div class="form-grid">
+            <div class="grupo-titulo">📋 Notificação</div>
+            <div class="form-grupo">
+              <label class="form-label obrigatorio">Data da Notificação</label>
+              <input type="date" id="data_notificacao" class="form-controle" required>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Data do Acidente</label>
+              <input type="date" id="data_ocorrencia" class="form-controle">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Status do Caso</label>
+              <select id="status_caso" class="form-controle">
+                <option value="Aberto">Aberto</option>
+                <option value="Em Acompanhamento">Em Acompanhamento</option>
+                <option value="Encerrado">Encerrado</option>
+                <option value="Cancelado">Cancelado</option>
+              </select>
+            </div>
+
+            <div class="grupo-titulo">🧑 Vítima Humana</div>
+            <div class="form-grupo full">
+              <label class="form-label obrigatorio">Nome Completo</label>
+              <input type="text" id="vitima_nome" class="form-controle" required maxlength="120">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">CPF</label>
+              <input type="text" id="vitima_cpf" class="form-controle" maxlength="14" inputmode="numeric">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Data de Nascimento</label>
+              <input type="date" id="vitima_data_nascimento" class="form-controle">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Sexo</label>
+              <select id="vitima_sexo" class="form-controle">
+                <option value="">—</option>
+                <option value="M">Masculino</option>
+                <option value="F">Feminino</option>
+                <option value="I">Indeterminado/Ignorado</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Telefone</label>
+              <input type="text" id="vitima_telefone" class="form-controle" maxlength="15" inputmode="tel">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">CEP</label>
+              <input type="text" id="vitima_cep" class="form-controle" maxlength="9" inputmode="numeric">
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Endereço</label>
+              <input type="text" id="vitima_endereco" class="form-controle" maxlength="200">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Bairro</label>
+              <select id="vitima_bairro" class="form-controle"></select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Cidade</label>
+              <input type="text" id="vitima_cidade" class="form-controle" maxlength="80" value="Barão de Cocais">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">UF</label>
+              <input type="text" id="vitima_uf" class="form-controle" maxlength="2" value="MG" style="text-transform:uppercase;">
+            </div>
+
+            <div class="grupo-titulo">🩹 Acidente</div>
+            <div class="form-grupo">
+              <label class="form-label">Local Anatômico</label>
+              <select id="local_anatomico" class="form-controle">
+                <option value="">—</option>
+                <option>Cabeça/Face/Pescoço</option>
+                <option>Mão/Dedos</option>
+                <option>Membro Superior (Braço)</option>
+                <option>Tronco</option>
+                <option>Membro Inferior (Perna)</option>
+                <option>Pé</option>
+                <option>Mucosas</option>
+                <option>Múltiplos locais</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Tipo de Ferimento</label>
+              <select id="tipo_ferimento" class="form-controle">
+                <option value="">—</option>
+                <option>Único - Superficial</option>
+                <option>Único - Profundo</option>
+                <option>Múltiplo - Superficiais</option>
+                <option>Múltiplo - Profundos</option>
+                <option>Dilacerante</option>
+                <option>Lambedura em mucosa</option>
+                <option>Lambedura em pele íntegra</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Local da Ocorrência</label>
+              <select id="local_ocorrencia" class="form-controle">
+                <option value="">—</option>
+                <option>Via pública</option>
+                <option>Residência da vítima</option>
+                <option>Residência do dono do animal</option>
+                <option>Zona rural</option>
+                <option>Outros</option>
+              </select>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Bairro da Ocorrência</label>
+              <select id="bairro_ocorrencia" class="form-controle"></select>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Descrição do Acidente</label>
+              <textarea id="descricao_acidente" class="form-controle" rows="3" maxlength="800"></textarea>
+            </div>
+
+            <div class="grupo-titulo">🐕 Animal Agressor</div>
+            <div class="form-grupo">
+              <label class="form-label">Espécie</label>
+              <select id="animal_especie" class="form-controle">
+                <option value="">—</option>
+                <option>Canino</option><option>Felino</option><option>Quiróptero (Morcego)</option>
+                <option>Primata</option><option>Equídeo</option><option>Bovídeo</option><option>Outros</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Animal Conhecido?</label>
+              <select id="animal_conhecido" class="form-controle">
+                <option value="0">Não</option>
+                <option value="1">Sim</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Vacinado contra Raiva?</label>
+              <select id="animal_vacinado" class="form-controle">
+                <option value="">—</option>
+                <option value="Sim">Sim</option>
+                <option value="Não">Não</option>
+                <option value="Desconhecido">Desconhecido</option>
+              </select>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Animal cadastrado no SIGAZ (opcional)</label>
+              <select id="animal_id" class="form-controle">
+                <option value="">— Não vinculado —</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Nome do Proprietário</label>
+              <input type="text" id="animal_proprietario_nome" class="form-controle" maxlength="120">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Telefone do Proprietário</label>
+              <input type="text" id="animal_proprietario_telefone" class="form-controle" maxlength="15">
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Endereço do Proprietário</label>
+              <input type="text" id="animal_proprietario_endereco" class="form-controle" maxlength="200">
+            </div>
+
+            <div class="grupo-titulo">💉 Conduta Médica</div>
+            <div class="form-grupo">
+              <label class="form-label">Tipo de Exposição</label>
+              <select id="tipo_exposicao" class="form-controle">
+                <option value="">—</option>
+                <option value="Leve">Leve</option>
+                <option value="Grave">Grave</option>
+                <option value="Sem indicação">Sem indicação</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Conduta</label>
+              <select id="conduta" class="form-controle">
+                <option value="">—</option>
+                <option>Observação (animal sadio)</option>
+                <option>Vacina (4 doses)</option>
+                <option>Vacina + Soro</option>
+                <option>Reexposição</option>
+                <option>Encaminhado a hospital</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Profilaxia Iniciada?</label>
+              <select id="profilaxia_iniciada" class="form-controle">
+                <option value="0">Não</option>
+                <option value="1">Sim</option>
+              </select>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Unidade de Atendimento</label>
+              <input type="text" id="unidade_atendimento" class="form-controle" maxlength="120" placeholder="UBS, UPA, Hospital...">
+            </div>
+
+            <div class="grupo-titulo">🔍 Observação dos 10 dias</div>
+            <div class="form-grupo full">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" id="observacao_iniciada"> Iniciar observação do animal (10 dias)
+              </label>
+              <small class="text-xs text-cinza">A data fim da observação será calculada automaticamente (data acidente + 10 dias).</small>
+            </div>
+          </div>
+
+          <div class="form-acoes">
+            <button type="button" class="btn btn-secundario" onclick="fecharModal('modalMor')">Cancelar</button>
+            <button type="submit" class="btn btn-primario" id="btnSalvarMor">Salvar Notificação</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de observação dos 10 dias -->
+  <div class="modal-overlay" id="modalObs">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2 id="tituloObs">Acompanhamento — Observação dos 10 dias</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalObs')">×</button>
+      </div>
+      <div class="modal-body" id="bodyObs"></div>
+    </div>
+  </div>
+
+  <script src="/js/comum.js"></script>
+  <script src="/js/mascaras.js"></script>
+  <script src="/js/bairros.js"></script>
+  <script>
+    montarShell({
+      paginaAtiva: 'mordeduras',
+      titulo: 'Atendimento Antirrábico Humano (SINAN)',
+      subtitulo: 'Notificação compulsória de mordeduras · Portaria GM/MS nº 264/2020'
+    });
+
+    mascarar('vitima_cpf', 'cpf');
+    mascarar('vitima_telefone', 'telefone');
+    mascarar('vitima_cep', 'cep');
+    mascarar('animal_proprietario_telefone', 'telefone');
+    ligarBuscaCep('vitima_cep', { endereco: 'vitima_endereco', cidade: 'vitima_cidade', uf: 'vitima_uf' });
+    // Selects de bairros oficiais (vítima + ocorrência)
+    BairrosHelper.inicializar('vitima_bairro');
+    BairrosHelper.inicializar('bairro_ocorrencia');
+
+    const conteudo = document.getElementById('conteudo');
+    let cacheAnimais = [];
+    let cacheMor = [];
+
+    function montar() {
+      conteudo.innerHTML = `
+        <div class="card mb-4"><div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div>
+            <strong style="font-size:16px;">Notificações Registradas</strong>
+            <div class="text-sm text-cinza">Mordeduras com indicação ou avaliação para profilaxia antirrábica</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-secundario" onclick="exportarCsv()">📊 Exportar CSV SINAN</button>
+            <button class="btn btn-primario" onclick="novaNotificacao()">+ Nova Notificação</button>
+          </div>
+        </div></div>
+
+        <div class="tabela-container">
+          <div class="tabela-toolbar">
+            <select id="filtroStatus" class="form-controle" style="width:auto;">
+              <option value="">Todos os status</option>
+              <option value="Aberto">Aberto</option>
+              <option value="Em Acompanhamento">Em Acompanhamento</option>
+              <option value="Encerrado">Encerrado</option>
+              <option value="Cancelado">Cancelado</option>
+            </select>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+              <input type="checkbox" id="filtroObsPendente"> Apenas observações em curso
+            </label>
+          </div>
+          <div id="lista"></div>
+        </div>
+      `;
+      document.getElementById('filtroStatus').addEventListener('change', carregar);
+      document.getElementById('filtroObsPendente').addEventListener('change', carregar);
+      carregarAnimais();
+      carregar();
+    }
+
+    async function carregarAnimais() {
+      try {
+        const r = await api('/animais?limite=500');
+        cacheAnimais = r.dados;
+      } catch {}
+    }
+
+    async function carregar() {
+      const params = new URLSearchParams();
+      const s = document.getElementById('filtroStatus').value;
+      const o = document.getElementById('filtroObsPendente').checked;
+      if (s) params.set('status', s);
+      if (o) params.set('observacao_pendente', '1');
+      try {
+        const r = await api('/mordeduras?' + params.toString());
+        cacheMor = r.dados;
+        render(r.dados);
+      } catch (err) { toast('Erro: '+err.message, 'erro'); }
+    }
+
+    function render(dados) {
+      const div = document.getElementById('lista');
+      if (dados.length === 0) {
+        div.innerHTML = '<div class="vazio"><div class="vazio-icone">🦷</div><div class="vazio-titulo">Nenhuma notificação registrada</div></div>';
+        return;
+      }
+      const corStatus = { Aberto:'laranja', 'Em Acompanhamento':'azul', Encerrado:'verde', Cancelado:'cinza' };
+      const corObs = { 'Em curso':'azul', Concluída:'verde', 'Animal Sumiu':'vermelho', 'Animal Morreu':'vermelho', 'Animal Sacrificado':'vermelho' };
+
+      const hoje = new Date().toISOString().substring(0,10);
+
+      div.innerHTML = `
+        <table class="tabela">
+          <thead><tr>
+            <th>Protocolo</th><th>Notificação</th><th>Vítima</th><th>Animal</th>
+            <th>Exposição</th><th>Observação 10 dias</th><th>Status</th><th style="text-align:right;">Ações</th>
+          </tr></thead>
+          <tbody>${dados.map(m => {
+            let badgeObs = '';
+            if (m.observacao_iniciada) {
+              const status = m.observacao_status || 'Em curso';
+              let extra = '';
+              if (m.observacao_fim_previsto) {
+                const restantes = Math.ceil((new Date(m.observacao_fim_previsto) - new Date(hoje)) / 86400000);
+                if (status === 'Em curso') {
+                  extra = restantes > 0 ? ` (${restantes}d restantes)` : ' (FIM)';
+                }
+              }
+              badgeObs = `<span class="badge badge-${corObs[status]||'cinza'}">${status}${extra}</span>`;
+            } else {
+              badgeObs = '<span class="text-cinza">—</span>';
+            }
+            return `<tr>
+              <td><span class="codigo-cell">${escapeHtml(m.protocolo)}</span></td>
+              <td>${formatarData(m.data_notificacao)}</td>
+              <td><strong>${escapeHtml(m.vitima_nome)}</strong>
+                ${m.vitima_bairro ? '<div class="text-xs text-cinza">'+escapeHtml(m.vitima_bairro)+'</div>' : ''}
+              </td>
+              <td>${escapeHtml(m.animal_especie || '—')}
+                ${m.animal_codigo ? '<div class="text-xs"><span class="codigo-cell">'+escapeHtml(m.animal_codigo)+'</span></div>' : ''}
+              </td>
+              <td>${m.tipo_exposicao ? '<span class="badge badge-'+(m.tipo_exposicao==='Grave'?'vermelho':'laranja')+'">'+escapeHtml(m.tipo_exposicao)+'</span>' : '—'}</td>
+              <td>${badgeObs}</td>
+              <td><span class="badge badge-${corStatus[m.status_caso]||'cinza'}">${escapeHtml(m.status_caso)}</span></td>
+              <td><div class="acoes">
+                ${m.observacao_iniciada ? `<button class="btn btn-secundario btn-sm" onclick="abrirObs(${m.id})" title="Registrar observação">📋</button>` : ''}
+                <button class="btn btn-secundario btn-sm" onclick="gerarPdf(${m.id})" title="Gerar PDF">📄</button>
+                <button class="btn btn-secundario btn-sm" onclick="editar(${m.id})">Editar</button>
+                <button class="btn btn-secundario btn-sm" onclick="excluir(${m.id}, '${escapeHtml(m.protocolo)}')">✕</button>
+              </div></td>
+            </tr>`;}).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function popular(idSel, lista, sel, label) {
+      const el = document.getElementById(idSel);
+      const opcoes = lista.map(x => `<option value="${x.id}" ${x.id==sel?'selected':''}>${escapeHtml(label(x))}</option>`).join('');
+      el.innerHTML = `<option value="">— Não vinculado —</option>` + opcoes;
+    }
+
+    function novaNotificacao() {
+      document.getElementById('formMor').reset();
+      document.getElementById('morId').value = '';
+      document.getElementById('data_notificacao').valueAsDate = new Date();
+      document.getElementById('vitima_cidade').value = 'Barão de Cocais';
+      document.getElementById('vitima_uf').value = 'MG';
+      document.getElementById('tituloModalMor').textContent = 'Nova Notificação SINAN — Atendimento Antirrábico Humano';
+      popular('animal_id', cacheAnimais, '', a => `${a.codigo} — ${a.nome}`);
+      abrirModal('modalMor');
+    }
+
+    async function editar(id) {
+      try {
+        const m = await api('/mordeduras/' + id);
+        document.getElementById('morId').value = m.id;
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+        set('data_notificacao', m.data_notificacao);
+        set('data_ocorrencia', m.data_ocorrencia);
+        set('status_caso', m.status_caso || 'Aberto');
+        set('vitima_nome', m.vitima_nome);
+        document.getElementById('vitima_cpf').value = m.vitima_cpf ? mascararCpf(m.vitima_cpf) : '';
+        set('vitima_data_nascimento', m.vitima_data_nascimento);
+        set('vitima_sexo', m.vitima_sexo);
+        document.getElementById('vitima_telefone').value = m.vitima_telefone ? mascararTelefone(m.vitima_telefone) : '';
+        document.getElementById('vitima_cep').value = m.vitima_cep ? mascararCep(m.vitima_cep) : '';
+        set('vitima_endereco', m.vitima_endereco);
+        BairrosHelper.definirValor('vitima_bairro', m.vitima_bairro);
+        set('vitima_cidade', m.vitima_cidade || 'Barão de Cocais');
+        set('vitima_uf', m.vitima_uf || 'MG');
+        set('local_anatomico', m.local_anatomico);
+        set('tipo_ferimento', m.tipo_ferimento);
+        set('local_ocorrencia', m.local_ocorrencia);
+        BairrosHelper.definirValor('bairro_ocorrencia', m.bairro_ocorrencia);
+        set('descricao_acidente', m.descricao_acidente);
+        set('animal_especie', m.animal_especie);
+        set('animal_conhecido', m.animal_conhecido ? '1' : '0');
+        set('animal_vacinado', m.animal_vacinado);
+        set('animal_proprietario_nome', m.animal_proprietario_nome);
+        document.getElementById('animal_proprietario_telefone').value = m.animal_proprietario_telefone ? mascararTelefone(m.animal_proprietario_telefone) : '';
+        set('animal_proprietario_endereco', m.animal_proprietario_endereco);
+        set('tipo_exposicao', m.tipo_exposicao);
+        set('conduta', m.conduta);
+        set('profilaxia_iniciada', m.profilaxia_iniciada ? '1' : '0');
+        set('unidade_atendimento', m.unidade_atendimento);
+        document.getElementById('observacao_iniciada').checked = !!m.observacao_iniciada;
+        popular('animal_id', cacheAnimais, m.animal_id, a => `${a.codigo} — ${a.nome}`);
+        document.getElementById('tituloModalMor').textContent = 'Editar Notificação — ' + m.protocolo;
+        abrirModal('modalMor');
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    document.getElementById('formMor').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('morId').value;
+      const body = {
+        data_notificacao: document.getElementById('data_notificacao').value,
+        data_ocorrencia: document.getElementById('data_ocorrencia').value || null,
+        status_caso: document.getElementById('status_caso').value,
+        vitima_nome: document.getElementById('vitima_nome').value.trim(),
+        vitima_cpf: document.getElementById('vitima_cpf').value,
+        vitima_data_nascimento: document.getElementById('vitima_data_nascimento').value || null,
+        vitima_sexo: document.getElementById('vitima_sexo').value || null,
+        vitima_telefone: document.getElementById('vitima_telefone').value,
+        vitima_cep: document.getElementById('vitima_cep').value,
+        vitima_endereco: document.getElementById('vitima_endereco').value.trim(),
+        vitima_bairro: BairrosHelper.lerValor('vitima_bairro'),
+        vitima_cidade: document.getElementById('vitima_cidade').value.trim(),
+        vitima_uf: document.getElementById('vitima_uf').value.trim().toUpperCase(),
+        local_anatomico: document.getElementById('local_anatomico').value || null,
+        tipo_ferimento: document.getElementById('tipo_ferimento').value || null,
+        local_ocorrencia: document.getElementById('local_ocorrencia').value || null,
+        bairro_ocorrencia: BairrosHelper.lerValor('bairro_ocorrencia'),
+        descricao_acidente: document.getElementById('descricao_acidente').value.trim(),
+        animal_id: document.getElementById('animal_id').value || null,
+        animal_especie: document.getElementById('animal_especie').value || null,
+        animal_conhecido: document.getElementById('animal_conhecido').value === '1',
+        animal_vacinado: document.getElementById('animal_vacinado').value || null,
+        animal_proprietario_nome: document.getElementById('animal_proprietario_nome').value.trim(),
+        animal_proprietario_telefone: document.getElementById('animal_proprietario_telefone').value,
+        animal_proprietario_endereco: document.getElementById('animal_proprietario_endereco').value.trim(),
+        tipo_exposicao: document.getElementById('tipo_exposicao').value || null,
+        conduta: document.getElementById('conduta').value || null,
+        profilaxia_iniciada: document.getElementById('profilaxia_iniciada').value === '1',
+        unidade_atendimento: document.getElementById('unidade_atendimento').value.trim(),
+        observacao_iniciada: document.getElementById('observacao_iniciada').checked
+      };
+
+      const btn = document.getElementById('btnSalvarMor');
+      btn.disabled = true;
+      try {
+        if (id) {
+          await api('/mordeduras/' + id, { method: 'PUT', body });
+          toast('Notificação atualizada', 'sucesso');
+        } else {
+          const r = await api('/mordeduras', { method: 'POST', body });
+          toast('Notificação criada: ' + r.protocolo, 'sucesso');
+        }
+        fecharModal('modalMor');
+        carregar();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+      finally { btn.disabled = false; }
+    });
+
+    async function excluir(id, protocolo) {
+      if (!confirm(`Excluir notificação ${protocolo}?`)) return;
+      try {
+        await api('/mordeduras/' + id, { method: 'DELETE' });
+        toast('Excluído', 'sucesso');
+        carregar();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    async function abrirObs(id) {
+      const m = await api('/mordeduras/' + id);
+      const dataInicio = m.observacao_inicio;
+      const obsArray = m.observacoes_diarias || [];
+
+      document.getElementById('tituloObs').textContent = `Observação 10 dias — ${m.protocolo}`;
+      document.getElementById('bodyObs').innerHTML = `
+        <div style="background:var(--azul-claro);border-left:4px solid var(--azul-bandeira);padding:14px 18px;border-radius:6px;margin-bottom:18px;">
+          <strong>Animal:</strong> ${escapeHtml(m.animal_especie || '?')} ${m.animal_codigo ? '('+escapeHtml(m.animal_codigo)+')' : ''}<br>
+          <strong>Vítima:</strong> ${escapeHtml(m.vitima_nome)}<br>
+          <strong>Início da observação:</strong> ${formatarData(dataInicio)}<br>
+          <strong>Fim previsto:</strong> ${formatarData(m.observacao_fim_previsto)}<br>
+          <strong>Status:</strong> ${escapeHtml(m.observacao_status || 'Em curso')}
+          ${m.observacao_resultado ? '<br><strong>Resultado:</strong> '+escapeHtml(m.observacao_resultado) : ''}
+        </div>
+
+        <h3 style="font-family:var(--fonte-display);font-size:15px;border-bottom:1px solid var(--cinza-200);padding-bottom:6px;margin-bottom:12px;">Registrar observação</h3>
+        <form id="formObs">
+          <div class="form-grid">
+            <div class="form-grupo">
+              <label class="form-label obrigatorio">Data</label>
+              <input type="date" id="obs_data" class="form-controle" required value="${new Date().toISOString().substring(0,10)}">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Dia da observação</label>
+              <select id="obs_dia" class="form-controle">
+                <option value="">—</option>
+                <option value="1">1º dia</option>
+                <option value="5">5º dia</option>
+                <option value="10">10º dia (final)</option>
+              </select>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label obrigatorio">Situação do Animal</label>
+              <select id="obs_situacao" class="form-controle" required>
+                <option value="">—</option>
+                <option value="Sadio">Sadio</option>
+                <option value="Doente">Apresenta sinais clínicos</option>
+                <option value="Sumiu">Animal sumiu / não localizado</option>
+                <option value="Morreu">Animal morreu</option>
+              </select>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Observações</label>
+              <textarea id="obs_obs" class="form-controle" rows="3" maxlength="500"></textarea>
+            </div>
+          </div>
+          <div class="form-acoes"><button type="submit" class="btn btn-primario">+ Adicionar Observação</button></div>
+        </form>
+
+        <h3 style="font-family:var(--fonte-display);font-size:15px;border-bottom:1px solid var(--cinza-200);padding-bottom:6px;margin:18px 0 12px;">Histórico de Observações (${obsArray.length})</h3>
+        ${obsArray.length === 0 ? '<div class="vazio"><div class="vazio-texto">Sem registros ainda</div></div>' :
+          obsArray.map(o => `
+            <div class="obs-card">
+              <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;">
+                <div>
+                  <strong>${formatarData(o.data)}</strong>
+                  ${o.dia_observacao ? '<span class="dia-badge" style="margin-left:8px;">Dia '+o.dia_observacao+'</span>' : ''}
+                  <span class="badge badge-${o.situacao_animal==='Sadio'?'verde':o.situacao_animal==='Doente'?'laranja':'vermelho'}" style="margin-left:8px;">${escapeHtml(o.situacao_animal)}</span>
+                  ${o.observacoes ? '<div class="text-sm" style="margin-top:6px;">'+escapeHtml(o.observacoes)+'</div>' : ''}
+                  <div class="text-xs text-cinza" style="margin-top:4px;">Por ${escapeHtml(o.usuario_nome || '?')} em ${formatarDataHora(o.criado_em)}</div>
+                </div>
+                <button class="btn btn-secundario btn-sm" onclick="excluirObs(${o.id}, ${m.id})">✕</button>
+              </div>
+            </div>
+          `).join('')}
+      `;
+
+      document.getElementById('formObs').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          await api(`/mordeduras/${m.id}/observacao`, { method: 'POST', body: {
+            data: document.getElementById('obs_data').value,
+            dia_observacao: document.getElementById('obs_dia').value || null,
+            situacao_animal: document.getElementById('obs_situacao').value,
+            observacoes: document.getElementById('obs_obs').value.trim()
+          }});
+          toast('Observação registrada', 'sucesso');
+          abrirObs(m.id);
+          carregar();
+        } catch (err) { toast('Erro: '+err.message, 'erro'); }
+      });
+
+      abrirModal('modalObs');
+    }
+
+    async function excluirObs(id, mordeduraId) {
+      if (!confirm('Excluir esta observação?')) return;
+      try {
+        await api('/mordeduras/observacao/' + id, { method: 'DELETE' });
+        abrirObs(mordeduraId);
+      } catch (err) { toast('Erro: '+err.message, 'erro'); }
+    }
+
+    async function exportarCsv() {
+      const r = await fetch('/api/mordeduras/exportar/sinan-csv', {
+        headers: { 'Authorization': 'Bearer ' + SIGAZ.token }
+      });
+      if (!r.ok) { toast('Erro ao exportar', 'erro'); return; }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `sinan_mordeduras_${new Date().toISOString().substring(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('CSV SINAN baixado', 'sucesso');
+    }
+
+    async function gerarPdf(id) {
+      const m = await api('/mordeduras/' + id);
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+      const img = new Image();
+      img.src = '/assets/brasao_small.png';
+      await new Promise(r => { img.onload = r; img.onerror = r; });
+      try { doc.addImage(img, 'PNG', 95, 10, 20, 20); } catch {}
+
+      doc.setFontSize(9).setFont('helvetica','bold');
+      doc.text('PREFEITURA MUNICIPAL DE BARÃO DE COCAIS', 105, 36, { align: 'center' });
+      doc.setFontSize(8).setFont('helvetica','normal');
+      doc.text('Secretaria Municipal de Saúde · Vigilância Epidemiológica', 105, 40, { align: 'center' });
+
+      doc.setFontSize(13).setFont('helvetica','bold');
+      doc.text('FICHA DE NOTIFICAÇÃO — ATENDIMENTO ANTIRRÁBICO HUMANO', 105, 50, { align: 'center' });
+      doc.setFontSize(8).setFont('helvetica','italic');
+      doc.text('Notificação compulsória conforme Portaria GM/MS nº 264/2020', 105, 55, { align: 'center' });
+
+      doc.setDrawColor(0, 60, 124); doc.setLineWidth(0.4);
+      doc.line(14, 58, 196, 58);
+
+      let y = 64;
+      doc.setFontSize(10).setFont('helvetica','bold');
+      doc.text(`Protocolo: ${m.protocolo}`, 14, y);
+      doc.text(`Data Notif.: ${m.data_notificacao ? new Date(m.data_notificacao).toLocaleDateString('pt-BR') : '—'}`, 110, y);
+      y += 5;
+      doc.text(`Data Acidente: ${m.data_ocorrencia ? new Date(m.data_ocorrencia).toLocaleDateString('pt-BR') : '—'}`, 14, y);
+      doc.text(`Status: ${m.status_caso}`, 110, y);
+      y += 7;
+
+      const secao = (titulo) => {
+        if (y > 260) { doc.addPage(); y = 20; }
+        doc.setFillColor(0, 60, 124);
+        doc.rect(14, y - 3, 182, 6, 'F');
+        doc.setTextColor(255).setFontSize(9).setFont('helvetica','bold');
+        doc.text(titulo, 16, y + 1);
+        doc.setTextColor(0);
+        y += 7;
+      };
+      const linha = (lbl, val) => {
+        if (y > 280) { doc.addPage(); y = 20; }
+        doc.setFontSize(8).setFont('helvetica','bold').text(lbl + ':', 14, y);
+        doc.setFont('helvetica','normal');
+        const v = String(val || '—');
+        const split = doc.splitTextToSize(v, 130);
+        doc.text(split, 60, y);
+        y += Math.max(5, split.length * 4);
+      };
+
+      secao('VÍTIMA');
+      linha('Nome', m.vitima_nome);
+      linha('CPF', m.vitima_cpf);
+      linha('Nascimento', m.vitima_data_nascimento ? new Date(m.vitima_data_nascimento).toLocaleDateString('pt-BR') : '');
+      linha('Sexo', m.vitima_sexo);
+      linha('Telefone', m.vitima_telefone);
+      linha('Endereço', [m.vitima_endereco, m.vitima_bairro, m.vitima_cidade, m.vitima_uf].filter(Boolean).join(', '));
+
+      secao('ACIDENTE');
+      linha('Local anatômico', m.local_anatomico);
+      linha('Tipo de ferimento', m.tipo_ferimento);
+      linha('Local da ocorrência', m.local_ocorrencia);
+      linha('Bairro', m.bairro_ocorrencia);
+      linha('Descrição', m.descricao_acidente);
+
+      secao('ANIMAL AGRESSOR');
+      linha('Espécie', m.animal_especie);
+      linha('Conhecido', m.animal_conhecido ? 'Sim' : 'Não');
+      linha('Vacinado', m.animal_vacinado);
+      linha('Proprietário', m.animal_proprietario_nome);
+      linha('Telefone', m.animal_proprietario_telefone);
+      linha('Endereço', m.animal_proprietario_endereco);
+
+      secao('CONDUTA MÉDICA');
+      linha('Tipo de exposição', m.tipo_exposicao);
+      linha('Conduta', m.conduta);
+      linha('Profilaxia iniciada', m.profilaxia_iniciada ? 'Sim' : 'Não');
+      linha('Unidade de atendimento', m.unidade_atendimento);
+
+      if (m.observacao_iniciada) {
+        secao('OBSERVAÇÃO DOS 10 DIAS');
+        linha('Início', m.observacao_inicio ? new Date(m.observacao_inicio).toLocaleDateString('pt-BR') : '');
+        linha('Fim previsto', m.observacao_fim_previsto ? new Date(m.observacao_fim_previsto).toLocaleDateString('pt-BR') : '');
+        linha('Status', m.observacao_status);
+        linha('Resultado', m.observacao_resultado);
+
+        const obsArray = m.observacoes_diarias || [];
+        if (obsArray.length > 0) {
+          y += 2;
+          doc.autoTable({
+            startY: y,
+            head: [['Data', 'Dia', 'Situação', 'Observações']],
+            body: obsArray.map(o => [
+              new Date(o.data).toLocaleDateString('pt-BR'),
+              o.dia_observacao || '—',
+              o.situacao_animal,
+              o.observacoes || ''
+            ]),
+            styles: { fontSize: 8, cellPadding: 1.5 },
+            headStyles: { fillColor: [0, 60, 124], textColor: 255 },
+            margin: { left: 14, right: 14 }
+          });
+          y = doc.lastAutoTable.finalY + 4;
+        }
+      }
+
+      // Rodapé
+      const totalPag = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPag; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7).setTextColor(120);
+        doc.text('SIGAZ • Dep. de Informática e Tecnologia • PMBC • (31) 3837-7661', 105, 290, { align: 'center' });
+        doc.text(`Página ${i}/${totalPag}`, 196, 290, { align: 'right' });
+      }
+
+      doc.save(`ficha_sinan_${m.protocolo}.pdf`);
+      toast('PDF gerado', 'sucesso');
+    }
+
+    montar();
+  </script>
+</body>
+</html>

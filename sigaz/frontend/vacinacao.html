@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vacinação — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <div class="modal-overlay" id="modalVacina">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="tituloModalVacina">Registrar Vacina</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalVacina')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="formVacina">
+          <div class="form-grid">
+            <div class="form-grupo full">
+              <label class="form-label obrigatorio">Animal</label>
+              <select id="animal_id" class="form-controle" required>
+                <option value="">Selecione o animal...</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label obrigatorio">Vacina</label>
+              <select id="vacina" class="form-controle" required>
+                <option value="">Selecione...</option>
+                <option>Raiva</option>
+                <option>V8 (Óctupla)</option>
+                <option>V10 (Décupla)</option>
+                <option>V4 (Felina)</option>
+                <option>V5 (Felina)</option>
+                <option>FeLV (Leucemia Felina)</option>
+                <option>Giardia</option>
+                <option>Gripe (Tosse dos Canis)</option>
+                <option>Outra</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Fabricante</label>
+              <input type="text" id="fabricante" class="form-controle">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Lote</label>
+              <input type="text" id="lote" class="form-controle">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label obrigatorio">Data de Aplicação</label>
+              <input type="date" id="data_aplicacao" class="form-controle" required>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Validade da Vacina</label>
+              <input type="date" id="data_validade" class="form-controle">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Próxima Aplicação</label>
+              <input type="date" id="proxima_aplicacao" class="form-controle">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Responsável pela Aplicação</label>
+              <input type="text" id="responsavel_aplicacao" class="form-controle" placeholder="Nome do médico veterinário">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">CRMV</label>
+              <input type="text" id="crmv" class="form-controle">
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Observações</label>
+              <textarea id="observacoes" class="form-controle"></textarea>
+            </div>
+          </div>
+          <div class="form-acoes">
+            <button type="button" class="btn btn-secundario" onclick="fecharModal('modalVacina')">Cancelar</button>
+            <button type="submit" class="btn btn-primario" id="btnSalvarVacina">Registrar Vacina</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/comum.js"></script>
+  <script>
+    montarShell({ paginaAtiva: 'vacinacao', titulo: 'Controle de Vacinação', subtitulo: 'Registro e acompanhamento do calendário vacinal' });
+    const conteudo = document.getElementById('conteudo');
+    let cacheAnimais = [];
+
+    function montar() {
+      conteudo.innerHTML = `
+        <div class="card mb-4">
+          <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div>
+              <strong style="font-size:16px;">Registro de Vacinas Aplicadas</strong>
+              <div class="text-sm text-cinza">Histórico vacinal completo dos animais cadastrados</div>
+            </div>
+            <button class="btn btn-primario" onclick="abrirCadastro()">+ Registrar Vacina</button>
+          </div>
+        </div>
+
+        <div class="tabs">
+          <button class="tab ativo" data-tab="todas">Todas as Vacinas</button>
+          <button class="tab" data-tab="vencendo">⚠️ Vencendo em 30 dias</button>
+          <button class="tab" data-tab="vencidas">❌ Vencidas</button>
+        </div>
+
+        <div class="tabela-container">
+          <div id="lista"></div>
+        </div>
+      `;
+
+      document.querySelectorAll('.tab').forEach(t => {
+        t.addEventListener('click', () => {
+          document.querySelectorAll('.tab').forEach(x => x.classList.remove('ativo'));
+          t.classList.add('ativo');
+          carregar(t.dataset.tab);
+        });
+      });
+
+      carregarAnimais().then(() => carregar('todas'));
+
+      if (new URLSearchParams(location.search).get('novo') === '1') {
+        setTimeout(abrirCadastro, 200);
+      }
+    }
+
+    async function carregarAnimais() {
+      try {
+        const r = await api('/animais?limite=500');
+        cacheAnimais = r.dados;
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    async function carregar(filtro) {
+      let url = '/sanitario/vacinas';
+      if (filtro === 'vencendo') url += '?status=vencendo';
+      else if (filtro === 'vencidas') url += '?status=vencidas';
+      try {
+        let r = await api(url);
+        render(r.dados);
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    function render(dados) {
+      const div = document.getElementById('lista');
+      if (dados.length === 0) {
+        div.innerHTML = '<div class="vazio"><div class="vazio-icone">💉</div><div class="vazio-titulo">Nenhuma vacina registrada</div></div>';
+        return;
+      }
+      const hoje = new Date().toISOString().substring(0, 10);
+      div.innerHTML = `
+        <table class="tabela">
+          <thead><tr>
+            <th>Animal</th><th>Vacina</th><th>Lote / Fabricante</th>
+            <th>Aplicação</th><th>Próxima</th><th>Responsável</th>
+            <th style="text-align:right;">Ações</th>
+          </tr></thead>
+          <tbody>${dados.map(v => {
+            let badgeProx = '';
+            if (v.proxima_aplicacao) {
+              if (v.eh_vigente === 0) {
+                // Existe uma dose mais recente desta vacina — esta foi substituída por reforço
+                badgeProx = '<span class="badge badge-azul" title="Substituída por reforço posterior">↻ Reforçada</span>';
+              } else if (v.proxima_aplicacao < hoje) {
+                badgeProx = '<span class="badge badge-vermelho">Vencida</span>';
+              } else {
+                const diff = (new Date(v.proxima_aplicacao) - new Date(hoje)) / (1000 * 60 * 60 * 24);
+                if (diff <= 30) badgeProx = '<span class="badge badge-laranja">' + formatarData(v.proxima_aplicacao) + '</span>';
+                else badgeProx = '<span class="badge badge-verde">' + formatarData(v.proxima_aplicacao) + '</span>';
+              }
+            } else badgeProx = '<span class="text-cinza">—</span>';
+            return `
+              <tr>
+                <td><strong>${escapeHtml(v.animal_nome)}</strong><br><span class="codigo-cell">${escapeHtml(v.animal_codigo)}</span></td>
+                <td><span class="badge badge-azul">${escapeHtml(v.vacina)}</span></td>
+                <td>${escapeHtml(v.lote || '—')}<br><span class="text-xs text-cinza">${escapeHtml(v.fabricante || '')}</span></td>
+                <td>${formatarData(v.data_aplicacao)}</td>
+                <td>${badgeProx}</td>
+                <td>${escapeHtml(v.responsavel_aplicacao || '—')}${v.crmv ? `<div class="text-xs text-cinza">CRMV ${escapeHtml(v.crmv)}</div>` : ''}</td>
+                <td><div class="acoes"><button class="btn btn-secundario btn-sm" onclick="excluir(${v.id})">✕</button></div></td>
+              </tr>`;
+          }).join('')}</tbody>
+        </table>
+      `;
+    }
+
+    function abrirCadastro() {
+      document.getElementById('formVacina').reset();
+      const sel = document.getElementById('animal_id');
+      sel.innerHTML = '<option value="">Selecione o animal...</option>' +
+        cacheAnimais.map(a => `<option value="${a.id}">${escapeHtml(a.codigo)} — ${escapeHtml(a.nome)}</option>`).join('');
+      abrirModal('modalVacina');
+    }
+
+    document.getElementById('formVacina').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        animal_id: document.getElementById('animal_id').value,
+        vacina: document.getElementById('vacina').value,
+        fabricante: document.getElementById('fabricante').value,
+        lote: document.getElementById('lote').value,
+        data_aplicacao: document.getElementById('data_aplicacao').value,
+        data_validade: document.getElementById('data_validade').value || null,
+        proxima_aplicacao: document.getElementById('proxima_aplicacao').value || null,
+        responsavel_aplicacao: document.getElementById('responsavel_aplicacao').value,
+        crmv: document.getElementById('crmv').value,
+        observacoes: document.getElementById('observacoes').value
+      };
+      const btn = document.getElementById('btnSalvarVacina');
+      btn.disabled = true;
+      try {
+        await api('/sanitario/vacinas', { method: 'POST', body });
+        toast('Vacina registrada com sucesso!', 'sucesso');
+        fecharModal('modalVacina');
+        carregar(document.querySelector('.tab.ativo').dataset.tab);
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+      finally { btn.disabled = false; }
+    });
+
+    async function excluir(id) {
+      if (!confirm('Excluir este registro de vacina?')) return;
+      try {
+        await api('/sanitario/vacinas/' + id, { method: 'DELETE' });
+        toast('Registro excluído', 'sucesso');
+        carregar(document.querySelector('.tab.ativo').dataset.tab);
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    montar();
+  </script>
+</body>
+</html>

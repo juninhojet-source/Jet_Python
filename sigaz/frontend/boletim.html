@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boletim Epidemiológico — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    .indicadores-bol { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px; }
+    .grafico-barra { background: var(--cinza-50); border-radius: 6px; padding: 14px; }
+    .barra-linha { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .barra-rotulo { width: 160px; font-size: 13px; color: var(--cinza-700); }
+    .barra-fundo { flex: 1; background: var(--cinza-200); height: 22px; border-radius: 4px; overflow: hidden; position: relative; }
+    .barra-valor { background: linear-gradient(90deg, var(--azul-bandeira), var(--azul-medio)); height: 100%; display: flex; align-items: center; padding-left: 10px; color: white; font-size: 12px; font-weight: 600; min-width: 28px; }
+    .barra-num { width: 50px; text-align: right; font-weight: 700; color: var(--cinza-800); }
+    html[data-tema="escuro"] .barra-rotulo { color: var(--cinza-600); }
+    html[data-tema="escuro"] .barra-fundo { background: var(--cinza-200); }
+  </style>
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <script src="/js/comum.js"></script>
+  <script>
+    montarShell({ paginaAtiva: 'boletim', titulo: 'Boletim Epidemiológico', subtitulo: 'Consolidado mensal de zoonoses · padrão SINAN' });
+    const conteudo = document.getElementById('conteudo');
+
+    const hoje = new Date();
+    let anoSel = hoje.getFullYear();
+    let mesSel = hoje.getMonth() + 1;
+    let dadosAtuais = null;
+
+    function montar() {
+      const anos = [];
+      for (let y = hoje.getFullYear(); y >= hoje.getFullYear() - 5; y--) anos.push(y);
+      const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+      conteudo.innerHTML = `
+        <div class="card mb-4">
+          <div class="card-body">
+            <div style="display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:14px;">
+              <div>
+                <strong style="font-size:16px;">Período de Referência</strong>
+                <div class="text-sm text-cinza">Selecione o mês para gerar o boletim</div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <select id="selMes" class="form-controle" style="width:auto;">
+                  ${meses.map((m,i) => `<option value="${i+1}" ${i+1===mesSel?'selected':''}>${m}</option>`).join('')}
+                </select>
+                <select id="selAno" class="form-controle" style="width:auto;">
+                  ${anos.map(a => `<option value="${a}" ${a===anoSel?'selected':''}>${a}</option>`).join('')}
+                </select>
+                <button class="btn btn-primario" onclick="carregar()">Atualizar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="boletim"></div>
+      `;
+
+      document.getElementById('selMes').addEventListener('change', e => { mesSel = parseInt(e.target.value); });
+      document.getElementById('selAno').addEventListener('change', e => { anoSel = parseInt(e.target.value); });
+
+      carregar();
+    }
+
+    async function carregar() {
+      try {
+        const r = await api(`/boletim/zoonoses?ano=${anoSel}&mes=${mesSel}`);
+        dadosAtuais = r;
+        renderizar(r);
+      } catch (err) {
+        toast('Erro ao carregar: ' + err.message, 'erro');
+      }
+    }
+
+    function renderizar(d) {
+      const div = document.getElementById('boletim');
+      const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+      const periodoLabel = `${meses[d.periodo.mes-1]} / ${d.periodo.ano}`;
+
+      // Variação vs mês anterior
+      const totalAt = d.totais.mes.t || 0;
+      const totalAnt = d.totais.mesAnterior.t || 0;
+      let variacaoHtml = '';
+      if (totalAnt > 0) {
+        const v = Math.round(((totalAt - totalAnt) / totalAnt) * 100);
+        const sinal = v > 0 ? '↑' : v < 0 ? '↓' : '→';
+        const cor = v > 0 ? 'var(--vermelho)' : v < 0 ? 'var(--verde-bandeira)' : 'var(--cinza-500)';
+        variacaoHtml = `<div class="text-xs" style="color:${cor};margin-top:4px;">${sinal} ${Math.abs(v)}% vs mês anterior</div>`;
+      }
+
+      // Total máximo (para escala das barras)
+      const maxZoo = Math.max(...d.porZoonose.map(z => z.total), 1);
+      const maxBairro = Math.max(...d.porBairro.map(b => b.total), 1);
+
+      div.innerHTML = `
+        <div class="card mb-4">
+          <div class="card-header">
+            <h2>📋 ${periodoLabel}<small>Resumo executivo</small></h2>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secundario btn-sm" onclick="baixarSinan()">📊 CSV SINAN</button>
+              <button class="btn btn-primario btn-sm" onclick="baixarPdf()">📄 Baixar PDF</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="indicadores-bol">
+              <div class="indicador">
+                <div class="indicador-label">Notificações no mês</div>
+                <div class="indicador-valor">${totalAt}</div>
+                ${variacaoHtml}
+              </div>
+              <div class="indicador vermelho">
+                <div class="indicador-label">Casos positivos</div>
+                <div class="indicador-valor">${d.totais.mes.positivos || 0}</div>
+              </div>
+              <div class="indicador laranja">
+                <div class="indicador-label">Óbitos no mês</div>
+                <div class="indicador-valor">${d.totais.mes.obitos || 0}</div>
+              </div>
+              <div class="indicador verde">
+                <div class="indicador-label">Acumulado no ano</div>
+                <div class="indicador-valor">${d.totais.acumuladoAno.t || 0}</div>
+                <div class="text-xs text-cinza" style="margin-top:4px;">${d.totais.acumuladoAno.positivos || 0} positivos</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        ${d.porZoonose.length > 0 ? `
+        <div class="card mb-4">
+          <div class="card-header"><h2>🦠 Distribuição por Agravo</h2></div>
+          <div class="card-body">
+            <div class="grafico-barra">
+              ${d.porZoonose.map(z => `
+                <div class="barra-linha">
+                  <div class="barra-rotulo">${escapeHtml(z.zoonose)}</div>
+                  <div class="barra-fundo">
+                    <div class="barra-valor" style="width:${(z.total/maxZoo)*100}%;">${z.total}</div>
+                  </div>
+                  <div class="barra-num">${z.positivos}+ / ${z.obitos}†</div>
+                </div>
+              `).join('')}
+            </div>
+            <div class="text-xs text-cinza mt-3">Legenda: <strong>+</strong> = casos positivos · <strong>†</strong> = óbitos</div>
+          </div>
+        </div>` : ''}
+
+        ${d.porBairro.length > 0 ? `
+        <div class="card mb-4">
+          <div class="card-header"><h2>📍 Distribuição por Bairro</h2></div>
+          <div class="card-body">
+            <div class="grafico-barra">
+              ${d.porBairro.map(b => `
+                <div class="barra-linha">
+                  <div class="barra-rotulo">${escapeHtml(b.bairro)}</div>
+                  <div class="barra-fundo">
+                    <div class="barra-valor" style="width:${(b.total/maxBairro)*100}%;">${b.total}</div>
+                  </div>
+                  <div class="barra-num">${b.positivos}+</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>` : ''}
+
+        ${d.porEspecie.length > 0 ? `
+        <div class="card mb-4">
+          <div class="card-header"><h2>🐾 Por Espécie Animal</h2></div>
+          <div class="card-body">
+            <table class="tabela">
+              <thead><tr><th>Espécie</th><th>Notificações</th><th>Positivos</th><th>Taxa de Positividade</th></tr></thead>
+              <tbody>${d.porEspecie.map(e => `<tr>
+                <td><strong>${escapeHtml(e.especie)}</strong></td>
+                <td>${e.total}</td>
+                <td>${e.positivos}</td>
+                <td>${e.total > 0 ? Math.round((e.positivos/e.total)*100) + '%' : '—'}</td>
+              </tr>`).join('')}</tbody>
+            </table>
+          </div>
+        </div>` : ''}
+
+        <div class="card mb-4">
+          <div class="card-header"><h2>📜 Ocorrências Detalhadas (${d.ocorrencias.length})</h2></div>
+          <div class="card-body">
+            ${d.ocorrencias.length === 0
+              ? '<div class="vazio"><div class="vazio-icone">✓</div><div class="vazio-titulo">Nenhuma notificação no período</div></div>'
+              : `<table class="tabela">
+                <thead><tr><th>Data</th><th>Zoonose</th><th>Animal</th><th>Bairro</th><th>Diagnóstico</th><th>Status</th><th>Óbito</th></tr></thead>
+                <tbody>${d.ocorrencias.map(o => `<tr>
+                  <td>${formatarData(o.data_notificacao)}</td>
+                  <td><strong>${escapeHtml(o.zoonose)}</strong></td>
+                  <td>${escapeHtml(o.animal_nome)} <span class="codigo-cell">${escapeHtml(o.animal_codigo)}</span></td>
+                  <td>${escapeHtml(o.bairro_ocorrencia || '—')}</td>
+                  <td>${badgeDiag(o.diagnostico)}</td>
+                  <td>${escapeHtml(o.status_investigacao || '—')}</td>
+                  <td>${o.obito ? '<span class="badge badge-vermelho">Sim</span>' : '<span class="badge badge-cinza">Não</span>'}</td>
+                </tr>`).join('')}</tbody>
+              </table>`}
+          </div>
+        </div>
+      `;
+    }
+
+    function badgeDiag(d) {
+      const c = { 'Positivo':'vermelho', 'Negativo':'verde', 'Aguardando':'laranja', 'Inconclusivo':'cinza' };
+      return d ? `<span class="badge badge-${c[d]||'cinza'}">${escapeHtml(d)}</span>` : '—';
+    }
+
+    async function baixarSinan() {
+      const url = `/api/boletim/zoonoses/sinan-csv?ano=${anoSel}&mes=${mesSel}`;
+      const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + SIGAZ.token }});
+      if (!r.ok) { toast('Erro ao gerar CSV','erro'); return; }
+      const blob = await r.blob();
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = u; a.download = `sinan_zoonoses_${anoSel}-${String(mesSel).padStart(2,'0')}.csv`; a.click();
+      URL.revokeObjectURL(u);
+      toast('CSV SINAN baixado','sucesso');
+    }
+
+    async function baixarPdf() {
+      if (!dadosAtuais) return;
+      const d = dadosAtuais;
+      const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+      const periodoLabel = `${meses[d.periodo.mes-1]} de ${d.periodo.ano}`;
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+      // Brasão
+      const img = new Image();
+      img.src = '/assets/brasao_small.png';
+      await new Promise(r => { img.onload = r; img.onerror = r; });
+      try { doc.addImage(img, 'PNG', 14, 10, 18, 18); } catch {}
+
+      doc.setFontSize(10).setFont('helvetica','bold');
+      doc.text('PREFEITURA MUNICIPAL DE BARÃO DE COCAIS', 36, 15);
+      doc.setFontSize(9).setFont('helvetica','normal');
+      doc.text('Secretaria Municipal de Saúde · Vigilância em Saúde Animal', 36, 20);
+      doc.text('SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses', 36, 25);
+
+      doc.setFontSize(15).setFont('helvetica','bold');
+      doc.text('BOLETIM EPIDEMIOLÓGICO DE ZOONOSES', 105, 40, { align: 'center' });
+      doc.setFontSize(11);
+      doc.text(`Período: ${periodoLabel}`, 105, 47, { align: 'center' });
+
+      // Resumo executivo
+      let y = 58;
+      doc.setFontSize(11).setFont('helvetica','bold');
+      doc.text('1. RESUMO EXECUTIVO', 14, y); y += 6;
+      doc.setFontSize(10).setFont('helvetica','normal');
+      const resumoLinhas = [
+        `Total de notificações no mês: ${d.totais.mes.t || 0}`,
+        `Casos confirmados positivos: ${d.totais.mes.positivos || 0}`,
+        `Óbitos registrados: ${d.totais.mes.obitos || 0}`,
+        `Acumulado no ano de ${d.periodo.ano}: ${d.totais.acumuladoAno.t || 0} notificações (${d.totais.acumuladoAno.positivos || 0} positivos)`,
+        `Comparativo com mês anterior: ${d.totais.mesAnterior.t || 0} notificações`
+      ];
+      for (const l of resumoLinhas) { doc.text('• ' + l, 16, y); y += 5; }
+
+      // Distribuição por agravo
+      if (d.porZoonose.length > 0) {
+        y += 6;
+        doc.setFontSize(11).setFont('helvetica','bold');
+        doc.text('2. DISTRIBUIÇÃO POR AGRAVO', 14, y); y += 2;
+        doc.autoTable({
+          startY: y,
+          head: [['Agravo (Zoonose)', 'Notificações', 'Positivos', 'Negativos', 'Pendentes', 'Óbitos']],
+          body: d.porZoonose.map(z => [
+            z.zoonose, z.total, z.positivos, z.negativos, z.pendentes, z.obitos
+          ]),
+          styles: { fontSize: 9, cellPadding: 2 },
+          headStyles: { fillColor: [0, 60, 124], textColor: 255 },
+          margin: { left: 14, right: 14 }
+        });
+        y = doc.lastAutoTable.finalY + 6;
+      }
+
+      // Distribuição por bairro
+      if (d.porBairro.length > 0) {
+        if (y > 220) { doc.addPage(); y = 20; }
+        doc.setFontSize(11).setFont('helvetica','bold');
+        doc.text('3. DISTRIBUIÇÃO POR BAIRRO', 14, y); y += 2;
+        doc.autoTable({
+          startY: y,
+          head: [['Bairro', 'Notificações', 'Positivos', '% sobre total']],
+          body: d.porBairro.map(b => [
+            b.bairro, b.total, b.positivos,
+            d.totais.mes.t > 0 ? Math.round((b.total / d.totais.mes.t) * 100) + '%' : '0%'
+          ]),
+          styles: { fontSize: 9, cellPadding: 2 },
+          headStyles: { fillColor: [0, 60, 124], textColor: 255 },
+          margin: { left: 14, right: 14 }
+        });
+        y = doc.lastAutoTable.finalY + 6;
+      }
+
+      // Por espécie
+      if (d.porEspecie.length > 0) {
+        if (y > 220) { doc.addPage(); y = 20; }
+        doc.setFontSize(11).setFont('helvetica','bold');
+        doc.text('4. POR ESPÉCIE ANIMAL', 14, y); y += 2;
+        doc.autoTable({
+          startY: y,
+          head: [['Espécie', 'Notificações', 'Positivos', 'Taxa de Positividade']],
+          body: d.porEspecie.map(e => [
+            e.especie, e.total, e.positivos,
+            e.total > 0 ? Math.round((e.positivos/e.total)*100) + '%' : '0%'
+          ]),
+          styles: { fontSize: 9, cellPadding: 2 },
+          headStyles: { fillColor: [0, 60, 124], textColor: 255 },
+          margin: { left: 14, right: 14 }
+        });
+        y = doc.lastAutoTable.finalY + 6;
+      }
+
+      // Ocorrências detalhadas
+      if (d.ocorrencias.length > 0) {
+        if (y > 200) { doc.addPage(); y = 20; }
+        doc.setFontSize(11).setFont('helvetica','bold');
+        doc.text(`5. OCORRÊNCIAS DETALHADAS (${d.ocorrencias.length})`, 14, y); y += 2;
+        doc.autoTable({
+          startY: y,
+          head: [['Data', 'Agravo', 'Animal', 'Bairro', 'Diagn.', 'Óbito']],
+          body: d.ocorrencias.map(o => [
+            new Date(o.data_notificacao).toLocaleDateString('pt-BR'),
+            o.zoonose,
+            (o.animal_nome || '') + ' (' + (o.animal_codigo || '') + ')',
+            o.bairro_ocorrencia || '—',
+            o.diagnostico || '—',
+            o.obito ? 'Sim' : 'Não'
+          ]),
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [0, 60, 124], textColor: 255 },
+          margin: { left: 14, right: 14 }
+        });
+      }
+
+      // Rodapé em cada página
+      const totalPaginas = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPaginas; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7).setTextColor(120);
+        doc.text('SIGAZ • Dep. de Informática e Tecnologia • PMBC • (31) 3837-7661', 14, 287);
+        doc.text(`Página ${i} de ${totalPaginas}`, 196, 287, { align: 'right' });
+        doc.text(`Emitido em ${new Date().toLocaleString('pt-BR')}`, 105, 287, { align: 'center' });
+      }
+
+      doc.save(`boletim_epidemiologico_${anoSel}-${String(mesSel).padStart(2,'0')}.pdf`);
+      toast('PDF gerado', 'sucesso');
+    }
+
+    montar();
+  </script>
+</body>
+</html>

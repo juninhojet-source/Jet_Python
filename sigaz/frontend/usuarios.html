@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administração — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <!-- Modal de cadastro/edição de usuário -->
+  <div class="modal-overlay" id="modalUser">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2 id="tituloModalUser">Novo Usuário</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalUser')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="formUser">
+          <input type="hidden" id="userId">
+          <div class="form-grupo">
+            <label class="form-label obrigatorio">Nome Completo</label>
+            <input type="text" id="nome" class="form-controle" required maxlength="120">
+          </div>
+          <div class="form-grupo mt-3">
+            <label class="form-label obrigatorio">Usuário (login)</label>
+            <input type="text" id="username" class="form-controle" required maxlength="40" pattern="[a-zA-Z0-9._-]+">
+            <small style="color:var(--cinza-500);font-size:12px;">Apenas letras, números, ponto, hífen e underline.</small>
+          </div>
+          <div class="form-grupo mt-3">
+            <label class="form-label obrigatorio">E-mail</label>
+            <input type="email" id="email" class="form-controle" required maxlength="120">
+          </div>
+          <div class="form-grupo mt-3">
+            <label class="form-label">CPF</label>
+            <input type="text" id="cpf" class="form-controle" maxlength="14" placeholder="000.000.000-00">
+          </div>
+          <div class="form-grupo mt-3">
+            <label class="form-label">Telefone</label>
+            <input type="text" id="telefone" class="form-controle" maxlength="15" placeholder="(31) 99999-9999">
+          </div>
+          <div class="form-grupo mt-3">
+            <label class="form-label" id="lblSenha">Senha</label>
+            <input type="password" id="senha" class="form-controle" placeholder="Deixe em branco para não alterar" maxlength="100">
+            <small style="color:var(--cinza-500);font-size:12px;">
+              Mínimo 8 caracteres, com letra maiúscula e número. O usuário será forçado a trocar no 1º login.
+            </small>
+          </div>
+          <div class="form-grupo mt-3">
+            <label class="form-label obrigatorio">Perfil</label>
+            <select id="perfil" class="form-controle" required>
+              <option value="admin">Administrador</option>
+              <option value="veterinario">Médico Veterinário</option>
+              <option value="auxiliar">Auxiliar</option>
+              <option value="endemias">Agente de Endemias</option>
+              <option value="secretaria">Secretaria</option>
+              <option value="ti">TI</option>
+            </select>
+          </div>
+          <div class="form-grupo mt-3">
+            <label class="form-label">Status</label>
+            <select id="ativo" class="form-controle">
+              <option value="1">Ativo</option>
+              <option value="0">Inativo</option>
+            </select>
+          </div>
+          <div class="form-acoes">
+            <button type="button" class="btn btn-secundario" onclick="fecharModal('modalUser')">Cancelar</button>
+            <button type="submit" class="btn btn-primario" id="btnSalvarUser">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de senha resetada -->
+  <div class="modal-overlay" id="modalSenhaReset">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2>Senha Temporária Gerada</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalSenhaReset')">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom:12px;">Informe ao usuário a senha temporária abaixo. Ele será obrigado a trocá-la no próximo login.</p>
+        <div style="background:var(--cinza-50);border:1px solid var(--cinza-200);border-radius:6px;padding:18px;text-align:center;">
+          <code id="senhaTempTexto" style="font-size:22px;font-weight:700;letter-spacing:2px;color:var(--azul-bandeira);">—</code>
+        </div>
+        <button class="btn btn-secundario btn-sm" style="margin-top:12px;width:100%;" onclick="copiarSenhaTemp()">📋 Copiar para área de transferência</button>
+        <div style="background:var(--vermelho-claro);color:var(--vermelho);border:1px solid var(--vermelho-borda);padding:10px;border-radius:6px;font-size:12px;margin-top:14px;line-height:1.5;">
+          ⚠️ <strong>Atenção:</strong> esta senha será exibida apenas uma vez. Anote ou copie agora.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primario" onclick="fecharModal('modalSenhaReset')">Entendi</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/comum.js"></script>
+  <script src="/js/mascaras.js"></script>
+  <script>
+    montarShell({ paginaAtiva: 'usuarios', titulo: 'Administração do Sistema', subtitulo: 'Usuários, auditoria, backup e configurações' });
+    const conteudo = document.getElementById('conteudo');
+
+    if (SIGAZ.usuario.perfil !== 'admin' && SIGAZ.usuario.perfil !== 'ti') {
+      conteudo.innerHTML = '<div class="card"><div class="card-body"><div class="vazio"><div class="vazio-icone">🔒</div><div class="vazio-titulo">Acesso restrito</div><div class="vazio-texto">Esta área é exclusiva para administradores.</div></div></div></div>';
+    } else {
+      mascarar('cpf', 'cpf');
+      mascarar('telefone', 'telefone');
+      montar();
+    }
+
+    function montar() {
+      conteudo.innerHTML = `
+        <div class="tabs">
+          <button class="tab ativo" data-tab="usuarios">Usuários</button>
+          <button class="tab" data-tab="logs">Log de Auditoria</button>
+          <button class="tab" data-tab="backup">💾 Backup & Restauração</button>
+          <button class="tab" data-tab="config">⚙️ Configurações</button>
+        </div>
+
+        <div class="tab-conteudo ativo" id="tab-usuarios">
+          <div class="card mb-4">
+            <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+              <div>
+                <strong style="font-size:16px;">Usuários do Sistema</strong>
+                <div class="text-sm text-cinza">Servidores autorizados a acessar o SIGAZ</div>
+              </div>
+              <button class="btn btn-primario" onclick="abrirCadastroUser()">+ Novo Usuário</button>
+            </div>
+          </div>
+          <div class="tabela-container"><div id="listaUsers"></div></div>
+        </div>
+
+        <div class="tab-conteudo" id="tab-logs">
+          <div class="card mb-4">
+            <div class="card-body" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <strong style="font-size:16px;flex:1;">Log de Auditoria</strong>
+              <select id="filtroAcao" class="form-controle" style="width:auto;">
+                <option value="">Todas as ações</option>
+                <option value="LOGIN">Login</option>
+                <option value="LOGIN_FALHA">Login Falha</option>
+                <option value="BLOQUEIO_LOGIN">Bloqueio por Tentativas</option>
+                <option value="CRIAR">Criar</option>
+                <option value="ATUALIZAR">Atualizar</option>
+                <option value="EXCLUIR">Excluir</option>
+                <option value="BACKUP_AUTO">Backup Automático</option>
+                <option value="RESETAR_SENHA">Reset de Senha</option>
+              </select>
+            </div>
+          </div>
+          <div class="tabela-container"><div id="listaLogs"></div></div>
+        </div>
+
+        <div class="tab-conteudo" id="tab-backup">
+          <div class="card mb-4">
+            <div class="card-header"><h2>💾 Backup<small>Cópia consistente de todos os dados</small></h2></div>
+            <div class="card-body">
+              <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                <button class="btn btn-primario" onclick="baixarBackup()">⬇️ Baixar Backup Agora</button>
+                <button class="btn btn-secundario" onclick="criarBackupServidor()">📦 Salvar Backup no Servidor</button>
+              </div>
+              <div class="text-sm text-cinza mt-3" style="line-height:1.6;">
+                • <strong>Baixar:</strong> gera e baixa um arquivo <code>.db</code> direto no seu computador.<br>
+                • <strong>Salvar no servidor:</strong> mantém uma cópia datada em <code>backend/backups/</code>.<br>
+                • Os backups são gerados sem precisar parar o sistema.<br>
+                • <strong>Backup automático diário</strong> é executado conforme as configurações da aba "Configurações".
+              </div>
+            </div>
+          </div>
+
+          <div class="card mb-4">
+            <div class="card-header"><h2>📂 Backups no Servidor<small>Histórico de cópias salvas</small></h2></div>
+            <div class="tabela-container">
+              <div id="listaBackups"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h2 style="color:var(--vermelho);">⚠️ Restauração<small>Substitui TODOS os dados — ação irreversível</small></h2></div>
+            <div class="card-body">
+              <div style="background:var(--vermelho-claro);border:1px solid var(--vermelho-borda);border-radius:6px;padding:14px;margin-bottom:18px;font-size:13px;line-height:1.6;color:var(--vermelho);">
+                <strong>Atenção:</strong> a restauração <strong>apaga todos os dados atuais</strong> e os substitui pelos dados do arquivo enviado. Um backup automático do estado atual é gerado antes como rede de segurança.
+              </div>
+
+              <div class="form-grupo">
+                <label class="form-label obrigatorio">Arquivo de Backup (.db)</label>
+                <input type="file" id="arquivoRestore" accept=".db" class="form-controle">
+              </div>
+
+              <div class="form-grupo mt-3">
+                <label class="form-label obrigatorio">Digite <code style="background:var(--cinza-100);padding:2px 6px;border-radius:3px;">RESTAURAR</code> para confirmar</label>
+                <input type="text" id="confirmacaoRestore" class="form-controle" placeholder="Digite exatamente: RESTAURAR" autocomplete="off">
+              </div>
+
+              <div class="form-acoes">
+                <button class="btn btn-perigo" onclick="executarRestauracao()" id="btnRestaurar">⚠️ Executar Restauração</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-conteudo" id="tab-config">
+          <div class="card mb-4">
+            <div class="card-header"><h2>⚙️ Configurações do Sistema<small>Parâmetros gerais, segurança e backup</small></h2></div>
+            <div class="card-body">
+              <div id="formConfig"></div>
+              <div class="form-acoes">
+                <button class="btn btn-primario" onclick="salvarConfig()" id="btnSalvarConfig">Salvar Configurações</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.querySelectorAll('.tab').forEach(t => {
+        t.addEventListener('click', () => {
+          document.querySelectorAll('.tab').forEach(x => x.classList.remove('ativo'));
+          document.querySelectorAll('.tab-conteudo').forEach(x => x.classList.remove('ativo'));
+          t.classList.add('ativo');
+          document.getElementById('tab-' + t.dataset.tab).classList.add('ativo');
+          if (t.dataset.tab === 'logs') carregarLogs();
+          if (t.dataset.tab === 'backup') carregarBackups();
+          if (t.dataset.tab === 'config') carregarConfig();
+        });
+      });
+
+      document.getElementById('filtroAcao').addEventListener('change', carregarLogs);
+
+      carregarUsers();
+    }
+
+    // ============ USUÁRIOS ============
+    async function carregarUsers() {
+      try {
+        const r = await api('/usuarios');
+        renderUsers(r.dados);
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    function renderUsers(dados) {
+      const div = document.getElementById('listaUsers');
+      if (dados.length === 0) {
+        div.innerHTML = '<div class="vazio"><div class="vazio-icone">👥</div><div class="vazio-titulo">Nenhum usuário cadastrado</div></div>';
+        return;
+      }
+      const perfilLabel = {
+        admin: 'Administrador', veterinario: 'Méd. Veterinário', auxiliar: 'Auxiliar',
+        endemias: 'Endemias', secretaria: 'Secretaria', ti: 'TI', cidadao: 'Cidadão'
+      };
+      const agora = new Date();
+      div.innerHTML = `
+        <table class="tabela">
+          <thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Status</th><th>Último Login</th><th style="text-align:right;">Ações</th></tr></thead>
+          <tbody>${dados.map(u => {
+            let badgeStatus = '';
+            const bloqueado = u.bloqueado_ate && new Date(u.bloqueado_ate.replace(' ', 'T') + 'Z') > agora;
+            if (!u.ativo) badgeStatus = '<span class="badge badge-cinza">Inativo</span>';
+            else if (bloqueado) badgeStatus = '<span class="badge badge-vermelho">🔒 Bloqueado</span>';
+            else if (u.deve_trocar_senha) badgeStatus = '<span class="badge badge-laranja">Deve trocar senha</span>';
+            else badgeStatus = '<span class="badge badge-verde">Ativo</span>';
+
+            return `
+            <tr>
+              <td><strong>${escapeHtml(u.nome)}</strong>
+                  <div class="text-xs text-cinza">${escapeHtml(u.email)}</div></td>
+              <td><span class="codigo-cell">${escapeHtml(u.username || '—')}</span></td>
+              <td><span class="badge badge-azul">${escapeHtml(perfilLabel[u.perfil] || u.perfil)}</span></td>
+              <td>${badgeStatus}</td>
+              <td>${u.ultimo_login ? formatarDataHora(u.ultimo_login) : '<span class="text-cinza">nunca</span>'}</td>
+              <td>
+                <div class="acoes">
+                  <button class="btn btn-secundario btn-sm" onclick='editarUser(${JSON.stringify(u).replace(/'/g, "&#39;")})'>Editar</button>
+                  ${bloqueado ? `<button class="btn btn-secundario btn-sm" onclick="desbloquear(${u.id}, '${escapeHtml(u.nome)}')" title="Desbloquear">🔓</button>` : ''}
+                  ${u.id !== SIGAZ.usuario.id ? `<button class="btn btn-secundario btn-sm" onclick="resetarSenha(${u.id}, '${escapeHtml(u.nome)}')" title="Resetar senha">🔑</button>` : ''}
+                  ${u.id !== SIGAZ.usuario.id ? `<button class="btn btn-secundario btn-sm" onclick="inativarUser(${u.id}, '${escapeHtml(u.nome)}')" title="Inativar">✕</button>` : ''}
+                </div>
+              </td>
+            </tr>`;
+          }).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    async function carregarLogs() {
+      try {
+        const acao = document.getElementById('filtroAcao').value;
+        const url = '/usuarios/logs/auditoria' + (acao ? '?acao=' + acao : '');
+        const r = await api(url);
+        renderLogs(r.dados);
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    function renderLogs(dados) {
+      const div = document.getElementById('listaLogs');
+      if (dados.length === 0) {
+        div.innerHTML = '<div class="vazio"><div class="vazio-titulo">Sem logs com esse filtro</div></div>';
+        return;
+      }
+      const cor = {
+        CRIAR: 'verde', ATUALIZAR: 'azul', EXCLUIR: 'vermelho',
+        INATIVAR: 'laranja', LOGIN: 'cinza', LOGOUT: 'cinza',
+        LOGIN_FALHA: 'laranja', BLOQUEIO_LOGIN: 'vermelho',
+        DESBLOQUEAR: 'verde', RESETAR_SENHA: 'laranja',
+        TROCAR_SENHA: 'verde', BACKUP_AUTO: 'azul',
+        BACKUP_AUTO_FALHA: 'vermelho', BACKUP_CRIAR: 'azul',
+        RESTAURAR: 'vermelho', ATUALIZAR_CONFIG: 'azul'
+      };
+      div.innerHTML = `
+        <table class="tabela">
+          <thead><tr><th>Data/Hora</th><th>Usuário</th><th>Ação</th><th>Entidade</th><th>Detalhes</th><th>IP</th></tr></thead>
+          <tbody>${dados.map(l => `
+            <tr>
+              <td style="white-space:nowrap;font-size:12px;">${formatarDataHora(l.criado_em)}</td>
+              <td>${escapeHtml(l.usuario_nome || '<sistema>')}</td>
+              <td><span class="badge badge-${cor[l.acao] || 'cinza'}">${escapeHtml(l.acao)}</span></td>
+              <td>${escapeHtml(l.entidade || '—')}${l.entidade_id ? ' <span class="codigo-cell">#' + l.entidade_id + '</span>' : ''}</td>
+              <td style="font-size:11px;color:var(--cinza-600);max-width:400px;word-break:break-word;">${formatarDetalhes(l.detalhes)}</td>
+              <td style="font-family:ui-monospace,monospace;font-size:11px;color:var(--cinza-500);">${escapeHtml(l.ip || '—')}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function formatarDetalhes(det) {
+      if (!det) return '';
+      try {
+        const obj = JSON.parse(det);
+        // Auditoria com diff: { campo: { de: X, para: Y }, ... }
+        const partes = [];
+        for (const [k, v] of Object.entries(obj)) {
+          if (v && typeof v === 'object' && 'de' in v && 'para' in v) {
+            partes.push(`<strong>${escapeHtml(k)}:</strong> "${escapeHtml(v.de)}" → "${escapeHtml(v.para)}"`);
+          } else {
+            partes.push(`<strong>${escapeHtml(k)}:</strong> ${escapeHtml(String(v).substring(0, 100))}`);
+          }
+        }
+        return partes.join('<br>');
+      } catch {
+        return escapeHtml(det);
+      }
+    }
+
+    function abrirCadastroUser() {
+      document.getElementById('formUser').reset();
+      document.getElementById('userId').value = '';
+      document.getElementById('tituloModalUser').textContent = 'Novo Usuário';
+      document.getElementById('lblSenha').classList.add('obrigatorio');
+      document.getElementById('senha').required = true;
+      document.getElementById('ativo').value = '1';
+      abrirModal('modalUser');
+    }
+
+    function editarUser(u) {
+      document.getElementById('userId').value = u.id;
+      document.getElementById('nome').value = u.nome;
+      document.getElementById('username').value = u.username || '';
+      document.getElementById('email').value = u.email;
+      document.getElementById('cpf').value = u.cpf ? mascararCpf(u.cpf) : '';
+      document.getElementById('telefone').value = u.telefone ? mascararTelefone(u.telefone) : '';
+      document.getElementById('senha').value = '';
+      document.getElementById('senha').required = false;
+      document.getElementById('lblSenha').classList.remove('obrigatorio');
+      document.getElementById('perfil').value = u.perfil;
+      document.getElementById('ativo').value = u.ativo ? '1' : '0';
+      document.getElementById('tituloModalUser').textContent = 'Editar Usuário';
+      abrirModal('modalUser');
+    }
+
+    document.getElementById('formUser').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('userId').value;
+      const body = {
+        nome: document.getElementById('nome').value.trim(),
+        username: document.getElementById('username').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        cpf: document.getElementById('cpf').value.replace(/\D/g, ''),
+        telefone: document.getElementById('telefone').value.replace(/\D/g, ''),
+        senha: document.getElementById('senha').value,
+        perfil: document.getElementById('perfil').value,
+        ativo: document.getElementById('ativo').value === '1'
+      };
+      if (!body.senha) delete body.senha;
+      const btn = document.getElementById('btnSalvarUser');
+      btn.disabled = true;
+      try {
+        if (id) {
+          await api('/usuarios/' + id, { method: 'PUT', body });
+          toast('Usuário atualizado', 'sucesso');
+        } else {
+          await api('/usuarios', { method: 'POST', body });
+          toast('Usuário criado', 'sucesso');
+        }
+        fecharModal('modalUser');
+        carregarUsers();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+      finally { btn.disabled = false; }
+    });
+
+    async function inativarUser(id, nome) {
+      if (!confirm(`Inativar o usuário "${nome}"?`)) return;
+      try {
+        await api('/usuarios/' + id, { method: 'DELETE' });
+        toast('Usuário inativado', 'sucesso');
+        carregarUsers();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    async function desbloquear(id, nome) {
+      if (!confirm(`Desbloquear o usuário "${nome}"?\nEle poderá tentar fazer login novamente.`)) return;
+      try {
+        await api(`/usuarios/${id}/desbloquear`, { method: 'POST' });
+        toast(`${nome} desbloqueado`, 'sucesso');
+        carregarUsers();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    async function resetarSenha(id, nome) {
+      if (!confirm(`Gerar uma nova senha temporária para "${nome}"?\nA senha atual será invalidada e ele será obrigado a trocar no próximo login.`)) return;
+      try {
+        const r = await api(`/usuarios/${id}/resetar-senha`, { method: 'POST' });
+        document.getElementById('senhaTempTexto').textContent = r.senha_temporaria;
+        abrirModal('modalSenhaReset');
+        carregarUsers();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    function copiarSenhaTemp() {
+      const t = document.getElementById('senhaTempTexto').textContent;
+      navigator.clipboard.writeText(t).then(() => toast('Senha copiada', 'sucesso'));
+    }
+
+    // ============ BACKUP & RESTAURAÇÃO ============
+    async function baixarBackup() {
+      toast('Gerando backup...', 'info');
+      try {
+        const r = await fetch('/api/admin/backup', {
+          headers: { 'Authorization': 'Bearer ' + SIGAZ.token }
+        });
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.erro || 'Erro');
+        }
+        const cd = r.headers.get('Content-Disposition') || '';
+        const m = cd.match(/filename="([^"]+)"/);
+        const nome = m ? m[1] : 'sigaz_backup.db';
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nome;
+        link.click();
+        URL.revokeObjectURL(url);
+        toast('Backup baixado', 'sucesso');
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    async function criarBackupServidor() {
+      try {
+        const r = await api('/admin/backups/criar', { method: 'POST' });
+        toast(`Backup criado: ${r.arquivo}`, 'sucesso');
+        carregarBackups();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    async function carregarBackups() {
+      try {
+        const r = await api('/admin/backups');
+        renderBackups(r.dados);
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    function renderBackups(dados) {
+      const div = document.getElementById('listaBackups');
+      if (dados.length === 0) {
+        div.innerHTML = '<div class="vazio"><div class="vazio-icone">📦</div><div class="vazio-titulo">Nenhum backup salvo</div></div>';
+        return;
+      }
+      div.innerHTML = `
+        <table class="tabela">
+          <thead><tr><th>Arquivo</th><th>Tipo</th><th>Tamanho</th><th>Data</th><th style="text-align:right;">Ações</th></tr></thead>
+          <tbody>${dados.map(b => {
+            const auto = b.arquivo.includes('_auto_');
+            const preRestore = b.arquivo.includes('pre_restore');
+            const badge = preRestore ? '<span class="badge badge-laranja">Pré-restauração</span>'
+                        : auto ? '<span class="badge badge-azul">Automático</span>'
+                        : '<span class="badge badge-cinza">Manual</span>';
+            return `
+            <tr>
+              <td><span class="codigo-cell">${escapeHtml(b.arquivo)}</span></td>
+              <td>${badge}</td>
+              <td>${(b.tamanho_bytes/1024).toFixed(1)} KB</td>
+              <td>${formatarDataHora(b.criado_em)}</td>
+              <td>
+                <div class="acoes">
+                  <button class="btn btn-secundario btn-sm" onclick="baixarBackupLocal('${escapeHtml(b.arquivo)}')">⬇️</button>
+                  <button class="btn btn-secundario btn-sm" onclick="excluirBackup('${escapeHtml(b.arquivo)}')">✕</button>
+                </div>
+              </td>
+            </tr>`;}).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    async function baixarBackupLocal(arquivo) {
+      try {
+        const r = await fetch('/api/admin/backups/' + encodeURIComponent(arquivo) + '/download', {
+          headers: { 'Authorization': 'Bearer ' + SIGAZ.token }
+        });
+        if (!r.ok) throw new Error('Erro');
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = arquivo;
+        link.click();
+        URL.revokeObjectURL(url);
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    async function excluirBackup(arquivo) {
+      if (!confirm(`Excluir o backup "${arquivo}"?`)) return;
+      try {
+        await api('/admin/backups/' + encodeURIComponent(arquivo), { method: 'DELETE' });
+        toast('Backup excluído', 'sucesso');
+        carregarBackups();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    async function executarRestauracao() {
+      const file = document.getElementById('arquivoRestore').files[0];
+      const conf = document.getElementById('confirmacaoRestore').value;
+      if (!file) { toast('Selecione um arquivo .db', 'alerta'); return; }
+      if (conf !== 'RESTAURAR') { toast('Digite exatamente "RESTAURAR"', 'alerta'); return; }
+      if (!confirm(`⚠️ Substituir TODOS os dados pelo arquivo:\n${file.name}\n\nContinuar?`)) return;
+
+      const btn = document.getElementById('btnRestaurar');
+      btn.disabled = true;
+      btn.textContent = 'Restaurando...';
+
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = '';
+        const chunk = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunk) {
+          binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+        }
+        const base64 = btoa(binary);
+        const r = await api('/admin/restore', { method: 'POST', body: { conteudo_base64: base64, confirmacao: 'RESTAURAR' } });
+        toast(r.mensagem + ' Você será deslogado em 3s.', 'sucesso', 5000);
+        setTimeout(() => SIGAZ.logout(), 3000);
+      } catch (err) {
+        toast('Erro: ' + err.message, 'erro');
+        btn.disabled = false;
+        btn.textContent = '⚠️ Executar Restauração';
+      }
+    }
+
+    // ============ CONFIGURAÇÕES ============
+    let cacheConfigs = [];
+
+    const labelsConfig = {
+      senha_min_caracteres: 'Tamanho mínimo da senha',
+      senha_exige_maiuscula: 'Senha exige letra maiúscula',
+      senha_exige_numero: 'Senha exige número',
+      senha_exige_especial: 'Senha exige caractere especial',
+      max_tentativas_login: 'Tentativas de login antes de bloquear',
+      minutos_bloqueio: 'Minutos de bloqueio após tentativas',
+      backup_automatico: 'Backup automático diário habilitado',
+      backup_hora: 'Hora do dia para rodar backup (0-23)',
+      backup_retencao_dias: 'Dias de retenção dos backups',
+      municipio_nome: 'Nome do município',
+      municipio_uf: 'UF',
+      orgao_nome: 'Órgão responsável',
+      ti_telefone: 'Telefone do Departamento de TI',
+      ti_nome: 'Nome do Departamento de TI'
+    };
+
+    const tipoConfig = {
+      senha_min_caracteres: 'number',
+      senha_exige_maiuscula: 'bool',
+      senha_exige_numero: 'bool',
+      senha_exige_especial: 'bool',
+      max_tentativas_login: 'number',
+      minutos_bloqueio: 'number',
+      backup_automatico: 'bool',
+      backup_hora: 'number',
+      backup_retencao_dias: 'number'
+    };
+
+    async function carregarConfig() {
+      try {
+        const r = await api('/admin/config');
+        cacheConfigs = r.dados;
+        renderConfig();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    function renderConfig() {
+      const grupos = {
+        'Segurança': ['senha_min_caracteres','senha_exige_maiuscula','senha_exige_numero','senha_exige_especial','max_tentativas_login','minutos_bloqueio'],
+        'Backup': ['backup_automatico','backup_hora','backup_retencao_dias'],
+        'Identificação': ['municipio_nome','municipio_uf','orgao_nome','ti_nome','ti_telefone']
+      };
+
+      let html = '';
+      for (const [grupo, chaves] of Object.entries(grupos)) {
+        html += `<h3 style="font-family:var(--fonte-display);font-size:15px;color:var(--cinza-700);margin:18px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--cinza-200);">${grupo}</h3>`;
+        html += '<div class="form-grid">';
+        for (const chave of chaves) {
+          const cfg = cacheConfigs.find(c => c.chave === chave);
+          if (!cfg) continue;
+          const label = labelsConfig[chave] || chave;
+          const tipo = tipoConfig[chave] || 'text';
+          let campo = '';
+          if (tipo === 'bool') {
+            campo = `<select id="cfg_${chave}" class="form-controle"><option value="1" ${cfg.valor==='1'?'selected':''}>Sim</option><option value="0" ${cfg.valor==='0'?'selected':''}>Não</option></select>`;
+          } else if (tipo === 'number') {
+            campo = `<input type="number" id="cfg_${chave}" class="form-controle" value="${escapeHtml(cfg.valor)}">`;
+          } else {
+            campo = `<input type="text" id="cfg_${chave}" class="form-controle" value="${escapeHtml(cfg.valor)}">`;
+          }
+          html += `<div class="form-grupo"><label class="form-label">${label}</label>${campo}</div>`;
+        }
+        html += '</div>';
+      }
+      document.getElementById('formConfig').innerHTML = html;
+    }
+
+    async function salvarConfig() {
+      const configs = cacheConfigs.map(c => {
+        const el = document.getElementById('cfg_' + c.chave);
+        return el ? { chave: c.chave, valor: el.value } : null;
+      }).filter(Boolean);
+
+      const btn = document.getElementById('btnSalvarConfig');
+      btn.disabled = true;
+      try {
+        const r = await api('/admin/config', { method: 'PUT', body: { configs } });
+        toast(`${r.atualizadas} configuração(ões) atualizada(s)`, 'sucesso');
+      } catch (err) {
+        toast('Erro: ' + err.message, 'erro');
+      } finally { btn.disabled = false; }
+    }
+  </script>
+</body>
+</html>

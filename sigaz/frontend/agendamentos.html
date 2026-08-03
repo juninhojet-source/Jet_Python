@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agendamentos — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    .calendario { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-dia-header { font-weight: 700; text-align: center; padding: 8px; color: var(--cinza-600); font-size: 12px; text-transform: uppercase; }
+    .cal-dia { background: var(--branco); border: 1px solid var(--cinza-200); border-radius: 6px; min-height: 90px; padding: 6px; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+    .cal-dia:hover { border-color: var(--azul-medio); }
+    .cal-dia.outro-mes { opacity: 0.4; }
+    .cal-dia.hoje { border-color: var(--azul-bandeira); border-width: 2px; }
+    .cal-dia .num { font-weight: 700; color: var(--cinza-700); }
+    .cal-dia .evento { background: var(--azul-claro); color: var(--azul-escuro); padding: 2px 4px; border-radius: 3px; margin-top: 3px; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cal-dia .evento.realizado { background: var(--verde-claro); color: var(--verde-bandeira); }
+    .cal-dia .evento.cancelado { background: var(--vermelho-claro); color: var(--vermelho); text-decoration: line-through; }
+    .nav-mes { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; }
+    .nav-mes button { padding: 6px 14px; background: var(--cinza-100); border-radius: 6px; }
+    .nav-mes h3 { font-family: var(--fonte-display); font-size: 18px; text-transform: capitalize; }
+  </style>
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <div class="modal-overlay" id="modalAg">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="tituloModalAg">Novo Agendamento</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalAg')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="formAg">
+          <input type="hidden" id="agId">
+          <div class="form-grid">
+            <div class="form-grupo">
+              <label class="form-label obrigatorio">Tipo</label>
+              <select id="tipo" class="form-controle" required>
+                <option>Castração</option><option>Vacinação</option>
+                <option>Visita Técnica</option><option>Consulta</option><option>Outro</option>
+              </select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label obrigatorio">Data e Hora</label>
+              <input type="datetime-local" id="data_agendada" class="form-controle" required>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Duração (min)</label>
+              <input type="number" id="duracao_min" class="form-controle" value="30" min="5" max="480">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Status</label>
+              <select id="status" class="form-controle">
+                <option>Agendado</option><option>Confirmado</option>
+                <option>Realizado</option><option>Cancelado</option><option>Não Compareceu</option>
+              </select>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Animal</label>
+              <select id="animal_id" class="form-controle"><option value="">Sem animal específico</option></select>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Responsável</label>
+              <select id="responsavel_id" class="form-controle"><option value="">Sem responsável vinculado</option></select>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Local</label>
+              <input type="text" id="local" class="form-controle" maxlength="120" placeholder="Ex: UBS Centro, Rua X, etc">
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Observações</label>
+              <textarea id="observacoes" class="form-controle" maxlength="500"></textarea>
+            </div>
+          </div>
+          <div class="form-acoes">
+            <button type="button" class="btn btn-secundario" onclick="fecharModal('modalAg')">Cancelar</button>
+            <button type="button" class="btn btn-perigo" onclick="excluirAg()" id="btnExcluir" style="display:none;margin-right:auto;">Excluir</button>
+            <button type="submit" class="btn btn-primario" id="btnSalvar">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/comum.js"></script>
+  <script>
+    montarShell({ paginaAtiva: 'agendamentos', titulo: 'Agendamentos', subtitulo: 'Calendário de castrações, vacinações e visitas' });
+    const conteudo = document.getElementById('conteudo');
+    let mesRef = new Date();
+    let cacheAg = [];
+    let cacheAnimais = [];
+    let cacheResp = [];
+
+    async function carregar() {
+      conteudo.innerHTML = `
+        <div class="card mb-4">
+          <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div>
+              <strong style="font-size:16px;">Calendário de Agendamentos</strong>
+              <div class="text-sm text-cinza">Castrações, vacinações em campo, visitas técnicas e consultas</div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secundario" onclick="alternarVisao()" id="btnVisao">📋 Ver lista</button>
+              <button class="btn btn-primario" onclick="abrirNovo()">+ Novo Agendamento</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div id="visaoCalendario"></div>
+          <div id="visaoLista" style="display:none;"></div>
+        </div>
+      `;
+
+      const [ag, an, rp] = await Promise.all([
+        api('/agendamentos'),
+        api('/animais?limite=500'),
+        api('/responsaveis?limite=500')
+      ]);
+      cacheAg = ag.dados;
+      cacheAnimais = an.dados;
+      cacheResp = rp.dados;
+      desenharCalendario();
+    }
+
+    function nomeMes(d) {
+      return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    }
+
+    function desenharCalendario() {
+      const ano = mesRef.getFullYear();
+      const mes = mesRef.getMonth();
+      const primeiro = new Date(ano, mes, 1);
+      const ultimo = new Date(ano, mes + 1, 0);
+      const inicioGrade = new Date(primeiro);
+      inicioGrade.setDate(1 - primeiro.getDay());
+
+      let html = `
+        <div class="nav-mes">
+          <button onclick="mudarMes(-1)">← Anterior</button>
+          <h3>${nomeMes(mesRef)}</h3>
+          <button onclick="mudarMes(1)">Próximo →</button>
+        </div>
+        <div class="calendario" style="padding:0 14px 14px;">
+      `;
+      const diasSemana = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+      for (const d of diasSemana) html += `<div class="cal-dia-header">${d}</div>`;
+
+      const hoje = new Date().toISOString().substring(0,10);
+      const d = new Date(inicioGrade);
+      for (let i = 0; i < 42; i++) {
+        const isoDia = d.toISOString().substring(0,10);
+        const outroMes = d.getMonth() !== mes;
+        const eHoje = isoDia === hoje;
+        const eventos = cacheAg.filter(a => a.data_agendada.substring(0,10) === isoDia);
+        html += `
+          <div class="cal-dia ${outroMes?'outro-mes':''} ${eHoje?'hoje':''}" onclick="abrirNovo('${isoDia}T08:00')">
+            <div class="num">${d.getDate()}</div>
+            ${eventos.slice(0,3).map(e => `
+              <div class="evento ${e.status==='Realizado'?'realizado':''} ${e.status==='Cancelado'?'cancelado':''}"
+                   onclick="event.stopPropagation();editar(${e.id})" title="${escapeHtml(e.tipo)} - ${escapeHtml(e.animal_nome||'')}">
+                ${e.data_agendada.substring(11,16)} ${escapeHtml(e.tipo)}
+              </div>
+            `).join('')}
+            ${eventos.length > 3 ? `<div class="text-xs text-cinza" style="margin-top:2px;">+${eventos.length-3} mais</div>` : ''}
+          </div>
+        `;
+        d.setDate(d.getDate() + 1);
+      }
+      html += '</div>';
+      document.getElementById('visaoCalendario').innerHTML = html;
+    }
+
+    function mudarMes(delta) {
+      mesRef = new Date(mesRef.getFullYear(), mesRef.getMonth() + delta, 1);
+      desenharCalendario();
+    }
+
+    function alternarVisao() {
+      const cal = document.getElementById('visaoCalendario');
+      const lst = document.getElementById('visaoLista');
+      const btn = document.getElementById('btnVisao');
+      if (cal.style.display === 'none') {
+        cal.style.display = ''; lst.style.display = 'none';
+        btn.textContent = '📋 Ver lista';
+      } else {
+        cal.style.display = 'none'; lst.style.display = '';
+        btn.textContent = '📅 Ver calendário';
+        renderLista();
+      }
+    }
+
+    function renderLista() {
+      const ordenado = [...cacheAg].sort((a,b) => a.data_agendada.localeCompare(b.data_agendada));
+      const cor = { Agendado:'azul', Confirmado:'verde', Realizado:'verde', Cancelado:'vermelho', 'Não Compareceu':'laranja' };
+      document.getElementById('visaoLista').innerHTML = `
+        <table class="tabela">
+          <thead><tr><th>Data/Hora</th><th>Tipo</th><th>Animal</th><th>Responsável</th><th>Status</th><th>Local</th><th></th></tr></thead>
+          <tbody>${ordenado.map(a => `
+            <tr>
+              <td>${formatarDataHora(a.data_agendada)}</td>
+              <td><strong>${escapeHtml(a.tipo)}</strong></td>
+              <td>${a.animal_nome ? '<strong>'+escapeHtml(a.animal_nome)+'</strong> <span class="codigo-cell">'+escapeHtml(a.animal_codigo)+'</span>' : '<span class="text-cinza">—</span>'}</td>
+              <td>${escapeHtml(a.responsavel_nome || '—')}</td>
+              <td><span class="badge badge-${cor[a.status]||'cinza'}">${escapeHtml(a.status)}</span></td>
+              <td>${escapeHtml(a.local || '—')}</td>
+              <td><button class="btn btn-secundario btn-sm" onclick="editar(${a.id})">Editar</button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function popular(idSel, lista, sel, label) {
+      const el = document.getElementById(idSel);
+      const opcoes = lista.map(x => `<option value="${x.id}" ${x.id==sel?'selected':''}>${escapeHtml(label(x))}</option>`).join('');
+      el.innerHTML = `<option value="">— Nenhum —</option>` + opcoes;
+    }
+
+    function abrirNovo(dataHora) {
+      document.getElementById('formAg').reset();
+      document.getElementById('agId').value = '';
+      document.getElementById('tituloModalAg').textContent = 'Novo Agendamento';
+      document.getElementById('btnExcluir').style.display = 'none';
+      if (dataHora) document.getElementById('data_agendada').value = dataHora;
+      popular('animal_id', cacheAnimais, '', a => `${a.codigo} — ${a.nome}`);
+      popular('responsavel_id', cacheResp, '', r => `${r.nome} — ${r.cpf}`);
+      abrirModal('modalAg');
+    }
+
+    async function editar(id) {
+      try {
+        const a = await api('/agendamentos/' + id);
+        document.getElementById('agId').value = a.id;
+        document.getElementById('tipo').value = a.tipo;
+        document.getElementById('data_agendada').value = a.data_agendada.replace(' ', 'T').substring(0, 16);
+        document.getElementById('duracao_min').value = a.duracao_min || 30;
+        document.getElementById('status').value = a.status;
+        document.getElementById('local').value = a.local || '';
+        document.getElementById('observacoes').value = a.observacoes || '';
+        popular('animal_id', cacheAnimais, a.animal_id, x => `${x.codigo} — ${x.nome}`);
+        popular('responsavel_id', cacheResp, a.responsavel_id, r => `${r.nome} — ${r.cpf}`);
+        document.getElementById('tituloModalAg').textContent = 'Editar Agendamento';
+        document.getElementById('btnExcluir').style.display = '';
+        abrirModal('modalAg');
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    document.getElementById('formAg').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('agId').value;
+      const body = {
+        tipo: document.getElementById('tipo').value,
+        animal_id: document.getElementById('animal_id').value || null,
+        responsavel_id: document.getElementById('responsavel_id').value || null,
+        data_agendada: document.getElementById('data_agendada').value.replace('T', ' '),
+        duracao_min: parseInt(document.getElementById('duracao_min').value) || 30,
+        local: document.getElementById('local').value,
+        observacoes: document.getElementById('observacoes').value,
+        status: document.getElementById('status').value
+      };
+      try {
+        if (id) await api('/agendamentos/' + id, { method: 'PUT', body });
+        else await api('/agendamentos', { method: 'POST', body });
+        toast('Salvo', 'sucesso');
+        fecharModal('modalAg');
+        const ag = await api('/agendamentos');
+        cacheAg = ag.dados;
+        desenharCalendario();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    });
+
+    async function excluirAg() {
+      const id = document.getElementById('agId').value;
+      if (!confirm('Excluir este agendamento?')) return;
+      try {
+        await api('/agendamentos/' + id, { method: 'DELETE' });
+        toast('Excluído', 'sucesso');
+        fecharModal('modalAg');
+        const ag = await api('/agendamentos');
+        cacheAg = ag.dados;
+        desenharCalendario();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    carregar();
+  </script>
+</body>
+</html>

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Responsáveis — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <div class="modal-overlay" id="modalResp">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="tituloModalResp">Cadastro de Responsável</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalResp')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="formResp">
+          <input type="hidden" id="respId">
+          <div class="form-grid">
+            <div class="form-grupo">
+              <label class="form-label">Tipo de Pessoa</label>
+              <select id="tipo_pessoa" class="form-controle">
+                <option value="fisica">Pessoa Física (CPF)</option>
+                <option value="juridica">Pessoa Jurídica / ONG / Município (CNPJ)</option>
+              </select>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label obrigatorio">Nome Completo / Razão Social</label>
+              <input type="text" id="nome" class="form-controle" required maxlength="120">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label obrigatorio" id="labelDoc">CPF</label>
+              <input type="text" id="cpf" class="form-controle" required placeholder="000.000.000-00" maxlength="18" inputmode="numeric">
+              <small id="cpfFeedback" class="text-xs" style="margin-top:4px;display:none;"></small>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">RG / Inscrição Estadual</label>
+              <input type="text" id="rg" class="form-controle" maxlength="20">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Telefone</label>
+              <input type="text" id="telefone" class="form-controle" placeholder="(31) 99999-9999" maxlength="15" inputmode="tel">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">E-mail</label>
+              <input type="email" id="email" class="form-controle" maxlength="120">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">CEP</label>
+              <input type="text" id="cep" class="form-controle" placeholder="00000-000" maxlength="9" inputmode="numeric">
+              <small class="text-xs text-cinza" style="margin-top:4px;">O endereço será preenchido automaticamente.</small>
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Endereço</label>
+              <input type="text" id="endereco" class="form-controle" maxlength="200">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Número</label>
+              <input type="text" id="numero" class="form-controle" maxlength="10">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Bairro</label>
+              <select id="bairro" class="form-controle"></select>
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">Cidade</label>
+              <input type="text" id="cidade" class="form-controle" maxlength="80" value="Barão de Cocais">
+            </div>
+            <div class="form-grupo">
+              <label class="form-label">UF</label>
+              <input type="text" id="uf" class="form-controle" maxlength="2" value="MG" style="text-transform:uppercase;">
+            </div>
+            <div class="form-grupo full">
+              <label class="form-label">Observações</label>
+              <textarea id="observacoes" class="form-controle" maxlength="500"></textarea>
+            </div>
+          </div>
+          <div class="form-acoes">
+            <button type="button" class="btn btn-secundario" onclick="fecharModal('modalResp')">Cancelar</button>
+            <button type="submit" class="btn btn-primario" id="btnSalvarResp">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/comum.js"></script>
+  <script src="/js/mascaras.js"></script>
+  <script src="/js/bairros.js"></script>
+  <script>
+    montarShell({ paginaAtiva: 'responsaveis', titulo: 'Responsáveis (Tutores)', subtitulo: 'Cadastro de tutores dos animais municipais' });
+    const conteudo = document.getElementById('conteudo');
+
+    // Aplicar máscaras assim que a página carregar
+    // (NÃO aplicamos 'cpf' aqui via mascarar() porque o campo de documento
+    //  alterna entre CPF e CNPJ — controlamos via oninput, que é substituível)
+    mascarar('telefone', 'telefone');
+    mascarar('cep', 'cep');
+    mascarar('rg', 'rg');
+
+    // ===== Alternância entre CPF e CNPJ =====
+    const selTipo = document.getElementById('tipo_pessoa');
+    const inpDoc = document.getElementById('cpf');
+    const labelDoc = document.getElementById('labelDoc');
+
+    function mascararCnpj(v) {
+      const d = v.replace(/\D/g, '').slice(0, 14);
+      let out = '';
+      if (d.length > 0)  out  = d.slice(0, 2);
+      if (d.length >= 3) out += '.' + d.slice(2, 5);
+      if (d.length >= 6) out += '.' + d.slice(5, 8);
+      if (d.length >= 9) out += '/' + d.slice(8, 12);
+      if (d.length >= 13) out += '-' + d.slice(12, 14);
+      return out;
+    }
+
+    function mascararCpfLocal(v) {
+      const d = v.replace(/\D/g, '').slice(0, 11);
+      let out = '';
+      if (d.length > 0)  out  = d.slice(0, 3);
+      if (d.length >= 4) out += '.' + d.slice(3, 6);
+      if (d.length >= 7) out += '.' + d.slice(6, 9);
+      if (d.length >= 10) out += '-' + d.slice(9, 11);
+      return out;
+    }
+
+    // Um ÚNICO handler de input no campo, que decide a máscara pelo tipo.
+    // Usar oninput (propriedade) em vez de addEventListener evita acúmulo de listeners.
+    inpDoc.oninput = () => {
+      if (selTipo.value === 'juridica') {
+        inpDoc.value = mascararCnpj(inpDoc.value);
+      } else {
+        inpDoc.value = mascararCpfLocal(inpDoc.value);
+      }
+    };
+
+    function aplicarTipoPessoa() {
+      const tipo = selTipo.value;
+      const fb = document.getElementById('cpfFeedback');
+      fb.style.display = 'none';
+      inpDoc.value = '';
+      if (tipo === 'juridica') {
+        labelDoc.textContent = 'CNPJ';
+        inpDoc.placeholder = '00.000.000/0000-00';
+        inpDoc.maxLength = 18;
+      } else {
+        labelDoc.textContent = 'CPF';
+        inpDoc.placeholder = '000.000.000-00';
+        inpDoc.maxLength = 14;
+      }
+    }
+    selTipo.addEventListener('change', aplicarTipoPessoa);
+    aplicarTipoPessoa(); // aplica o estado inicial
+
+    // Validação visual do documento (CPF valida dígitos; CNPJ valida só tamanho)
+    document.getElementById('cpf').addEventListener('blur', () => {
+      const doc = document.getElementById('cpf').value;
+      const fb = document.getElementById('cpfFeedback');
+      const limpo = doc.replace(/\D/g, '');
+      const tipo = selTipo.value;
+      if (limpo.length === 0) { fb.style.display = 'none'; return; }
+
+      if (tipo === 'juridica') {
+        if (limpo.length !== 14) {
+          fb.style.display = 'block';
+          fb.style.color = 'var(--vermelho)';
+          fb.textContent = 'CNPJ incompleto (14 dígitos).';
+        } else {
+          fb.style.display = 'block';
+          fb.style.color = 'var(--verde-bandeira)';
+          fb.textContent = '✓ CNPJ informado';
+        }
+        return;
+      }
+
+      // Pessoa física
+      if (limpo.length !== 11) {
+        fb.style.display = 'block';
+        fb.style.color = 'var(--vermelho)';
+        fb.textContent = 'CPF incompleto.';
+        return;
+      }
+      if (!validarCpf(limpo)) {
+        fb.style.display = 'block';
+        fb.style.color = 'var(--vermelho)';
+        fb.textContent = '✕ CPF inválido — verifique os dígitos.';
+      } else {
+        fb.style.display = 'block';
+        fb.style.color = 'var(--verde-bandeira)';
+        fb.textContent = '✓ CPF válido';
+      }
+    });
+
+    // Busca automática de CEP — bairro NÃO é preenchido pelo ViaCEP (usamos lista oficial)
+    ligarBuscaCep('cep', { endereco: 'endereco', cidade: 'cidade', uf: 'uf' });
+
+    // Inicializar o select de bairros com a lista oficial + opção "Outros"
+    BairrosHelper.inicializar('bairro');
+
+    function montar() {
+      conteudo.innerHTML = `
+        <div class="card mb-4">
+          <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div>
+              <strong style="font-size:16px;">Cadastro de Responsáveis</strong>
+              <div class="text-sm text-cinza">Tutores e responsáveis pelos animais cadastrados</div>
+            </div>
+            <button class="btn btn-primario" onclick="abrirCadastro()">+ Novo Responsável</button>
+          </div>
+        </div>
+        <div class="tabela-container">
+          <div class="tabela-toolbar">
+            <div class="busca"><input type="text" id="busca" placeholder="Buscar por nome, CPF ou telefone..."></div>
+          </div>
+          <div id="lista"></div>
+        </div>
+      `;
+      document.getElementById('busca').addEventListener('input', debounce(buscar, 300));
+      buscar();
+
+      if (new URLSearchParams(location.search).get('novo') === '1') {
+        setTimeout(abrirCadastro, 200);
+      }
+    }
+
+    async function buscar() {
+      const q = document.getElementById('busca').value;
+      try {
+        const r = await api('/responsaveis?busca=' + encodeURIComponent(q));
+        render(r.dados);
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    function render(dados) {
+      const div = document.getElementById('lista');
+      if (dados.length === 0) {
+        div.innerHTML = '<div class="vazio"><div class="vazio-icone">👤</div><div class="vazio-titulo">Nenhum responsável encontrado</div></div>';
+        return;
+      }
+      div.innerHTML = `
+        <table class="tabela">
+          <thead><tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>Bairro</th><th style="text-align:right;">Ações</th></tr></thead>
+          <tbody>${dados.map(r => `
+            <tr>
+              <td><strong>${escapeHtml(r.nome)}</strong>${r.email ? `<div class="text-xs text-cinza">${escapeHtml(r.email)}</div>` : ''}</td>
+              <td>${formatarCpf(r.cpf)}</td>
+              <td>${escapeHtml(r.telefone || '—')}</td>
+              <td>${escapeHtml(r.bairro || '—')}</td>
+              <td>
+                <div class="acoes">
+                  <button class="btn btn-secundario btn-sm" onclick="editar(${r.id})">Editar</button>
+                  <button class="btn btn-secundario btn-sm" onclick="excluir(${r.id}, '${escapeHtml(r.nome)}')">✕</button>
+                </div>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function abrirCadastro() {
+      document.getElementById('formResp').reset();
+      document.getElementById('respId').value = '';
+      document.getElementById('tipo_pessoa').value = 'fisica';
+      aplicarTipoPessoa();
+      document.getElementById('cidade').value = 'Barão de Cocais';
+      document.getElementById('uf').value = 'MG';
+      document.getElementById('cpfFeedback').style.display = 'none';
+      document.getElementById('tituloModalResp').textContent = 'Cadastro de Responsável';
+      abrirModal('modalResp');
+    }
+
+    async function editar(id) {
+      try {
+        const r = await api('/responsaveis/' + id);
+        document.getElementById('respId').value = r.id;
+        document.getElementById('nome').value = r.nome;
+        // Detecta CPF (11) ou CNPJ (14) pelo número de dígitos
+        const docLimpo = String(r.cpf || '').replace(/\D/g, '');
+        if (docLimpo.length === 14) {
+          document.getElementById('tipo_pessoa').value = 'juridica';
+          aplicarTipoPessoa();
+          document.getElementById('cpf').value = mascararCnpj(r.cpf);
+        } else {
+          document.getElementById('tipo_pessoa').value = 'fisica';
+          aplicarTipoPessoa();
+          document.getElementById('cpf').value = mascararCpf(r.cpf);
+        }
+        document.getElementById('rg').value = r.rg || '';
+        document.getElementById('telefone').value = mascararTelefone(r.telefone || '');
+        document.getElementById('email').value = r.email || '';
+        document.getElementById('endereco').value = r.endereco || '';
+        document.getElementById('numero').value = r.numero || '';
+        BairrosHelper.definirValor('bairro', r.bairro);
+        document.getElementById('cidade').value = r.cidade || 'Barão de Cocais';
+        document.getElementById('uf').value = r.uf || 'MG';
+        document.getElementById('cep').value = mascararCep(r.cep || '');
+        document.getElementById('observacoes').value = r.observacoes || '';
+        document.getElementById('cpfFeedback').style.display = 'none';
+        document.getElementById('tituloModalResp').textContent = 'Editar Responsável';
+        abrirModal('modalResp');
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    document.getElementById('formResp').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const docLimpo = document.getElementById('cpf').value.replace(/\D/g, '');
+      const tipo = document.getElementById('tipo_pessoa').value;
+
+      // Validar documento antes de enviar
+      if (tipo === 'juridica') {
+        if (docLimpo.length !== 14) {
+          toast('CNPJ inválido. Deve ter 14 dígitos.', 'erro');
+          document.getElementById('cpf').focus();
+          return;
+        }
+      } else {
+        if (!validarCpf(docLimpo)) {
+          toast('CPF inválido. Verifique os dígitos.', 'erro');
+          document.getElementById('cpf').focus();
+          return;
+        }
+      }
+
+      const id = document.getElementById('respId').value;
+      const body = {
+        nome: document.getElementById('nome').value.trim(),
+        cpf: docLimpo,
+        tipo_pessoa: tipo,
+        rg: document.getElementById('rg').value.trim(),
+        telefone: document.getElementById('telefone').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        endereco: document.getElementById('endereco').value.trim(),
+        numero: document.getElementById('numero').value.trim(),
+        bairro: BairrosHelper.lerValor('bairro'),
+        cidade: document.getElementById('cidade').value.trim(),
+        uf: document.getElementById('uf').value.trim().toUpperCase(),
+        cep: document.getElementById('cep').value.replace(/\D/g, ''),
+        observacoes: document.getElementById('observacoes').value.trim()
+      };
+      const btn = document.getElementById('btnSalvarResp');
+      btn.disabled = true;
+      try {
+        if (id) {
+          await api('/responsaveis/' + id, { method: 'PUT', body });
+          toast('Responsável atualizado', 'sucesso');
+        } else {
+          await api('/responsaveis', { method: 'POST', body });
+          toast('Responsável cadastrado', 'sucesso');
+        }
+        fecharModal('modalResp');
+        buscar();
+      } catch (err) {
+        toast('Erro: ' + err.message, 'erro');
+      } finally { btn.disabled = false; }
+    });
+
+    async function excluir(id, nome) {
+      if (!confirm(`Excluir o responsável "${nome}"?`)) return;
+      try {
+        await api('/responsaveis/' + id, { method: 'DELETE' });
+        toast('Excluído', 'sucesso');
+        buscar();
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+    montar();
+  </script>
+</body>
+</html>

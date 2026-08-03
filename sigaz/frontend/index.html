@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses | PMBC</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/login.css">
+</head>
+<body class="tela-login">
+
+  <aside class="login-hero">
+    <div class="login-hero-topo">
+      <div class="login-brasao">
+        <img src="/assets/brasao.png" alt="Brasão Barão de Cocais">
+      </div>
+      <div class="login-hero-topo-texto">
+        <strong>Prefeitura Municipal de</strong>
+        <span>Barão de Cocais</span>
+      </div>
+    </div>
+
+    <div class="login-hero-centro">
+      <h1>SIGAZ<br><span class="destaque">Gestão Animal &amp; Zoonoses</span></h1>
+      <p>
+        Plataforma oficial da Secretaria Municipal de Saúde para o cadastro, controle sanitário
+        e monitoramento epidemiológico de animais do município.
+      </p>
+
+      <div class="login-hero-features">
+        <div class="login-hero-feature">
+          <div class="login-hero-feature-icon">🐾</div>
+          <div>
+            <strong>Cadastro Único</strong>
+            <small>Animais e responsáveis</small>
+          </div>
+        </div>
+        <div class="login-hero-feature">
+          <div class="login-hero-feature-icon">💉</div>
+          <div>
+            <strong>Controle Vacinal</strong>
+            <small>Histórico e revacinação</small>
+          </div>
+        </div>
+        <div class="login-hero-feature">
+          <div class="login-hero-feature-icon">🦠</div>
+          <div>
+            <strong>Vigilância em Saúde</strong>
+            <small>Monitoramento de zoonoses</small>
+          </div>
+        </div>
+        <div class="login-hero-feature">
+          <div class="login-hero-feature-icon">🪪</div>
+          <div>
+            <strong>Carteirinha Digital</strong>
+            <small>Com QR Code de consulta</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="login-hero-rodape">
+      <strong>Departamento de Informática e Tecnologia</strong><br>
+      Prefeitura Municipal de Barão de Cocais — MG<br>
+      📞 (31) 3837-7661<br>
+      <a href="/privacidade.html" style="color:rgba(255,255,255,0.85);text-decoration:underline;font-size:12px;margin-top:6px;display:inline-block;">🛡️ Política de Privacidade · LGPD</a>
+    </div>
+  </aside>
+
+  <main class="login-painel">
+    <form class="login-form" id="formLogin">
+      <h2>Acesso ao Sistema</h2>
+      <p class="subtitulo">Informe suas credenciais para entrar.</p>
+
+      <div class="login-erro" id="loginErro"></div>
+
+      <div class="form-grupo">
+        <label class="form-label obrigatorio" for="usuario">Usuário</label>
+        <input type="text" id="usuario" class="form-controle" required
+               autocomplete="username" placeholder="Ex: admin"
+               maxlength="100">
+      </div>
+
+      <div class="form-grupo">
+        <label class="form-label obrigatorio" for="senha">Senha</label>
+        <input type="password" id="senha" class="form-controle" required
+               autocomplete="current-password" placeholder="••••••••"
+               maxlength="100">
+      </div>
+
+      <button type="submit" class="btn btn-primario" id="btnEntrar">Entrar</button>
+
+      <div class="login-info-institucional">
+        <div class="login-info-titulo">
+          <span aria-hidden="true">🐾</span> Sobre o SIGAZ
+        </div>
+        <p class="login-info-texto">
+          Plataforma oficial da <strong>Secretaria Municipal de Saúde</strong> de
+          Barão de Cocais para gestão sanitária animal, vigilância em zoonoses
+          e atendimento ao cidadão. O acesso é restrito a servidores autorizados.
+        </p>
+        <div class="login-info-suporte">
+          <div><strong>Suporte técnico</strong></div>
+          <div>Departamento de Informática e Tecnologia</div>
+          <div>Responsável: Aristides Ferreira Junior</div>
+          <div>📞 (31) 3837-7661</div>
+        </div>
+      </div>
+    </form>
+  </main>
+
+  <script>
+    const form = document.getElementById('formLogin');
+    const erro = document.getElementById('loginErro');
+    const btn = document.getElementById('btnEntrar');
+
+    if (localStorage.getItem('sigaz_token')) {
+      window.location.href = '/dashboard.html';
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      erro.classList.remove('ativo');
+      btn.disabled = true;
+      btn.textContent = 'Entrando...';
+
+      try {
+        const r = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            usuario: document.getElementById('usuario').value.trim(),
+            senha: document.getElementById('senha').value
+          })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.erro || 'Falha no login');
+
+        localStorage.setItem('sigaz_token', data.token);
+        localStorage.setItem('sigaz_usuario', JSON.stringify(data.usuario));
+
+        // Se precisa trocar a senha, manda pra tela específica
+        if (data.deve_trocar_senha) {
+          window.location.href = '/trocar-senha.html';
+        } else {
+          window.location.href = '/dashboard.html';
+        }
+      } catch (err) {
+        erro.textContent = err.message;
+        erro.classList.add('ativo');
+        btn.disabled = false;
+        btn.textContent = 'Entrar';
+      }
+    });
+  </script>
+</body>
+</html>

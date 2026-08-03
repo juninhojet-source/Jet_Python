@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Denúncias — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <div class="modal-overlay" id="modalDen">
+    <div class="modal modal-lg">
+      <div class="modal-header"><h2 id="detTitulo">Denúncia</h2><button class="modal-fechar" onclick="fecharModal('modalDen')">×</button></div>
+      <div class="modal-body" id="detBody"></div>
+    </div>
+  </div>
+
+  <script src="/js/comum.js"></script>
+  <script>
+    montarShell({ paginaAtiva: 'denuncias', titulo: 'Denúncias de Maus-Tratos', subtitulo: 'Apuração e desfecho de ocorrências reportadas' });
+    const conteudo = document.getElementById('conteudo');
+
+    function montar() {
+      conteudo.innerHTML = `
+        <div class="card mb-4"><div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div>
+            <strong style="font-size:16px;">Denúncias Recebidas</strong>
+            <div class="text-sm text-cinza">Denúncias podem ser registradas publicamente em <code>/denuncia-publica.html</code></div>
+          </div>
+          <a href="/denuncia-publica.html" target="_blank" class="btn btn-secundario btn-sm">🔗 Abrir formulário público</a>
+        </div></div>
+        <div class="tabela-container">
+          <div class="tabela-toolbar">
+            <select id="filtroStatus">
+              <option value="">Todos os status</option>
+              <option>Recebida</option><option>Em Apuração</option><option>Atendida</option><option>Improcedente</option><option>Encaminhada</option>
+            </select>
+            <input type="text" id="filtroBairro" placeholder="Bairro..." style="padding:8px 10px;border:1px solid var(--cinza-300);border-radius:6px;">
+          </div>
+          <div id="listaDen"></div>
+        </div>
+      `;
+      document.getElementById('filtroStatus').addEventListener('change', carregar);
+      document.getElementById('filtroBairro').addEventListener('input', debounce(carregar, 300));
+      carregar();
+    }
+
+    async function carregar() {
+      const s = document.getElementById('filtroStatus').value;
+      const b = document.getElementById('filtroBairro').value;
+      const params = new URLSearchParams();
+      if (s) params.set('status', s);
+      if (b) params.set('bairro', b);
+      const r = await api('/denuncias?' + params.toString());
+      render(r.dados);
+    }
+
+    function render(dados) {
+      const div = document.getElementById('listaDen');
+      if (dados.length === 0) { div.innerHTML = '<div class="vazio"><div class="vazio-icone">📢</div><div class="vazio-titulo">Nenhuma denúncia</div></div>'; return; }
+      const cor = { Recebida:'laranja','Em Apuração':'azul', Atendida:'verde', Improcedente:'cinza', Encaminhada:'azul' };
+      div.innerHTML = `<table class="tabela">
+        <thead><tr><th>Protocolo</th><th>Tipo</th><th>Bairro</th><th>Recebida</th><th>Status</th><th>Denunciante</th><th style="text-align:right;">Ações</th></tr></thead>
+        <tbody>${dados.map(d => `<tr>
+          <td><span class="codigo-cell">${escapeHtml(d.protocolo)}</span></td>
+          <td>${escapeHtml(d.tipo||'—')}</td>
+          <td>${escapeHtml(d.bairro||'—')}</td>
+          <td>${formatarDataHora(d.criado_em)}</td>
+          <td><span class="badge badge-${cor[d.status]||'cinza'}">${escapeHtml(d.status)}</span></td>
+          <td>${d.anonimo?'<em>anônima</em>':escapeHtml(d.denunciante_nome||'—')}</td>
+          <td><button class="btn btn-primario btn-sm" onclick="ver(${d.id})">Atender</button></td>
+        </tr>`).join('')}</tbody></table>`;
+    }
+
+    async function ver(id) {
+      const d = await api('/denuncias/'+id);
+      document.getElementById('detTitulo').textContent = d.protocolo;
+      document.getElementById('detBody').innerHTML = `
+        <div style="background:var(--cinza-50);padding:14px;border-radius:6px;margin-bottom:18px;">
+          <div><strong>Recebida em:</strong> ${formatarDataHora(d.criado_em)}</div>
+          <div><strong>Tipo:</strong> ${escapeHtml(d.tipo||'—')}</div>
+          <div><strong>Endereço:</strong> ${escapeHtml(d.endereco||'—')}, ${escapeHtml(d.bairro||'—')}</div>
+          <div><strong>Referência:</strong> ${escapeHtml(d.referencia||'—')}</div>
+          <div style="margin-top:8px;"><strong>Denunciante:</strong> ${d.anonimo?'<em>(anônima)</em>':escapeHtml(d.denunciante_nome||'—')+' — '+escapeHtml(d.denunciante_telefone||'')}</div>
+        </div>
+        <div style="margin-bottom:18px;"><strong>Descrição:</strong><br>
+          <div style="background:var(--branco);border:1px solid var(--cinza-200);padding:12px;border-radius:6px;margin-top:6px;white-space:pre-wrap;">${escapeHtml(d.descricao)}</div>
+        </div>
+        <form id="formAt">
+          <div class="form-grid">
+            <div class="form-grupo"><label class="form-label">Status</label>
+              <select id="a_status" class="form-controle">
+                <option value="Recebida" ${d.status==='Recebida'?'selected':''}>Recebida</option>
+                <option value="Em Apuração" ${d.status==='Em Apuração'?'selected':''}>Em Apuração</option>
+                <option value="Atendida" ${d.status==='Atendida'?'selected':''}>Atendida</option>
+                <option value="Improcedente" ${d.status==='Improcedente'?'selected':''}>Improcedente</option>
+                <option value="Encaminhada" ${d.status==='Encaminhada'?'selected':''}>Encaminhada</option>
+              </select></div>
+            <div class="form-grupo"><label class="form-label">Data Atendimento</label>
+              <input type="date" id="a_data" class="form-controle" value="${d.data_atendimento||''}"></div>
+            <div class="form-grupo full"><label class="form-label">Desfecho / Providências</label>
+              <textarea id="a_desfecho" class="form-controle" maxlength="800" rows="4">${escapeHtml(d.desfecho||'')}</textarea>
+            </div>
+          </div>
+          <div class="form-acoes"><button type="submit" class="btn btn-primario">Salvar</button></div>
+        </form>
+      `;
+      document.getElementById('formAt').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          await api('/denuncias/'+id, { method:'PUT', body: {
+            status: document.getElementById('a_status').value,
+            data_atendimento: document.getElementById('a_data').value || null,
+            desfecho: document.getElementById('a_desfecho').value.trim()
+          }});
+          toast('Salvo', 'sucesso');
+          fecharModal('modalDen');
+          carregar();
+        } catch (err) { toast('Erro: '+err.message, 'erro'); }
+      });
+      abrirModal('modalDen');
+    }
+
+    function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+    montar();
+  </script>
+</body>
+</html>

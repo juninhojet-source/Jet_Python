@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <script src="/js/comum.js"></script>
+  <script>
+    montarShell({
+      paginaAtiva: 'dashboard',
+      titulo: 'Painel Inicial',
+      subtitulo: 'Visão geral da gestão animal e vigilância de zoonoses'
+    });
+
+    const conteudo = document.getElementById('conteudo');
+
+    async function carregarDashboard() {
+      conteudo.innerHTML = '<div class="vazio"><div class="vazio-icone">⏳</div><div class="vazio-titulo">Carregando indicadores...</div></div>';
+
+      try {
+        const d = await api('/dashboard');
+        renderizar(d);
+      } catch (err) {
+        toast('Erro: ' + err.message, 'erro');
+      }
+    }
+
+    function renderizar(d) {
+      const i = d.indicadores;
+
+      const indicadoresHtml = `
+        <div class="indicadores">
+          <div class="indicador">
+            <div class="indicador-label">Total de Animais</div>
+            <div class="indicador-valor">${i.totalAnimais.toLocaleString('pt-BR')}</div>
+            <div class="indicador-subtexto">${i.totalCanino} caninos · ${i.totalFelino} felinos · ${i.totalOutros} outros</div>
+          </div>
+          <div class="indicador verde">
+            <div class="indicador-label">Vacinados</div>
+            <div class="indicador-valor">${i.totalVacinados.toLocaleString('pt-BR')}</div>
+            <div class="indicador-subtexto">${i.totalAnimais ? Math.round((i.totalVacinados/i.totalAnimais)*100) : 0}% do rebanho cadastrado</div>
+          </div>
+          <div class="indicador dourado">
+            <div class="indicador-label">Castrados</div>
+            <div class="indicador-valor">${i.totalCastrados.toLocaleString('pt-BR')}</div>
+            <div class="indicador-subtexto">${i.totalAnimais ? Math.round((i.totalCastrados/i.totalAnimais)*100) : 0}% do rebanho cadastrado</div>
+          </div>
+          <div class="indicador">
+            <div class="indicador-label">Microchipados</div>
+            <div class="indicador-valor">${i.totalMicrochipados.toLocaleString('pt-BR')}</div>
+            <div class="indicador-subtexto">Identificação eletrônica</div>
+          </div>
+          <div class="indicador laranja">
+            <div class="indicador-label">Vermifugados</div>
+            <div class="indicador-valor">${i.totalVermifugados.toLocaleString('pt-BR')}</div>
+            <div class="indicador-subtexto">Controle endoparasitário</div>
+          </div>
+          <div class="indicador vermelho">
+            <div class="indicador-label">Zoonoses em Investigação</div>
+            <div class="indicador-valor">${i.zoonosesAtivas.toLocaleString('pt-BR')}</div>
+            <div class="indicador-subtexto">${i.zoonosesPositivas} casos positivos confirmados</div>
+          </div>
+          <div class="indicador">
+            <div class="indicador-label">Responsáveis</div>
+            <div class="indicador-valor">${i.totalResponsaveis.toLocaleString('pt-BR')}</div>
+            <div class="indicador-subtexto">Tutores cadastrados</div>
+          </div>
+        </div>
+      `;
+
+      // Ações rápidas
+      const acoesRapidasHtml = `
+        <div class="card mb-4">
+          <div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+            <strong style="margin-right:12px;">Ações rápidas:</strong>
+            <a href="/animais.html?novo=1" class="btn btn-primario btn-sm">+ Novo Animal</a>
+            <a href="/responsaveis.html?novo=1" class="btn btn-secundario btn-sm">+ Novo Responsável</a>
+            <a href="/vacinacao.html?novo=1" class="btn btn-secundario btn-sm">+ Registrar Vacina</a>
+            <a href="/zoonoses.html?novo=1" class="btn btn-secundario btn-sm">+ Nova Ocorrência</a>
+          </div>
+        </div>
+      `;
+
+      // Gráficos e listas
+      const maxBairro = Math.max(...(d.porBairro.map(b => b.total)), 1);
+      const bairrosHtml = d.porBairro.length === 0
+        ? '<div class="vazio"><div class="vazio-texto">Nenhum dado por bairro ainda</div></div>'
+        : d.porBairro.map(b => `
+          <div class="grafico-barra-linha">
+            <div class="grafico-barra-label" title="${escapeHtml(b.bairro)}">${escapeHtml(b.bairro)}</div>
+            <div class="grafico-barra-fundo">
+              <div class="grafico-barra-preenchida" style="width:${(b.total/maxBairro)*100}%"></div>
+            </div>
+            <div class="grafico-barra-valor">${b.total}</div>
+          </div>
+        `).join('');
+
+      const maxZoo = Math.max(...(d.zoonosesPorBairro.map(b => b.total)), 1);
+      const zoonosesBairrosHtml = d.zoonosesPorBairro.length === 0
+        ? '<div class="vazio"><div class="vazio-texto">Nenhuma ocorrência por bairro</div></div>'
+        : d.zoonosesPorBairro.map(b => `
+          <div class="grafico-barra-linha">
+            <div class="grafico-barra-label" title="${escapeHtml(b.bairro)}">${escapeHtml(b.bairro)}</div>
+            <div class="grafico-barra-fundo">
+              <div class="grafico-barra-preenchida" style="width:${(b.total/maxZoo)*100}%;background:linear-gradient(90deg, var(--laranja), var(--vermelho));"></div>
+            </div>
+            <div class="grafico-barra-valor">${b.total}</div>
+          </div>
+        `).join('');
+
+      const alertasHtml = d.alertasVacinas.length === 0
+        ? '<div class="vazio"><div class="vazio-icone">✅</div><div class="vazio-titulo">Sem alertas pendentes</div><div class="vazio-texto">Nenhuma vacina vencendo nos próximos 30 dias.</div></div>'
+        : `
+          <table class="tabela">
+            <thead><tr>
+              <th>Animal</th><th>Vacina</th><th>Próxima Aplicação</th>
+            </tr></thead>
+            <tbody>
+              ${d.alertasVacinas.map(a => `
+                <tr>
+                  <td><strong>${escapeHtml(a.animal_nome)}</strong><br>
+                      <span class="codigo-cell">${escapeHtml(a.animal_codigo)}</span></td>
+                  <td>${escapeHtml(a.vacina)}</td>
+                  <td><span class="badge badge-laranja">${formatarData(a.proxima_aplicacao)}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+
+      conteudo.innerHTML = `
+        ${indicadoresHtml}
+        ${acoesRapidasHtml}
+
+        <div class="colunas-2">
+          <div class="card">
+            <div class="card-header"><h2>Animais por Bairro<small>Distribuição territorial</small></h2></div>
+            <div class="card-body">
+              <div class="grafico-barras">${bairrosHtml}</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h2>Zoonoses por Bairro<small>Vigilância epidemiológica</small></h2></div>
+            <div class="card-body">
+              <div class="grafico-barras">${zoonosesBairrosHtml}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-4">
+          <div class="card-header">
+            <h2>⚠️ Alertas — Vacinas vencendo<small>Próximos 30 dias</small></h2>
+          </div>
+          ${alertasHtml}
+        </div>
+      `;
+    }
+
+    carregarDashboard();
+  </script>
+</body>
+</html>

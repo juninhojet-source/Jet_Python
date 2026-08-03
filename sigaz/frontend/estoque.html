@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estoque — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    .saldo-grande { font-size: 28px; font-weight: 700; color: var(--azul-bandeira); font-family: var(--fonte-display, serif); }
+    .saldo-box { background: var(--cinza-50); padding: 14px 18px; border-radius: 8px; border-left: 4px solid var(--azul-bandeira); margin-bottom: 16px; }
+    .saldo-box.alerta { border-left-color: var(--vermelho); background: var(--vermelho-claro); }
+    .ajuste-diff { font-size: 14px; color: var(--cinza-600); margin-top: 4px; }
+    .ajuste-diff strong.positivo { color: var(--verde-bandeira); }
+    .ajuste-diff strong.negativo { color: var(--vermelho); }
+  </style>
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <!-- ===== Modal: Novo / Editar Item ===== -->
+  <div class="modal-overlay" id="modalItem">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2 id="tituloItem">Novo Item</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalItem')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="formItem">
+          <input type="hidden" id="itemId">
+
+          <div class="form-grupo">
+            <label class="form-label obrigatorio">Nome</label>
+            <input type="text" id="i_nome" class="form-controle" required maxlength="100"
+                   placeholder="Ex.: Vacina antirrábica Defensor, Ivermectina 6mg, Seringa 5mL">
+          </div>
+
+          <div class="form-grupo mt-3">
+            <label class="form-label">Categoria</label>
+            <select id="i_categoria" class="form-controle">
+              <option>Vacina</option>
+              <option>Vermífugo</option>
+              <option>Antiparasitário</option>
+              <option>Medicamento</option>
+              <option>Material descartável</option>
+              <option>EPI</option>
+              <option>Insumo cirúrgico</option>
+              <option>Outros</option>
+            </select>
+          </div>
+
+          <div class="form-grupo mt-3">
+            <label class="form-label">Unidade de medida</label>
+            <input type="text" id="i_unidade" class="form-controle" value="unidade" maxlength="20"
+                   placeholder="Ex.: dose, frasco, ampola, kg, mL, par">
+            <div class="text-xs text-cinza mt-1">💡 Como esse item é contado/medido (não é a quantidade)</div>
+          </div>
+
+          <div class="form-grupo mt-3">
+            <label class="form-label">Estoque mínimo</label>
+            <input type="number" id="i_minimo" class="form-controle" min="0" value="0">
+            <div class="text-xs text-cinza mt-1">Quando o saldo cair abaixo disso, aparece alerta</div>
+          </div>
+
+          <!-- Saldo inicial: aparece SÓ no cadastro (não na edição) -->
+          <div id="grupoSaldoInicial" class="form-grupo mt-3" style="background:var(--cinza-50);padding:12px;border-radius:6px;border-left:3px solid var(--verde-bandeira);">
+            <label class="form-label" style="color:var(--verde-bandeira);">📦 Saldo inicial (opcional)</label>
+            <div class="text-xs text-cinza mb-2">Se já tem essa quantidade em estoque, preencha. Será criada uma movimentação de "Entrada — Estoque inicial".</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div>
+                <label class="form-label">Quantidade</label>
+                <input type="number" id="i_saldo_inicial" class="form-controle" min="0" value="0">
+              </div>
+              <div>
+                <label class="form-label">Lote (opcional)</label>
+                <input type="text" id="i_lote_inicial" class="form-controle" maxlength="40">
+              </div>
+              <div style="grid-column:1/-1;">
+                <label class="form-label">Validade do lote (opcional)</label>
+                <input type="date" id="i_validade_inicial" class="form-controle">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grupo mt-3">
+            <label class="form-label">Observações</label>
+            <textarea id="i_obs" class="form-controle" maxlength="300" rows="2"></textarea>
+          </div>
+
+          <div class="form-acoes">
+            <button type="button" class="btn btn-secundario" onclick="fecharModal('modalItem')">Cancelar</button>
+            <button type="submit" class="btn btn-primario" id="btnSalvarItem">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: Movimentar Estoque (Entrada/Saída/Descarte) ===== -->
+  <div class="modal-overlay" id="modalMov">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2>Movimentar Estoque</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalMov')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="formMov">
+          <input type="hidden" id="m_item">
+          <div class="saldo-box">
+            <div><strong id="m_item_nome"></strong></div>
+            <div class="text-sm text-cinza">Saldo atual</div>
+            <div class="saldo-grande"><span id="m_saldo">—</span> <span id="m_unidade" class="text-sm text-cinza"></span></div>
+          </div>
+          <div class="form-grupo">
+            <label class="form-label obrigatorio">Tipo</label>
+            <select id="m_tipo" class="form-controle" required>
+              <option value="Entrada">📥 Entrada (compra/recebimento)</option>
+              <option value="Saída">📤 Saída (uso/aplicação)</option>
+              <option value="Vencimento">🗑️ Descarte (vencimento/perda)</option>
+            </select>
+          </div>
+          <div class="form-grupo mt-3">
+            <label class="form-label obrigatorio">Quantidade</label>
+            <input type="number" id="m_qtd" class="form-controle" required min="1">
+          </div>
+          <div class="form-grupo mt-3">
+            <label class="form-label">Lote</label>
+            <input type="text" id="m_lote" class="form-controle" maxlength="40">
+          </div>
+          <div class="form-grupo mt-3">
+            <label class="form-label">Validade do lote</label>
+            <input type="date" id="m_validade" class="form-controle">
+          </div>
+          <div class="form-grupo mt-3">
+            <label class="form-label">Motivo / Nota Fiscal</label>
+            <input type="text" id="m_motivo" class="form-controle" maxlength="120"
+                   placeholder="Ex.: NF 12345, doação SES, aplicação rotina">
+          </div>
+          <div class="form-acoes">
+            <button type="button" class="btn btn-secundario" onclick="fecharModal('modalMov')">Cancelar</button>
+            <button type="submit" class="btn btn-primario">Registrar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: Ajustar Saldo ===== -->
+  <div class="modal-overlay" id="modalAjuste">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2>🔧 Ajustar Saldo</h2>
+        <button class="modal-fechar" onclick="fecharModal('modalAjuste')">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="formAjuste">
+          <input type="hidden" id="a_item">
+
+          <div class="saldo-box">
+            <div><strong id="a_item_nome"></strong></div>
+            <div class="text-sm text-cinza">Saldo atual no sistema</div>
+            <div class="saldo-grande"><span id="a_saldo">—</span> <span id="a_unidade" class="text-sm text-cinza"></span></div>
+          </div>
+
+          <div class="form-grupo">
+            <label class="form-label obrigatorio">Saldo correto (novo)</label>
+            <input type="number" id="a_saldo_novo" class="form-controle" required min="0">
+            <div class="ajuste-diff" id="a_diff"></div>
+          </div>
+
+          <div class="form-grupo mt-3">
+            <label class="form-label obrigatorio">Motivo do ajuste</label>
+            <select id="a_motivo" class="form-controle" required>
+              <option value="">— Selecione o motivo —</option>
+              <option>Recontagem física (inventário)</option>
+              <option>Perda / Quebra</option>
+              <option>Vencimento</option>
+              <option>Furto / Extravio</option>
+              <option>Erro de lançamento anterior</option>
+              <option>Outro</option>
+            </select>
+          </div>
+
+          <div class="form-grupo mt-3">
+            <label class="form-label">Observação adicional</label>
+            <textarea id="a_obs" class="form-controle" maxlength="200" rows="2"
+                      placeholder="Detalhes adicionais sobre o ajuste"></textarea>
+          </div>
+
+          <div style="background:var(--azul-claro);padding:10px 14px;border-radius:6px;font-size:12px;color:var(--azul-bandeira);margin-top:10px;">
+            ℹ️ <strong>Auditoria:</strong> esse ajuste gerará uma movimentação rastreável vinculada ao seu usuário e horário.
+          </div>
+
+          <div class="form-acoes">
+            <button type="button" class="btn btn-secundario" onclick="fecharModal('modalAjuste')">Cancelar</button>
+            <button type="submit" class="btn btn-primario">Confirmar Ajuste</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/comum.js"></script>
+  <script>
+    montarShell({ paginaAtiva: 'estoque', titulo: 'Estoque de Insumos', subtitulo: 'Controle de vacinas, vermífugos, medicamentos e materiais' });
+    const conteudo = document.getElementById('conteudo');
+
+    function montar() {
+      conteudo.innerHTML = `
+        <div class="card mb-4" id="cardAlertas" style="display:none;"></div>
+        <div class="tabs">
+          <button class="tab ativo" data-tab="itens">Itens</button>
+          <button class="tab" data-tab="movimentos">Movimentações</button>
+        </div>
+        <div class="tab-conteudo ativo" id="tab-itens">
+          <div class="card mb-4"><div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div><strong style="font-size:16px;">Itens em Estoque</strong></div>
+            <button class="btn btn-primario" onclick="novoItem()">+ Novo Item</button>
+          </div></div>
+          <div class="tabela-container"><div id="listaItens"></div></div>
+        </div>
+        <div class="tab-conteudo" id="tab-movimentos">
+          <div class="tabela-container"><div id="listaMov"></div></div>
+        </div>
+      `;
+      document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(x => x.classList.remove('ativo'));
+        document.querySelectorAll('.tab-conteudo').forEach(x => x.classList.remove('ativo'));
+        t.classList.add('ativo');
+        document.getElementById('tab-' + t.dataset.tab).classList.add('ativo');
+        if (t.dataset.tab === 'movimentos') carregarMov();
+      }));
+      carregar();
+    }
+
+    async function carregar() {
+      const [itens, alertas] = await Promise.all([
+        api('/estoque/itens'),
+        api('/estoque/alertas')
+      ]);
+      renderAlertas(alertas);
+      renderItens(itens.dados);
+    }
+
+    function renderAlertas(a) {
+      const baixo = a.baixoEstoque || [];
+      const venc = a.vencendo || [];
+      if (baixo.length === 0 && venc.length === 0) {
+        document.getElementById('cardAlertas').style.display = 'none';
+        return;
+      }
+      let html = '<div class="card-header"><h2>⚠️ Alertas</h2></div><div class="card-body">';
+      if (baixo.length > 0) {
+        html += `<div style="background:var(--vermelho-claro);border-left:3px solid var(--vermelho);padding:10px 14px;border-radius:6px;margin-bottom:10px;">
+          <strong>Estoque baixo:</strong> ${baixo.map(b => escapeHtml(b.nome) + ' ('+b.saldo+' '+escapeHtml(b.unidade)+')').join(', ')}
+        </div>`;
+      }
+      if (venc.length > 0) {
+        html += `<div style="background:var(--laranja-claro);border-left:3px solid var(--laranja);padding:10px 14px;border-radius:6px;">
+          <strong>Lotes vencendo em 30 dias:</strong> ${venc.map(v => escapeHtml(v.item_nome) + ' (lote '+escapeHtml(v.lote||'?')+' vence '+formatarData(v.data_validade)+')').join(', ')}
+        </div>`;
+      }
+      html += '</div>';
+      const c = document.getElementById('cardAlertas');
+      c.innerHTML = html;
+      c.style.display = '';
+    }
+
+    function renderItens(dados) {
+      const div = document.getElementById('listaItens');
+      if (dados.length === 0) { div.innerHTML = '<div class="vazio"><div class="vazio-icone">📦</div><div class="vazio-titulo">Nenhum item cadastrado</div><div class="vazio-texto">Clique em "+ Novo Item" para começar.</div></div>'; return; }
+      div.innerHTML = `<table class="tabela">
+        <thead><tr><th>Item</th><th>Categoria</th><th>Saldo</th><th>Mínimo</th><th>Próxima Validade</th><th style="text-align:right;">Ações</th></tr></thead>
+        <tbody>${dados.map(i => {
+          const baixo = i.saldo <= i.estoque_minimo;
+          return `<tr>
+            <td><strong>${escapeHtml(i.nome)}</strong></td>
+            <td>${escapeHtml(i.categoria||'—')}</td>
+            <td>${baixo?'<span class="badge badge-vermelho">'+i.saldo+' '+escapeHtml(i.unidade)+'</span>':'<span class="badge badge-verde">'+i.saldo+' '+escapeHtml(i.unidade)+'</span>'}</td>
+            <td>${i.estoque_minimo}</td>
+            <td>${i.proxima_validade?formatarData(i.proxima_validade):'<span class="text-cinza">—</span>'}</td>
+            <td><div class="acoes">
+              <button class="btn btn-primario btn-sm" onclick='movimentar(${JSON.stringify(i).replace(/'/g,"&#39;")})'>Movimentar</button>
+              <button class="btn btn-secundario btn-sm" onclick='abrirAjuste(${JSON.stringify(i).replace(/'/g,"&#39;")})' title="Corrigir saldo do sistema">🔧 Ajustar</button>
+              <button class="btn btn-secundario btn-sm" onclick='editarItem(${JSON.stringify(i).replace(/'/g,"&#39;")})'>Editar</button>
+            </div></td>
+          </tr>`;}).join('')}
+        </tbody></table>`;
+    }
+
+    async function carregarMov() {
+      const r = await api('/estoque/movimentos');
+      const div = document.getElementById('listaMov');
+      const dados = r.dados;
+      if (dados.length === 0) { div.innerHTML = '<div class="vazio"><div class="vazio-titulo">Sem movimentações</div></div>'; return; }
+      const cor = { Entrada:'verde', Saida:'azul', 'Saída':'azul', Ajuste:'laranja', Vencimento:'vermelho' };
+      div.innerHTML = `<table class="tabela">
+        <thead><tr><th>Data</th><th>Item</th><th>Tipo</th><th>Qtd</th><th>Lote</th><th>Validade</th><th>Motivo</th><th>Por</th></tr></thead>
+        <tbody>${dados.map(m => {
+          const ehAjuste = m.motivo && m.motivo.startsWith('[Ajuste]');
+          const tipoExibir = ehAjuste ? 'Ajuste' : m.tipo;
+          return `<tr>
+            <td>${formatarDataHora(m.criado_em)}</td>
+            <td>${escapeHtml(m.item_nome)}</td>
+            <td><span class="badge badge-${cor[tipoExibir]||'cinza'}">${escapeHtml(tipoExibir)}</span></td>
+            <td><strong>${m.tipo==='Entrada'?'+':'-'}${m.quantidade}</strong></td>
+            <td>${escapeHtml(m.lote||'—')}</td>
+            <td>${m.data_validade?formatarData(m.data_validade):'—'}</td>
+            <td style="font-size:12px;">${escapeHtml(m.motivo||'')}${m.animal_codigo?'<br><span class="codigo-cell">'+escapeHtml(m.animal_codigo)+'</span>':''}</td>
+            <td style="font-size:12px;">${escapeHtml(m.usuario_nome||'—')}</td>
+          </tr>`;}).join('')}
+        </tbody></table>`;
+    }
+
+    function novoItem() {
+      document.getElementById('formItem').reset();
+      document.getElementById('itemId').value = '';
+      document.getElementById('i_unidade').value = 'unidade';
+      document.getElementById('i_minimo').value = 0;
+      document.getElementById('i_saldo_inicial').value = 0;
+      document.getElementById('grupoSaldoInicial').style.display = '';
+      document.getElementById('tituloItem').textContent = 'Novo Item';
+      abrirModal('modalItem');
+      setTimeout(() => document.getElementById('i_nome').focus(), 100);
+    }
+
+    function editarItem(i) {
+      document.getElementById('formItem').reset();
+      document.getElementById('itemId').value = i.id;
+      document.getElementById('i_nome').value = i.nome;
+      document.getElementById('i_categoria').value = i.categoria || 'Outros';
+      document.getElementById('i_unidade').value = i.unidade;
+      document.getElementById('i_minimo').value = i.estoque_minimo;
+      document.getElementById('i_obs').value = i.observacoes || '';
+      // Esconde saldo inicial na edição — usar Ajustar Saldo
+      document.getElementById('grupoSaldoInicial').style.display = 'none';
+      document.getElementById('tituloItem').textContent = 'Editar Item';
+      abrirModal('modalItem');
+    }
+
+    document.getElementById('formItem').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('itemId').value;
+      const body = {
+        nome: document.getElementById('i_nome').value.trim(),
+        categoria: document.getElementById('i_categoria').value,
+        unidade: document.getElementById('i_unidade').value.trim() || 'unidade',
+        estoque_minimo: parseInt(document.getElementById('i_minimo').value)||0,
+        observacoes: document.getElementById('i_obs').value.trim(),
+        ativo: true
+      };
+      // Saldo inicial só em cadastro
+      if (!id) {
+        body.saldo_inicial = parseInt(document.getElementById('i_saldo_inicial').value) || 0;
+        body.lote_inicial = document.getElementById('i_lote_inicial').value.trim();
+        body.validade_inicial = document.getElementById('i_validade_inicial').value || null;
+      }
+      const btn = document.getElementById('btnSalvarItem');
+      btn.disabled = true;
+      try {
+        if (id) await api('/estoque/itens/' + id, { method:'PUT', body });
+        else await api('/estoque/itens', { method:'POST', body });
+        toast(id ? 'Item atualizado' : (body.saldo_inicial > 0 ? `Item cadastrado com ${body.saldo_inicial} ${body.unidade} em estoque` : 'Item cadastrado'), 'sucesso');
+        fecharModal('modalItem');
+        carregar();
+      } catch (err) { toast('Erro: '+err.message, 'erro'); }
+      finally { btn.disabled = false; }
+    });
+
+    // ===== Movimentação normal =====
+    function movimentar(item) {
+      document.getElementById('formMov').reset();
+      document.getElementById('m_item').value = item.id;
+      document.getElementById('m_item_nome').textContent = item.nome;
+      document.getElementById('m_saldo').textContent = item.saldo;
+      document.getElementById('m_unidade').textContent = item.unidade;
+      abrirModal('modalMov');
+    }
+
+    document.getElementById('formMov').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        item_id: document.getElementById('m_item').value,
+        tipo: document.getElementById('m_tipo').value,
+        quantidade: parseInt(document.getElementById('m_qtd').value),
+        lote: document.getElementById('m_lote').value.trim(),
+        data_validade: document.getElementById('m_validade').value || null,
+        motivo: document.getElementById('m_motivo').value.trim()
+      };
+      try {
+        await api('/estoque/movimentos', { method:'POST', body });
+        toast('Movimentação registrada', 'sucesso');
+        fecharModal('modalMov');
+        carregar();
+      } catch (err) { toast('Erro: '+err.message, 'erro'); }
+    });
+
+    // ===== Ajuste de saldo =====
+    function abrirAjuste(item) {
+      document.getElementById('formAjuste').reset();
+      document.getElementById('a_item').value = item.id;
+      document.getElementById('a_item_nome').textContent = item.nome;
+      document.getElementById('a_saldo').textContent = item.saldo;
+      document.getElementById('a_unidade').textContent = item.unidade;
+      document.getElementById('a_saldo_novo').value = item.saldo;
+      document.getElementById('a_diff').innerHTML = '';
+      document.getElementById('a_saldo_novo').dataset.atual = item.saldo;
+      abrirModal('modalAjuste');
+      setTimeout(() => {
+        const inp = document.getElementById('a_saldo_novo');
+        inp.focus();
+        inp.select();
+      }, 100);
+    }
+
+    // Atualiza a diferença em tempo real
+    document.getElementById('a_saldo_novo').addEventListener('input', (e) => {
+      const atual = parseInt(e.target.dataset.atual);
+      const novo = parseInt(e.target.value);
+      const div = document.getElementById('a_diff');
+      if (isNaN(novo)) { div.innerHTML = ''; return; }
+      const dif = novo - atual;
+      if (dif === 0) div.innerHTML = '<span class="text-cinza">Sem alteração</span>';
+      else if (dif > 0) div.innerHTML = `Diferença: <strong class="positivo">+${dif}</strong> (entrada de ${dif})`;
+      else div.innerHTML = `Diferença: <strong class="negativo">${dif}</strong> (saída de ${Math.abs(dif)})`;
+    });
+
+    document.getElementById('formAjuste').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        saldo_novo: parseInt(document.getElementById('a_saldo_novo').value),
+        motivo: document.getElementById('a_motivo').value,
+        observacao: document.getElementById('a_obs').value.trim()
+      };
+      try {
+        const r = await api('/estoque/itens/' + document.getElementById('a_item').value + '/ajustar', { method:'POST', body });
+        if (r.diferenca === 0) {
+          toast('Saldo já estava correto, nenhum ajuste foi gerado', 'info');
+        } else {
+          toast(`Saldo ajustado de ${r.saldo_anterior} para ${r.saldo_novo}`, 'sucesso');
+        }
+        fecharModal('modalAjuste');
+        carregar();
+      } catch (err) { toast('Erro: '+err.message, 'erro'); }
+    });
+
+    montar();
+  </script>
+</body>
+</html>

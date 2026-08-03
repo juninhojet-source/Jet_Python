@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carteirinha — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    .carteirinha-wrapper {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .carteirinha {
+      background: var(--branco);
+      border: 2px solid var(--azul-bandeira);
+      border-radius: var(--raio-lg);
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      position: relative;
+    }
+
+    .carteirinha::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(45deg, transparent 0 60px, rgba(0,60,124,0.025) 60px 62px);
+      pointer-events: none;
+    }
+
+    .carteirinha-cabecalho {
+      background: linear-gradient(135deg, var(--azul-escuro), var(--azul-bandeira));
+      color: var(--branco);
+      padding: 22px 28px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      position: relative;
+    }
+
+    .carteirinha-cabecalho::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--dourado), #b88f1e, var(--dourado));
+    }
+
+    .carteirinha-brasao {
+      width: 64px; height: 64px;
+      border-radius: 10px;
+      background: var(--branco);
+      display: grid; place-items: center;
+      padding: 5px;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .carteirinha-titulo strong {
+      display: block;
+      font-size: 12px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      opacity: 0.85;
+    }
+
+    .carteirinha-titulo h1 {
+      font-family: var(--fonte-display);
+      font-size: 24px;
+      margin: 4px 0;
+      font-weight: 700;
+    }
+
+    .carteirinha-titulo small {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .carteirinha-corpo {
+      padding: 28px;
+      display: grid;
+      grid-template-columns: 1fr 180px;
+      gap: 30px;
+      position: relative;
+    }
+
+    .animal-foto-bloco {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--cinza-200);
+    }
+
+    .animal-foto {
+      width: 110px;
+      height: 110px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 3px solid var(--azul-bandeira);
+      flex-shrink: 0;
+    }
+
+    .animal-foto-placeholder {
+      width: 110px;
+      height: 110px;
+      border-radius: 10px;
+      background: var(--cinza-100);
+      border: 3px dashed var(--cinza-300);
+      display: grid;
+      place-items: center;
+      font-size: 40px;
+      color: var(--cinza-400);
+      flex-shrink: 0;
+    }
+
+    .animal-foto-info {
+      flex: 1;
+    }
+
+    .animal-foto-info h2 {
+      font-family: var(--fonte-display);
+      font-size: 26px;
+      color: var(--cinza-800);
+      margin: 0;
+    }
+
+    .animal-foto-info .codigo {
+      font-family: ui-monospace, monospace;
+      font-size: 14px;
+      color: var(--cinza-600);
+      margin-top: 2px;
+    }
+
+    .dados-bloco { margin-bottom: 16px; }
+
+    .dados-titulo {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--azul-bandeira);
+      font-weight: 700;
+      border-bottom: 1px solid var(--azul-borda);
+      padding-bottom: 4px;
+      margin-bottom: 8px;
+    }
+
+    .dados-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 20px;
+    }
+
+    .dado-item {
+      font-size: 13px;
+    }
+    .dado-item .label {
+      font-size: 11px;
+      color: var(--cinza-500);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+    .dado-item .valor {
+      color: var(--cinza-800);
+      font-weight: 600;
+    }
+
+    .carteirinha-qr {
+      text-align: center;
+      padding: 12px;
+      background: var(--cinza-50);
+      border-radius: var(--raio);
+      align-self: start;
+    }
+
+    .carteirinha-qr img {
+      width: 100%;
+      max-width: 160px;
+      display: block;
+      margin: 0 auto 8px;
+      background: white;
+      padding: 6px;
+      border-radius: 6px;
+    }
+
+    .carteirinha-qr small {
+      font-size: 10px;
+      color: var(--cinza-500);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      line-height: 1.3;
+      display: block;
+    }
+
+    .carteirinha-codigo-grande {
+      font-family: ui-monospace, monospace;
+      font-size: 15px;
+      color: var(--cinza-800);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+
+    .carteirinha-rodape {
+      padding: 14px 28px;
+      background: var(--cinza-50);
+      border-top: 1px solid var(--cinza-200);
+      font-size: 11px;
+      color: var(--cinza-500);
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .acoes-carteirinha {
+      max-width: 720px;
+      margin: 20px auto 0;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    @media print {
+      body { background: white !important; }
+      .sidebar, .topbar, .acoes-carteirinha { display: none !important; }
+      .app { display: block !important; }
+      .conteudo { padding: 0 !important; max-width: 100% !important; }
+      .carteirinha-wrapper { max-width: 100%; }
+      .carteirinha { border: 2px solid var(--azul-bandeira); box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <script src="/js/comum.js"></script>
+  <script>
+    montarShell({ paginaAtiva: 'carteirinhas', titulo: 'Carteirinha Digital', subtitulo: 'Documento oficial de identificação animal' });
+    const conteudo = document.getElementById('conteudo');
+
+    async function carregar() {
+      const id = new URLSearchParams(location.search).get('id');
+      if (!id) {
+        conteudo.innerHTML = '<div class="vazio"><div class="vazio-icone">⚠️</div><div class="vazio-titulo">ID do animal não informado</div><a href="/carteirinhas.html" class="btn btn-primario mt-3">Voltar à listagem</a></div>';
+        return;
+      }
+      try {
+        const a = await api('/animais/' + id);
+        renderizar(a);
+      } catch (err) {
+        toast('Erro: ' + err.message, 'erro');
+      }
+    }
+
+    function renderizar(a) {
+      const ultimaVacina = a.vacinas && a.vacinas.length > 0 ? a.vacinas[0] : null;
+      const dataEmissao = new Date().toLocaleDateString('pt-BR');
+
+      conteudo.innerHTML = `
+        <div class="carteirinha-wrapper">
+          <div class="carteirinha">
+            <div class="carteirinha-cabecalho">
+              <div class="carteirinha-brasao">
+                <img src="/assets/brasao.png" alt="Brasão Barão de Cocais" style="width:100%;height:100%;object-fit:contain;">
+              </div>
+              <div class="carteirinha-titulo">
+                <strong>Prefeitura Municipal de Barão de Cocais</strong>
+                <h1>Carteirinha de Identificação Animal</h1>
+                <small>SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses · Secretaria Municipal de Saúde</small>
+              </div>
+            </div>
+
+            <div class="carteirinha-corpo">
+              <div>
+                <div class="animal-foto-bloco">
+                  ${a.foto
+                    ? `<img src="${a.foto}" alt="Foto" class="animal-foto">`
+                    : `<div class="animal-foto-placeholder">🐾</div>`}
+                  <div class="animal-foto-info">
+                    <h2>${escapeHtml(a.nome)}</h2>
+                    <div class="codigo">${escapeHtml(a.codigo)}</div>
+                    ${a.status_reprodutivo === 'Castrado(a)' ? '<span class="badge badge-verde" style="margin-top:8px;">Castrado(a)</span>' : ''}
+                    ${a.microchip ? `<div class="text-xs text-cinza mt-2">Microchip: <strong>${escapeHtml(a.microchip)}</strong></div>` : ''}
+                  </div>
+                </div>
+
+                <div class="dados-bloco">
+                  <div class="dados-titulo">Identificação do Animal</div>
+                  <div class="dados-grid">
+                    <div class="dado-item"><div class="label">Espécie</div><div class="valor">${escapeHtml(a.especie)}</div></div>
+                    <div class="dado-item"><div class="label">Raça</div><div class="valor">${escapeHtml(a.raca || '—')}</div></div>
+                    <div class="dado-item"><div class="label">Sexo</div><div class="valor">${escapeHtml(a.sexo || '—')}</div></div>
+                    <div class="dado-item"><div class="label">Idade</div><div class="valor">${escapeHtml(a.idade_aproximada || '—')}</div></div>
+                    <div class="dado-item"><div class="label">Pelagem</div><div class="valor">${escapeHtml(a.pelagem || '—')}</div></div>
+                    <div class="dado-item"><div class="label">Porte</div><div class="valor">${escapeHtml(a.porte || '—')}</div></div>
+                  </div>
+                </div>
+
+                <div class="dados-bloco">
+                  <div class="dados-titulo">Responsável (Tutor)</div>
+                  <div class="dados-grid">
+                    <div class="dado-item"><div class="label">Nome</div><div class="valor">${escapeHtml(a.responsavel_nome || '—')}</div></div>
+                    <div class="dado-item"><div class="label">CPF</div><div class="valor">${a.responsavel_cpf ? formatarCpf(a.responsavel_cpf) : '—'}</div></div>
+                    <div class="dado-item"><div class="label">Telefone</div><div class="valor">${escapeHtml(a.responsavel_telefone || '—')}</div></div>
+                    <div class="dado-item"><div class="label">Bairro</div><div class="valor">${escapeHtml(a.responsavel_bairro || '—')}</div></div>
+                    <div class="dado-item" style="grid-column:1/-1;"><div class="label">Endereço</div><div class="valor">${escapeHtml(a.responsavel_endereco || '—')}</div></div>
+                  </div>
+                </div>
+
+                ${ultimaVacina ? `
+                <div class="dados-bloco">
+                  <div class="dados-titulo">Última Vacinação Registrada</div>
+                  <div class="dados-grid">
+                    <div class="dado-item"><div class="label">Vacina</div><div class="valor">${escapeHtml(ultimaVacina.vacina)}</div></div>
+                    <div class="dado-item"><div class="label">Aplicação</div><div class="valor">${formatarData(ultimaVacina.data_aplicacao)}</div></div>
+                    <div class="dado-item"><div class="label">Próxima Dose</div><div class="valor">${ultimaVacina.proxima_aplicacao ? formatarData(ultimaVacina.proxima_aplicacao) : '—'}</div></div>
+                    <div class="dado-item"><div class="label">Responsável</div><div class="valor">${escapeHtml(ultimaVacina.responsavel_aplicacao || '—')}</div></div>
+                  </div>
+                </div>
+                ` : ''}
+              </div>
+
+              <div class="carteirinha-qr">
+                ${a.qrcode ? `<img src="${a.qrcode}" alt="QR Code">` : '<div style="padding:30px;color:var(--cinza-400);font-size:12px;">QR Code indisponível</div>'}
+                <small>Consulta Pública<br>via QR Code</small>
+                <div class="carteirinha-codigo-grande">${escapeHtml(a.codigo)}</div>
+              </div>
+            </div>
+
+            <div class="carteirinha-rodape">
+              <span>Documento eletrônico emitido pelo SIGAZ em ${dataEmissao}</span>
+              <span>Dep. de Informática · PMBC · 📞 (31) 3837-7661</span>
+            </div>
+          </div>
+
+          <div class="acoes-carteirinha">
+            <a href="/carteirinhas.html" class="btn btn-secundario">← Voltar</a>
+            <button class="btn btn-secundario" onclick="gerarTermo()">📜 Termo de Posse</button>
+            <button class="btn btn-secundario" onclick="gerarAtestadoAntirrabica()">💉 Atestado Antirrábica</button>
+            <button class="btn btn-primario" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+          </div>
+        </div>
+      `;
+    }
+
+    let _animalAtual = null;
+    const _renderOrig = renderizar;
+    renderizar = function(a) {
+      _animalAtual = a;
+      _renderOrig(a);
+    };
+
+    async function gerarTermo() {
+      if (!_animalAtual) return;
+      // Carregar jsPDF dinamicamente
+      if (!window.jspdf) {
+        await new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+          s.onload = res; s.onerror = rej; document.head.appendChild(s);
+        });
+      }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const a = _animalAtual;
+      const hoje = new Date().toLocaleDateString('pt-BR');
+
+      // Brasão
+      const img = new Image();
+      img.src = '/assets/brasao_small.png';
+      await new Promise(r => { img.onload = r; img.onerror = r; });
+      try { doc.addImage(img, 'PNG', 95, 12, 22, 22); } catch {}
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('PREFEITURA MUNICIPAL DE BARÃO DE COCAIS', 105, 40, { align: 'center' });
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Secretaria Municipal de Saúde', 105, 45, { align: 'center' });
+      doc.text('SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses', 105, 50, { align: 'center' });
+
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TERMO DE POSSE E GUARDA RESPONSÁVEL', 105, 64, { align: 'center' });
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      const linhas = doc.splitTextToSize(
+        `Pelo presente termo, ${a.responsavel_nome || '________________________________'}, ` +
+        `portador(a) do CPF nº ${a.responsavel_cpf ? formatarCpf(a.responsavel_cpf) : '___.___.___-__'}, ` +
+        `residente em ${a.responsavel_endereco || '________________________________'}, ` +
+        `bairro ${a.responsavel_bairro || '__________________'}, ` +
+        `declara-se RESPONSÁVEL pela posse e guarda do animal abaixo identificado, ` +
+        `comprometendo-se a observar os princípios de bem-estar animal, sanidade e convivência social.`,
+        180
+      );
+      doc.text(linhas, 15, 78);
+
+      // Identificação do animal
+      let y = 78 + linhas.length * 5 + 8;
+      doc.setFont('helvetica', 'bold');
+      doc.text('IDENTIFICAÇÃO DO ANIMAL', 15, y);
+      doc.line(15, y + 1, 75, y + 1);
+      doc.setFont('helvetica', 'normal');
+      y += 7;
+      const dado = (lbl, val) => {
+        doc.setFont('helvetica', 'bold'); doc.text(lbl + ':', 15, y);
+        doc.setFont('helvetica', 'normal'); doc.text(val || '—', 60, y);
+        y += 5;
+      };
+      dado('Código', a.codigo);
+      dado('Nome', a.nome);
+      dado('Espécie/Raça', a.especie + (a.raca ? ' / ' + a.raca : ''));
+      dado('Sexo/Idade', (a.sexo || '—') + ' • ' + (a.idade_aproximada || 'idade não informada'));
+      dado('Pelagem/Porte', (a.pelagem || '—') + ' • ' + (a.porte || '—'));
+      dado('Status Reprodutivo', a.status_reprodutivo || '—');
+      dado('Microchip', a.microchip || 'Não possui');
+
+      // Compromissos
+      y += 6;
+      doc.setFont('helvetica', 'bold');
+      doc.text('COMPROMISSOS DO(A) RESPONSÁVEL', 15, y);
+      doc.line(15, y + 1, 95, y + 1);
+      doc.setFont('helvetica', 'normal');
+      y += 7;
+      const compromissos = [
+        '1. Manter o animal em ambiente adequado, com água, alimentação e abrigo.',
+        '2. Manter o calendário de vacinação e vermifugação atualizado.',
+        '3. Não permitir maus-tratos, abandono ou abuso contra o animal.',
+        '4. Não permitir o trânsito livre em via pública sem condução adequada.',
+        '5. Recolher dejetos do animal em espaços públicos.',
+        '6. Notificar a Vigilância Sanitária em caso de mordedura ou doença suspeita.',
+        '7. Em caso de impossibilidade de manter o animal, comunicar à Prefeitura.'
+      ];
+      compromissos.forEach(c => {
+        const l = doc.splitTextToSize(c, 180);
+        doc.text(l, 15, y); y += l.length * 5;
+      });
+
+      // Assinaturas
+      y += 12;
+      doc.text('Barão de Cocais, ' + hoje, 15, y);
+      y += 22;
+      doc.line(15, y, 95, y);
+      doc.line(115, y, 195, y);
+      y += 5;
+      doc.setFontSize(8);
+      doc.text('Assinatura do(a) Responsável', 55, y, { align: 'center' });
+      doc.text('Servidor(a) da PMBC', 155, y, { align: 'center' });
+
+      // Rodapé
+      doc.setFontSize(7); doc.setTextColor(120);
+      doc.text(
+        'SIGAZ • Dep. de Informática e Tecnologia • PMBC • (31) 3837-7661',
+        105, 287, { align: 'center' }
+      );
+
+      doc.save(`termo_posse_${a.codigo}.pdf`);
+    }
+
+    function formatarCpf(cpf) {
+      const c = String(cpf).replace(/\D/g, '');
+      if (c.length !== 11) return cpf;
+      return `${c.substring(0,3)}.${c.substring(3,6)}.${c.substring(6,9)}-${c.substring(9)}`;
+    }
+
+    async function gerarAtestadoAntirrabica() {
+      if (!_animalAtual) return;
+      const a = _animalAtual;
+
+      // Buscar vacinas antirrábicas (qualquer vacina com "raiva" ou "antirráb" no nome)
+      const todasVacinas = a.vacinas || [];
+      const antirrabicas = todasVacinas.filter(v =>
+        v.vacina && /raiva|antirr[áa]b/i.test(v.vacina)
+      );
+
+      if (antirrabicas.length === 0) {
+        if (!confirm('Este animal não possui vacina antirrábica registrada no sistema.\n\nDeseja emitir o atestado mesmo assim (em branco)?')) return;
+      }
+
+      // Carregar jsPDF se ainda não carregado
+      if (!window.jspdf) {
+        await new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+          s.onload = res; s.onerror = rej; document.head.appendChild(s);
+        });
+      }
+      // Carregar autoTable plugin
+      if (!window.jspdf.jsPDF.API.autoTable) {
+        await new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js';
+          s.onload = res; s.onerror = rej; document.head.appendChild(s);
+        });
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const hoje = new Date().toLocaleDateString('pt-BR');
+
+      // Brasão
+      const img = new Image();
+      img.src = '/assets/brasao_small.png';
+      await new Promise(r => { img.onload = r; img.onerror = r; });
+      try { doc.addImage(img, 'PNG', 95, 12, 22, 22); } catch {}
+
+      // Cabeçalho
+      doc.setFontSize(10).setFont('helvetica','bold');
+      doc.text('PREFEITURA MUNICIPAL DE BARÃO DE COCAIS', 105, 40, { align: 'center' });
+      doc.setFontSize(9).setFont('helvetica','normal');
+      doc.text('Secretaria Municipal de Saúde', 105, 45, { align: 'center' });
+      doc.text('Departamento de Vigilância em Saúde Animal', 105, 50, { align: 'center' });
+
+      // Título
+      doc.setFontSize(16).setFont('helvetica','bold');
+      doc.text('ATESTADO DE VACINAÇÃO ANTIRRÁBICA', 105, 64, { align: 'center' });
+      doc.setFontSize(10).setFont('helvetica','normal');
+      doc.text('Documento oficial conforme Programa Nacional de Profilaxia da Raiva (PNPR)', 105, 70, { align: 'center' });
+
+      // Linha decorativa
+      doc.setDrawColor(0, 60, 124);
+      doc.setLineWidth(0.5);
+      doc.line(14, 76, 196, 76);
+
+      // Texto introdutório
+      let y = 86;
+      doc.setFontSize(10).setFont('helvetica','normal');
+      const textoIntro = `Atesta-se, para os devidos fins, que o animal abaixo identificado encontra-se ` +
+        (antirrabicas.length > 0
+          ? `regularmente imunizado contra a Raiva, conforme registro de aplicação(ões) vacinal(is) descrita(s) neste documento.`
+          : `cadastrado no SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses do Município de Barão de Cocais.`);
+      const linhasIntro = doc.splitTextToSize(textoIntro, 180);
+      doc.text(linhasIntro, 14, y);
+      y += linhasIntro.length * 5 + 6;
+
+      // Identificação do animal
+      doc.setFontSize(11).setFont('helvetica','bold');
+      doc.text('IDENTIFICAÇÃO DO ANIMAL', 14, y);
+      doc.line(14, y + 1, 75, y + 1);
+      y += 7;
+      doc.setFontSize(10);
+      const linha = (lbl, val) => {
+        doc.setFont('helvetica','bold'); doc.text(lbl + ':', 14, y);
+        doc.setFont('helvetica','normal'); doc.text(val || '—', 58, y);
+        y += 5;
+      };
+      linha('Código SIGAZ', a.codigo);
+      linha('Nome', a.nome);
+      linha('Espécie / Raça', a.especie + (a.raca ? ' / ' + a.raca : ''));
+      linha('Sexo / Idade', (a.sexo || '—') + ' • ' + (a.idade_aproximada || 'não informada'));
+      linha('Pelagem / Porte', (a.pelagem || '—') + ' • ' + (a.porte || '—'));
+      linha('Microchip', a.microchip || 'Não possui');
+
+      // Identificação do responsável
+      y += 4;
+      doc.setFontSize(11).setFont('helvetica','bold');
+      doc.text('IDENTIFICAÇÃO DO RESPONSÁVEL', 14, y);
+      doc.line(14, y + 1, 90, y + 1);
+      y += 7;
+      doc.setFontSize(10);
+      linha('Nome', a.responsavel_nome || 'Não informado');
+      linha('CPF', a.responsavel_cpf ? formatarCpf(a.responsavel_cpf) : 'Não informado');
+      linha('Endereço', [a.responsavel_endereco, a.responsavel_bairro].filter(Boolean).join(', ') || 'Não informado');
+
+      // Registro vacinal
+      y += 4;
+      doc.setFontSize(11).setFont('helvetica','bold');
+      doc.text('REGISTRO DE IMUNIZAÇÃO ANTIRRÁBICA', 14, y);
+      doc.line(14, y + 1, 95, y + 1);
+      y += 4;
+
+      if (antirrabicas.length > 0) {
+        doc.autoTable({
+          startY: y,
+          head: [['Vacina', 'Data Aplicação', 'Próxima Dose', 'Lote', 'Aplicante']],
+          body: antirrabicas.map(v => [
+            v.vacina,
+            v.data_aplicacao ? new Date(v.data_aplicacao).toLocaleDateString('pt-BR') : '—',
+            v.proxima_aplicacao ? new Date(v.proxima_aplicacao).toLocaleDateString('pt-BR') : '—',
+            v.lote || '—',
+            v.responsavel_aplicacao || '—'
+          ]),
+          styles: { fontSize: 9, cellPadding: 2.5 },
+          headStyles: { fillColor: [0, 60, 124], textColor: 255, fontStyle: 'bold' },
+          margin: { left: 14, right: 14 }
+        });
+        y = doc.lastAutoTable.finalY + 6;
+      } else {
+        y += 4;
+        doc.setFontSize(10).setFont('helvetica','italic');
+        doc.text('Nenhum registro de vacinação antirrábica neste sistema.', 14, y);
+        y += 8;
+      }
+
+      // Validade do atestado
+      if (antirrabicas.length > 0) {
+        const ultima = antirrabicas
+          .filter(v => v.proxima_aplicacao)
+          .sort((a, b) => b.proxima_aplicacao.localeCompare(a.proxima_aplicacao))[0];
+        if (ultima && ultima.proxima_aplicacao) {
+          const dataValid = new Date(ultima.proxima_aplicacao);
+          const hojeData = new Date();
+          const vigente = dataValid > hojeData;
+          doc.setFontSize(10).setFont('helvetica','bold');
+          doc.setTextColor(vigente ? 0 : 184, vigente ? 60 : 37, vigente ? 124 : 44);
+          doc.text(
+            `Validade da imunização: ${dataValid.toLocaleDateString('pt-BR')} ${vigente ? '(VIGENTE)' : '(VENCIDA — necessita reforço)'}`,
+            14, y
+          );
+          doc.setTextColor(0, 0, 0);
+          y += 8;
+        }
+      }
+
+      // Observações
+      y += 4;
+      doc.setFontSize(9).setFont('helvetica','italic').setTextColor(80);
+      const obs = `Este atestado tem validade conforme o prazo da última dose aplicada, observando-se o calendário vacinal vigente. ` +
+        `A vacinação antirrábica é obrigatória anualmente para cães e gatos, conforme legislação sanitária municipal e estadual. ` +
+        `Em caso de viagem interestadual, consulte as exigências do estado de destino.`;
+      const linhasObs = doc.splitTextToSize(obs, 180);
+      doc.text(linhasObs, 14, y);
+      y += linhasObs.length * 4 + 6;
+      doc.setTextColor(0, 0, 0);
+
+      // Local e data
+      if (y > 240) { doc.addPage(); y = 30; }
+      doc.setFontSize(10).setFont('helvetica','normal');
+      doc.text('Barão de Cocais, ' + hoje + '.', 14, y);
+
+      // Assinaturas
+      y += 24;
+      doc.line(40, y, 90, y);
+      doc.line(120, y, 180, y);
+      y += 5;
+      doc.setFontSize(8);
+      doc.text('Médico(a) Veterinário(a)', 65, y, { align: 'center' });
+      doc.text('CRMV / Responsável Técnico', 65, y + 4, { align: 'center' });
+      doc.text('Responsável pelo animal', 150, y, { align: 'center' });
+      doc.text('(tutor)', 150, y + 4, { align: 'center' });
+
+      // Rodapé institucional
+      doc.setFontSize(7).setTextColor(120);
+      doc.text(
+        'Atestado emitido eletronicamente pelo SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses',
+        105, 280, { align: 'center' }
+      );
+      doc.text(
+        'SIGAZ • Dep. de Informática e Tecnologia • PMBC • (31) 3837-7661',
+        105, 287, { align: 'center' }
+      );
+
+      doc.save(`atestado_antirrabica_${a.codigo}.pdf`);
+      toast('Atestado gerado', 'sucesso');
+    }
+
+    carregar();
+  </script>
+</body>
+</html>

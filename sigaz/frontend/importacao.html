@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Importação — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <script src="/js/comum.js"></script>
+  <script>
+    montarShell({ paginaAtiva: 'importacao', titulo: 'Importação em Lote', subtitulo: 'Migre dados de planilhas existentes' });
+    const conteudo = document.getElementById('conteudo');
+
+    function montar() {
+      conteudo.innerHTML = `
+        <div class="card mb-4">
+          <div class="card-body">
+            <strong style="font-size:16px;">Importar de planilha Excel/CSV</strong>
+            <div class="text-sm text-cinza mt-2" style="line-height:1.6;">
+              Cole o conteúdo da planilha abaixo (com cabeçalho na primeira linha) ou abra um arquivo CSV.
+              O sistema aceita separadores <code>;</code>, <code>,</code> ou tabulação. Antes de importar, será exibido um <strong>preview</strong> com erros detectados.
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-4">
+          <div class="card-header"><h2>1️⃣ Tipo de dado</h2></div>
+          <div class="card-body">
+            <div class="form-grupo">
+              <label class="form-label">O que vai importar?</label>
+              <select id="tipo" class="form-controle">
+                <option value="combinada">⭐ Responsáveis + Animais (planilha única)</option>
+                <option value="completa">🏥 Responsáveis + Animais + Ações Sanitárias</option>
+                <option value="responsaveis">Apenas Responsáveis (Tutores)</option>
+                <option value="animais">Apenas Animais (após importar tutores)</option>
+              </select>
+            </div>
+            <div class="mt-3" style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-secundario btn-sm" onclick="baixarTemplate()">📥 Baixar template CSV</button>
+              <input type="file" id="arquivo" accept=".csv,.txt" style="display:none;">
+              <button class="btn btn-secundario btn-sm" onclick="document.getElementById('arquivo').click()">📂 Abrir arquivo CSV</button>
+            </div>
+            <div id="ajudaCampos" class="text-sm text-cinza mt-3" style="line-height:1.7;"></div>
+          </div>
+        </div>
+
+        <div class="card mb-4">
+          <div class="card-header"><h2>2️⃣ Conteúdo</h2></div>
+          <div class="card-body">
+            <textarea id="csv" class="form-controle" rows="12" style="font-family:ui-monospace,monospace;font-size:13px;" placeholder="Cole aqui o conteúdo CSV (com cabeçalho)"></textarea>
+            <div class="form-acoes">
+              <button class="btn btn-secundario" onclick="visualizar()">👁️ Visualizar (preview)</button>
+              <button class="btn btn-primario" onclick="confirmar()" id="btnConfirmar" disabled>✓ Confirmar Importação</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="resultado"></div>
+
+        <div class="card mb-4" style="margin-top:20px;border-left:4px solid var(--dourado, #C9A227);">
+          <div class="card-header"><h2>🔧 Manutenção de dados</h2></div>
+          <div class="card-body">
+            <p class="text-sm" style="margin-bottom:12px;color:var(--cinza-700);">
+              Corrige valores de <strong>status reprodutivo</strong> e <strong>habitação</strong> que foram
+              importados fora do padrão (ex.: "Castrado" em vez de "Castrado(a)"). Útil quando animais
+              castrados não aparecem na contagem do painel.
+            </p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-secundario" onclick="simularNormalizacao()">🔍 Simular (ver o que mudaria)</button>
+              <button class="btn btn-primario" onclick="aplicarNormalizacao()" id="btnNormalizar" disabled>✓ Aplicar correção</button>
+            </div>
+            <div id="resultadoNormalizar" style="margin-top:14px;"></div>
+          </div>
+        </div>
+      `;
+      document.getElementById('tipo').addEventListener('change', atualizarAjuda);
+      document.getElementById('arquivo').addEventListener('change', abrirArquivo);
+      atualizarAjuda();
+    }
+
+    async function simularNormalizacao() {
+      const div = document.getElementById('resultadoNormalizar');
+      div.innerHTML = '<p class="text-cinza">Analisando...</p>';
+      try {
+        const r = await api('/admin/normalizar-dados', { method: 'POST', body: { simular: true } });
+        const total = r.status_reprodutivo_a_corrigir + r.habitacao_a_corrigir;
+        if (total === 0) {
+          div.innerHTML = '<div style="color:var(--verde-bandeira);">✓ Nenhum dado fora do padrão. Tudo certo!</div>';
+          document.getElementById('btnNormalizar').disabled = true;
+          return;
+        }
+        let html = `<div style="background:var(--amarelo-claro,#FFF8E1);padding:12px;border-radius:8px;">
+          <strong>Serão corrigidos:</strong><br>
+          • Status reprodutivo: ${r.status_reprodutivo_a_corrigir} animal(is)<br>
+          • Habitação: ${r.habitacao_a_corrigir} animal(is)`;
+        if (r.amostra_status && r.amostra_status.length) {
+          html += '<div style="margin-top:8px;font-size:13px;"><strong>Exemplos (status):</strong><br>' +
+            r.amostra_status.slice(0,8).map(m => `${escapeHtml(m.codigo)}: "${escapeHtml(m.de)}" → "${escapeHtml(m.para)}"`).join('<br>') + '</div>';
+        }
+        html += '</div>';
+        div.innerHTML = html;
+        document.getElementById('btnNormalizar').disabled = false;
+      } catch (err) {
+        div.innerHTML = `<p style="color:var(--vermelho);">Erro: ${err.message}</p>`;
+      }
+    }
+
+    async function aplicarNormalizacao() {
+      if (!confirm('Aplicar a correção nos dados? Recomendado fazer um backup antes.')) return;
+      const div = document.getElementById('resultadoNormalizar');
+      try {
+        const r = await api('/admin/normalizar-dados', { method: 'POST', body: { simular: false } });
+        div.innerHTML = `<div style="color:var(--verde-bandeira);background:var(--verde-claro,#E8F5E9);padding:12px;border-radius:8px;">
+          ✓ Correção aplicada! Status reprodutivo: ${r.status_reprodutivo_corrigidos} · Habitação: ${r.habitacao_corrigidos}.
+          <br>Os animais castrados agora aparecem corretamente no painel.</div>`;
+        document.getElementById('btnNormalizar').disabled = true;
+        toast('Dados normalizados com sucesso!', 'sucesso');
+      } catch (err) {
+        div.innerHTML = `<p style="color:var(--vermelho);">Erro: ${err.message}</p>`;
+      }
+    }
+
+    function atualizarAjuda() {
+      const t = document.getElementById('tipo').value;
+      const campos = {
+        completa: '<strong>🏥 Importação completa:</strong> tutor + animal + ações sanitárias na mesma linha.<br><strong>Tutor/animal:</strong> as mesmas colunas da combinada.<br><strong>Ações sanitárias (todas opcionais):</strong> para cada ação, informe o nome e as colunas correspondentes:<br>• <strong>Vacina:</strong> vacina, lote_vacina, fabricante_vacina, validade_vacina, aplicacao_vacina, proxima_vacina<br>• <strong>Ectoparasiticida:</strong> ectoparasiticida, lote_ecto, fabricante_ecto, validade_ecto, aplicacao_ecto, proxima_ecto<br>• <strong>Vermífugo:</strong> vermifugo, lote_vermifugo, fabricante_vermifugo, validade_vermifugo, aplicacao_vermifugo, proxima_vermifugo<br>• <strong>Coleira repelente:</strong> coleira_repelente, lote_coleira, fabricante_coleira, validade_coleira, aplicacao_coleira, proxima_coleira<br><em>💡 Baixe o modelo "completa" para ver todas as colunas. Cada ação só é registrada se o nome estiver preenchido. A coleira repelente é registrada como antiparasitário externo (ectoparasitário).</em>',
+        combinada: '<strong>⭐ Importação combinada (recomendada):</strong> cadastra o tutor E o animal na mesma linha.<br><strong>Colunas de tutor:</strong> nome, cpf, rg, telefone, email, endereco, numero, bairro, cidade, uf, cep<br><strong>Colunas de animal:</strong> animal (nome), especie, raca, sexo, status_reprodutivo, idade, data_de_nascimento, microchip, porte, pelagem, peso, habitacao, observacoes<br><strong>Obrigatórios:</strong> nome + cpf (ou cnpj). Animal é opcional por linha.<br><em>💡 Para vincular vários animais ao mesmo tutor, repita o CPF em várias linhas — o tutor é cadastrado uma só vez.</em>',
+        responsaveis: '<strong>Campos esperados:</strong> nome, cpf, rg, telefone, email, endereco, numero, bairro, cidade, uf, cep<br><strong>Obrigatórios:</strong> nome, cpf (validado) ou cnpj (14 dígitos)',
+        animais: '<strong>Campos esperados:</strong> nome, especie, raca, sexo, idade_aproximada, peso_kg, porte, pelagem, status_reprodutivo, habitacao, microchip, observacoes, cpf_responsavel<br><strong>Obrigatórios:</strong> nome, especie (Canino/Felino/Equídeo/Bovídeo/Suídeo/Ave/Outro)<br><em>Importe os tutores primeiro.</em>'
+      };
+      document.getElementById('ajudaCampos').innerHTML = campos[t];
+    }
+
+    async function baixarTemplate() {
+      const t = document.getElementById('tipo').value;
+      const r = await fetch('/api/importacao/templates/' + t, {
+        headers: { 'Authorization': 'Bearer ' + SIGAZ.token }
+      });
+      if (!r.ok) { toast('Erro ao baixar', 'erro'); return; }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = `template_${t}.csv`; link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function abrirArquivo(e) {
+      const f = e.target.files[0]; if (!f) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => document.getElementById('csv').value = ev.target.result;
+      reader.readAsText(f, 'UTF-8');
+    }
+
+    async function visualizar() {
+      const tipo = document.getElementById('tipo').value;
+      const csv = document.getElementById('csv').value;
+      if (!csv.trim()) { toast('Cole o CSV antes', 'alerta'); return; }
+      // "completa" usa o mesmo endpoint da combinada (ações sanitárias são opcionais)
+      const endpoint = (tipo === 'completa') ? 'combinada' : tipo;
+      try {
+        const r = await api('/importacao/' + endpoint, { method: 'POST', body: { csv, confirmar: false }});
+        if (tipo === 'combinada' || tipo === 'completa') {
+          renderPreviewCombinada(r);
+          document.getElementById('btnConfirmar').disabled = (r.responsaveis_novos === 0 && r.animais_a_cadastrar === 0);
+        } else {
+          renderPreview(r);
+          document.getElementById('btnConfirmar').disabled = r.validos === 0;
+        }
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    function renderPreviewCombinada(r) {
+      document.getElementById('resultado').innerHTML = `
+        <div class="card">
+          <div class="card-header"><h2>Pré-visualização</h2></div>
+          <div class="card-body">
+            <div style="display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap;">
+              <div class="indicador" style="border-left-color:var(--cinza-400);min-width:130px;">
+                <div class="indicador-label">Linhas no CSV</div>
+                <div class="indicador-valor">${r.total_linhas}</div>
+              </div>
+              <div class="indicador verde" style="min-width:130px;">
+                <div class="indicador-label">Tutores novos</div>
+                <div class="indicador-valor">${r.responsaveis_novos}</div>
+              </div>
+              <div class="indicador" style="border-left-color:var(--azul-bandeira);min-width:130px;">
+                <div class="indicador-label">Tutores já existem</div>
+                <div class="indicador-valor">${r.responsaveis_existentes}</div>
+              </div>
+              <div class="indicador verde" style="min-width:130px;">
+                <div class="indicador-label">Animais a cadastrar</div>
+                <div class="indicador-valor">${r.animais_a_cadastrar}</div>
+              </div>
+              <div class="indicador vermelho" style="min-width:130px;">
+                <div class="indicador-label">Com erro</div>
+                <div class="indicador-valor">${r.erros}</div>
+              </div>
+            </div>
+            ${r.responsaveis_existentes > 0 ? `<div style="background:var(--azul-claro);border-left:3px solid var(--azul-bandeira);padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:13px;">
+              ℹ️ ${r.responsaveis_existentes} tutor(es) já existem no sistema (por CPF/CNPJ). Eles NÃO serão duplicados — apenas os animais serão vinculados a eles.
+            </div>` : ''}
+            ${r.erros > 0 ? `
+            <h3 style="font-family:var(--fonte-display);font-size:14px;margin-bottom:8px;">Erros detectados (linhas não serão importadas):</h3>
+            <table class="tabela">
+              <thead><tr><th>Linha</th><th>Erro</th></tr></thead>
+              <tbody>${r.detalhe_erros.map(e => `<tr>
+                <td>${e.linha}</td>
+                <td style="color:var(--vermelho);font-size:13px;">${escapeHtml(e.erro)}</td>
+              </tr>`).join('')}</tbody>
+            </table>` : ''}
+            ${r.amostra && r.amostra.length > 0 ? `
+            <h3 style="font-family:var(--fonte-display);font-size:14px;margin:18px 0 8px;">Amostra (primeiras linhas):</h3>
+            <table class="tabela">
+              <thead><tr><th>Responsável</th><th>Documento</th><th>Animal</th></tr></thead>
+              <tbody>${r.amostra.map(a => `<tr>
+                <td>${escapeHtml(a.responsavel)}</td>
+                <td style="font-size:12px;">${escapeHtml(a.documento)}</td>
+                <td>${escapeHtml(a.animal)}</td>
+              </tr>`).join('')}</tbody>
+            </table>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPreview(r) {
+      document.getElementById('resultado').innerHTML = `
+        <div class="card">
+          <div class="card-header"><h2>Pré-visualização</h2></div>
+          <div class="card-body">
+            <div style="display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap;">
+              <div class="indicador" style="border-left-color:var(--cinza-400);min-width:140px;">
+                <div class="indicador-label">Total no CSV</div>
+                <div class="indicador-valor">${r.total}</div>
+              </div>
+              <div class="indicador verde" style="min-width:140px;">
+                <div class="indicador-label">Válidos</div>
+                <div class="indicador-valor">${r.validos}</div>
+              </div>
+              <div class="indicador vermelho" style="min-width:140px;">
+                <div class="indicador-label">Com erro</div>
+                <div class="indicador-valor">${r.erros}</div>
+              </div>
+            </div>
+            ${r.erros > 0 ? `
+            <h3 style="font-family:var(--fonte-display);font-size:14px;margin-bottom:8px;">Erros detectados (não serão importados):</h3>
+            <table class="tabela">
+              <thead><tr><th>Linha</th><th>Erro</th><th>Dados</th></tr></thead>
+              <tbody>${r.detalhe_erros.map(e => `<tr>
+                <td>${e.linha}</td>
+                <td style="color:var(--vermelho);font-size:13px;">${escapeHtml(e.erro)}</td>
+                <td style="font-size:11px;color:var(--cinza-500);">${escapeHtml(JSON.stringify(e.dados).substring(0,200))}</td>
+              </tr>`).join('')}</tbody>
+            </table>` : ''}
+            ${r.validos > 0 ? `
+            <h3 style="font-family:var(--fonte-display);font-size:14px;margin:18px 0 8px;">Amostra dos registros válidos:</h3>
+            <pre style="background:var(--cinza-50);padding:14px;border-radius:6px;font-size:11px;overflow:auto;max-height:200px;">${escapeHtml(JSON.stringify(r.amostra, null, 2))}</pre>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    async function confirmar() {
+      const tipo = document.getElementById('tipo').value;
+      const csv = document.getElementById('csv').value;
+      const endpoint = (tipo === 'completa') ? 'combinada' : tipo;
+      if (!confirm(`Confirma a importação? Os registros válidos serão gravados no banco.`)) return;
+      try {
+        const r = await api('/importacao/' + endpoint, { method: 'POST', body: { csv, confirmar: true }});
+        if (tipo === 'combinada' || tipo === 'completa') {
+          toast(`${r.responsaveis_inseridos} tutor(es) e ${r.animais_inseridos} animal(is) importados!`, 'sucesso');
+          document.getElementById('resultado').innerHTML = `
+            <div class="card"><div class="card-body" style="text-align:center;">
+              <div style="font-size:48px;color:var(--verde-bandeira);">✓</div>
+              <h2 style="font-family:var(--fonte-display);margin:10px 0;">Importação concluída</h2>
+              <p><strong>${r.responsaveis_inseridos}</strong> tutor(es) novo(s) e <strong>${r.animais_inseridos}</strong> animal(is) cadastrado(s).</p>
+              ${r.acoes_sanitarias_inseridas > 0 ? `<p style="color:var(--verde-bandeira);">🏥 ${r.acoes_sanitarias_inseridas} ação(ões) sanitária(s) registrada(s) (vacinas, vermífugos, etc.).</p>` : ''}
+              ${r.animais_duplicados_ignorados > 0 ? `<p style="color:var(--azul-bandeira);">↻ ${r.animais_duplicados_ignorados} animal(is) já existiam (microchip ou nome+espécie+tutor) e não foram duplicados.</p>` : ''}
+              ${r.erros > 0 ? `<p style="color:var(--vermelho);">${r.erros} linha(s) ficaram fora por erros.</p>` : ''}
+            </div></div>
+          `;
+        } else {
+          toast(`${r.inseridos} registro(s) importado(s) com sucesso!`, 'sucesso');
+          document.getElementById('resultado').innerHTML = `
+            <div class="card"><div class="card-body" style="text-align:center;">
+              <div style="font-size:48px;color:var(--verde-bandeira);">✓</div>
+              <h2 style="font-family:var(--fonte-display);margin:10px 0;">Importação concluída</h2>
+              <p>${r.inseridos} registros foram inseridos. ${r.erros} ficaram fora por erros.</p>
+            </div></div>
+          `;
+        }
+        document.getElementById('csv').value = '';
+        document.getElementById('btnConfirmar').disabled = true;
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    if (SIGAZ.usuario.perfil === 'admin' || SIGAZ.usuario.perfil === 'ti' || SIGAZ.usuario.perfil === 'veterinario') {
+      montar();
+    } else {
+      conteudo.innerHTML = '<div class="card"><div class="card-body"><div class="vazio"><div class="vazio-icone">🔒</div><div class="vazio-titulo">Acesso restrito</div></div></div></div>';
+    }
+  </script>
+</body>
+</html>

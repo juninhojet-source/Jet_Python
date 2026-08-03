@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatórios — SIGAZ</title>
+  <link rel="icon" type="image/png" href="/assets/brasao_small.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#003c7c">
+  <link rel="stylesheet" href="/css/app.css">
+  <!-- jsPDF + AutoTable via CDN para geração de PDFs profissionais -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    @media print {
+      .sidebar, .topbar, .card-header > .acoes-relatorio,
+      .form-relatorio, .topbar-acoes { display: none !important; }
+      .app { display: block !important; }
+      .conteudo { padding: 0 !important; }
+      .card { border: 1px solid #ccc !important; box-shadow: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="appShell"></div>
+
+  <script src="/js/comum.js"></script>
+  <script src="/js/bairros.js"></script>
+  <script>
+    montarShell({ paginaAtiva: 'relatorios', titulo: 'Relatórios', subtitulo: 'Geração de relatórios gerenciais e operacionais' });
+    const conteudo = document.getElementById('conteudo');
+
+    // Popular filtro de bairros com a lista oficial (sem opção "Outros" no filtro)
+    (async () => {
+      try {
+        const bairros = await BairrosHelper.carregarBairros();
+        const sel = document.getElementById('bairro');
+        if (!sel) return;
+        let html = '<option value="">Todos os bairros</option>';
+        for (const b of bairros) {
+          const sufixo = b.eh_distrito ? ' (Distrito)' : '';
+          html += `<option value="${escapeHtml(b.nome)}">${escapeHtml(b.nome)}${sufixo}</option>`;
+        }
+        sel.innerHTML = html;
+      } catch (err) { console.warn('Erro ao carregar bairros:', err); }
+    })();
+
+    function montar() {
+      conteudo.innerHTML = `
+        <div class="card mb-4 form-relatorio">
+          <div class="card-header"><h2>Filtros do Relatório</h2></div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="form-grupo">
+                <label class="form-label">Tipo de Relatório</label>
+                <select id="tipo" class="form-controle">
+                  <option value="animais">Cadastro de Animais</option>
+                  <option value="vacinacao">Vacinação Aplicada</option>
+                  <option value="zoonoses">Ocorrências de Zoonoses</option>
+                </select>
+              </div>
+              <div class="form-grupo">
+                <label class="form-label">Espécie (animais)</label>
+                <select id="especie" class="form-controle">
+                  <option value="">Todas</option>
+                  <option>Canino</option><option>Felino</option><option>Equídeo</option>
+                  <option>Bovídeo</option><option>Suídeo</option><option>Ave</option><option>Outro</option>
+                </select>
+              </div>
+              <div class="form-grupo">
+                <label class="form-label">Bairro (animais)</label>
+                <select id="bairro" class="form-controle">
+                  <option value="">Todos os bairros</option>
+                </select>
+              </div>
+              <div class="form-grupo">
+                <label class="form-label">Status Reprodutivo</label>
+                <select id="status_reprodutivo" class="form-controle">
+                  <option value="">Todos</option>
+                  <option>Inteiro(a)</option><option>Castrado(a)</option>
+                  <option>Rufião</option><option>Criptorquida</option>
+                </select>
+              </div>
+              <div class="form-grupo">
+                <label class="form-label">Tipo de Zoonose</label>
+                <select id="zoonose" class="form-controle">
+                  <option value="">Todas</option>
+                  <option>Raiva</option><option>Leishmaniose</option><option>Esporotricose</option>
+                  <option>Leptospirose</option><option>Toxoplasmose</option><option>Brucelose</option>
+                  <option>Tuberculose</option><option>Sarna</option><option>Outra</option>
+                </select>
+              </div>
+              <div class="form-grupo">
+                <label class="form-label">Diagnóstico (zoonoses)</label>
+                <select id="diagnostico" class="form-controle">
+                  <option value="">Todos</option>
+                  <option>Positivo</option><option>Negativo</option>
+                  <option>Inconclusivo</option><option>Aguardando</option>
+                </select>
+              </div>
+              <div class="form-grupo">
+                <label class="form-label">Vacina</label>
+                <input type="text" id="vacina" class="form-controle" placeholder="Ex: Raiva, V10...">
+              </div>
+              <div class="form-grupo">
+                <label class="form-label">Período - Início</label>
+                <input type="date" id="data_inicio" class="form-controle">
+              </div>
+              <div class="form-grupo">
+                <label class="form-label">Período - Fim</label>
+                <input type="date" id="data_fim" class="form-controle">
+              </div>
+            </div>
+            <div class="form-acoes">
+              <button class="btn btn-primario" onclick="gerar()">Gerar Relatório</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="resultado"></div>
+      `;
+    }
+
+    async function gerar() {
+      const tipo = document.getElementById('tipo').value;
+      const params = new URLSearchParams();
+      const especie = document.getElementById('especie').value;
+      const bairro = document.getElementById('bairro').value;
+      const status_reprodutivo = document.getElementById('status_reprodutivo').value;
+      const zoonose = document.getElementById('zoonose').value;
+      const diagnostico = document.getElementById('diagnostico').value;
+      const vacina = document.getElementById('vacina').value;
+      const data_inicio = document.getElementById('data_inicio').value;
+      const data_fim = document.getElementById('data_fim').value;
+
+      if (especie) params.set('especie', especie);
+      if (bairro) params.set('bairro', bairro);
+      if (status_reprodutivo) params.set('status_reprodutivo', status_reprodutivo);
+      if (zoonose) params.set('zoonose', zoonose);
+      if (diagnostico) params.set('diagnostico', diagnostico);
+      if (vacina) params.set('vacina', vacina);
+      if (data_inicio) params.set('data_inicio', data_inicio);
+      if (data_fim) params.set('data_fim', data_fim);
+
+      try {
+        const r = await api(`/relatorios/${tipo}?` + params.toString());
+        renderizar(tipo, r);
+      } catch (err) { toast('Erro: ' + err.message, 'erro'); }
+    }
+
+    function renderizar(tipo, r) {
+      const div = document.getElementById('resultado');
+      const titulos = {
+        animais: 'Relatório de Animais Cadastrados',
+        vacinacao: 'Relatório de Vacinação',
+        zoonoses: 'Relatório de Zoonoses'
+      };
+
+      let cabecalho = '';
+      let linhas = '';
+
+      if (tipo === 'animais') {
+        cabecalho = `<tr><th>Código</th><th>Nome</th><th>Espécie/Raça</th><th>Sexo</th><th>Status</th><th>Responsável</th><th>Bairro</th><th>Cadastro</th></tr>`;
+        linhas = r.dados.map(a => `<tr>
+          <td><span class="codigo-cell">${escapeHtml(a.codigo)}</span></td>
+          <td><strong>${escapeHtml(a.nome)}</strong></td>
+          <td>${escapeHtml(a.especie)}${a.raca ? ' · ' + escapeHtml(a.raca) : ''}</td>
+          <td>${escapeHtml(a.sexo || '—')}</td>
+          <td>${escapeHtml(a.status_reprodutivo || '—')}</td>
+          <td>${escapeHtml(a.responsavel || '—')}</td>
+          <td>${escapeHtml(a.bairro || '—')}</td>
+          <td>${formatarData(a.criado_em)}</td>
+        </tr>`).join('');
+      } else if (tipo === 'vacinacao') {
+        cabecalho = `<tr><th>Animal</th><th>Vacina</th><th>Lote</th><th>Aplicação</th><th>Próxima</th><th>Responsável</th><th>Bairro</th></tr>`;
+        linhas = r.dados.map(v => `<tr>
+          <td><strong>${escapeHtml(v.animal_nome)}</strong> <span class="codigo-cell">(${escapeHtml(v.animal_codigo)})</span></td>
+          <td>${escapeHtml(v.vacina)}</td>
+          <td>${escapeHtml(v.lote || '—')}</td>
+          <td>${formatarData(v.data_aplicacao)}</td>
+          <td>${v.proxima_aplicacao ? formatarData(v.proxima_aplicacao) : '—'}</td>
+          <td>${escapeHtml(v.responsavel_aplicacao || '—')}</td>
+          <td>${escapeHtml(v.bairro || '—')}</td>
+        </tr>`).join('');
+      } else if (tipo === 'zoonoses') {
+        cabecalho = `<tr><th>Animal</th><th>Zoonose</th><th>Notificação</th><th>Status</th><th>Diagnóstico</th><th>Bairro</th><th>Óbito</th></tr>`;
+        linhas = r.dados.map(z => `<tr>
+          <td><strong>${escapeHtml(z.animal_nome)}</strong> <span class="codigo-cell">(${escapeHtml(z.animal_codigo)})</span></td>
+          <td>${escapeHtml(z.zoonose)}</td>
+          <td>${formatarData(z.data_notificacao)}</td>
+          <td>${escapeHtml(z.status_investigacao || '—')}</td>
+          <td>${escapeHtml(z.diagnostico || '—')}</td>
+          <td>${escapeHtml(z.responsavel_bairro || z.bairro_ocorrencia || '—')}</td>
+          <td>${z.obito ? 'Sim' : 'Não'}</td>
+        </tr>`).join('');
+      }
+
+      div.innerHTML = `
+        <div class="card">
+          <div class="card-header">
+            <h2>${titulos[tipo]}<small>${r.total} registro(s) encontrado(s)</small></h2>
+            <div class="acoes-relatorio" style="display:flex;gap:8px;">
+              <button class="btn btn-secundario btn-sm" onclick="exportarCsv('${tipo}')">📊 CSV</button>
+              <button class="btn btn-secundario btn-sm" onclick="exportarPdf('${tipo}')">📄 PDF</button>
+              <button class="btn btn-secundario btn-sm" onclick="window.print()">🖨️ Imprimir</button>
+            </div>
+          </div>
+          ${r.dados.length === 0 ? `
+            <div class="vazio"><div class="vazio-icone">📊</div><div class="vazio-titulo">Nenhum dado encontrado com os filtros aplicados</div></div>
+          ` : `
+            <div style="overflow-x:auto;">
+              <table class="tabela" id="tabelaRelatorio">
+                <thead>${cabecalho}</thead>
+                <tbody>${linhas}</tbody>
+              </table>
+            </div>
+          `}
+        </div>
+      `;
+
+      // Salvar dados pra exportação
+      window._relatorioDados = r.dados;
+      window._relatorioTipo = tipo;
+    }
+
+    // ========== EXPORTAÇÃO PDF ==========
+    function exportarPdf(tipo) {
+      const dados = window._relatorioDados || [];
+      if (dados.length === 0) { toast('Nada para exportar', 'alerta'); return; }
+
+      const titulos = {
+        animais: 'Relatório de Animais Cadastrados',
+        vacinacao: 'Relatório de Vacinação',
+        zoonoses: 'Relatório de Zoonoses'
+      };
+
+      let head, body;
+      if (tipo === 'animais') {
+        head = [['Código', 'Nome', 'Espécie/Raça', 'Sexo', 'Status', 'Responsável', 'Bairro', 'Cadastro']];
+        body = dados.map(a => [
+          a.codigo || '',
+          a.nome || '',
+          (a.especie || '') + (a.raca ? ' / ' + a.raca : ''),
+          a.sexo || '—',
+          a.status_reprodutivo || '—',
+          a.responsavel || '—',
+          a.bairro || '—',
+          formatarData(a.criado_em)
+        ]);
+      } else if (tipo === 'vacinacao') {
+        head = [['Animal', 'Código', 'Vacina', 'Aplicação', 'Próxima', 'Responsável', 'Bairro']];
+        body = dados.map(v => [
+          v.animal_nome || '',
+          v.animal_codigo || '',
+          v.vacina || '',
+          formatarData(v.data_aplicacao),
+          v.proxima_aplicacao ? formatarData(v.proxima_aplicacao) : '—',
+          v.responsavel_aplicacao || '—',
+          v.bairro || '—'
+        ]);
+      } else {
+        head = [['Animal', 'Código', 'Zoonose', 'Notificação', 'Status', 'Diagnóstico', 'Bairro', 'Óbito']];
+        body = dados.map(z => [
+          z.animal_nome || '',
+          z.animal_codigo || '',
+          z.zoonose || '',
+          formatarData(z.data_notificacao),
+          z.status_investigacao || '—',
+          z.diagnostico || '—',
+          z.responsavel_bairro || z.bairro_ocorrencia || '—',
+          z.obito ? 'Sim' : 'Não'
+        ]);
+      }
+
+      // jsPDF UMD expõe como window.jspdf
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+      // Carregar brasão como imagem
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = '/assets/brasao_small.png';
+      img.onload = () => {
+        // Cabeçalho
+        try { doc.addImage(img, 'PNG', 14, 8, 16, 16); } catch (e) {}
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('PREFEITURA MUNICIPAL DE BARÃO DE COCAIS', 35, 12);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.text('Secretaria Municipal de Saúde · SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses', 35, 17);
+
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text(titulos[tipo], 14, 32);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${dados.length} registro(s) · Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 38);
+
+        // Tabela
+        doc.autoTable({
+          head, body,
+          startY: 42,
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [0, 60, 124], textColor: 255, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [247, 248, 250] },
+          margin: { left: 14, right: 14 },
+          didDrawPage: (data) => {
+            // Rodapé em cada página
+            const pageNum = doc.internal.getCurrentPageInfo().pageNumber;
+            const pageCount = doc.internal.getNumberOfPages();
+            doc.setFontSize(7);
+            doc.setTextColor(120);
+            doc.text(
+              `SIGAZ · Dep. de Informática e Tecnologia · PMBC · (31) 3837-7661`,
+              14, doc.internal.pageSize.height - 8
+            );
+            doc.text(
+              `Página ${pageNum} de ${pageCount}`,
+              doc.internal.pageSize.width - 30, doc.internal.pageSize.height - 8
+            );
+          }
+        });
+
+        const nomeArquivo = `sigaz_${tipo}_${new Date().toISOString().substring(0,10)}.pdf`;
+        doc.save(nomeArquivo);
+        toast('PDF gerado: ' + nomeArquivo, 'sucesso');
+      };
+
+      img.onerror = () => {
+        // Se não carregar a imagem, gera mesmo assim sem o brasão
+        gerarPdfSemBrasao();
+      };
+
+      function gerarPdfSemBrasao() {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('PREFEITURA MUNICIPAL DE BARÃO DE COCAIS', 14, 12);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.text('SIGAZ — Sistema Integrado de Gestão Animal e Zoonoses', 14, 17);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text(titulos[tipo], 14, 28);
+        doc.autoTable({ head, body, startY: 35, styles: { fontSize: 8 } });
+        doc.save(`sigaz_${tipo}.pdf`);
+      }
+    }
+
+    function exportarCsv(tipo) {
+      const dados = window._relatorioDados || [];
+      if (dados.length === 0) {
+        toast('Nada para exportar', 'alerta');
+        return;
+      }
+      let header, mapper;
+      if (tipo === 'animais') {
+        header = ['Código', 'Nome', 'Espécie', 'Raça', 'Sexo', 'Status Reprodutivo', 'Idade', 'Responsável', 'CPF', 'Telefone', 'Bairro', 'Data Cadastro'];
+        mapper = a => [a.codigo, a.nome, a.especie, a.raca, a.sexo, a.status_reprodutivo, a.idade_aproximada, a.responsavel, a.cpf, a.telefone, a.bairro, a.criado_em];
+      } else if (tipo === 'vacinacao') {
+        header = ['Código Animal', 'Animal', 'Espécie', 'Vacina', 'Fabricante', 'Lote', 'Aplicação', 'Validade', 'Próxima', 'Responsável', 'CRMV', 'Bairro'];
+        mapper = v => [v.animal_codigo, v.animal_nome, v.especie, v.vacina, v.fabricante, v.lote, v.data_aplicacao, v.data_validade, v.proxima_aplicacao, v.responsavel_aplicacao, v.crmv, v.bairro];
+      } else {
+        header = ['Código Animal', 'Animal', 'Espécie', 'Zoonose', 'Notificação', 'Status', 'Diagnóstico', 'Método', 'Bairro', 'Óbito', 'Responsável'];
+        mapper = z => [z.animal_codigo, z.animal_nome, z.especie, z.zoonose, z.data_notificacao, z.status_investigacao, z.diagnostico, z.metodo_diagnostico, z.responsavel_bairro || z.bairro_ocorrencia, z.obito ? 'Sim' : 'Não', z.responsavel_nome];
+      }
+
+      const escape = v => {
+        if (v == null) return '';
+        const s = String(v);
+        return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+
+      const linhas = [header.join(';'), ...dados.map(d => mapper(d).map(escape).join(';'))];
+      const csv = '\uFEFF' + linhas.join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `sigaz_${tipo}_${new Date().toISOString().substring(0,10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast('CSV exportado', 'sucesso');
+    }
+
+    montar();
+  </script>
+</body>
+</html>
