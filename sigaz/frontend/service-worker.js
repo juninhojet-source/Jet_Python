@@ -2,7 +2,7 @@
  * Service Worker do SIGAZ
  * Estratégia: network-first para HTML/API, cache-first para assets estáticos.
  */
-const CACHE_VERSION = 'sigaz-v4';
+const CACHE_VERSION = 'sigaz-v5';
 const ASSETS = [
   '/css/app.css',
   '/css/login.css',

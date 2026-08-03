@@ -201,7 +201,7 @@ function renderizarShell(paginaAtiva) {
         ${adminHtml}
       </nav>
       <div class="sidebar-footer">
-        <strong>SIGAZ v1.0</strong><br>
+        <strong id="verSigaz">SIGAZ</strong><br>
         Dep. de Informática e Tecnologia<br>
         Prefeitura Municipal de<br>
         Barão de Cocais — MG<br>
@@ -262,10 +262,26 @@ function alternarTema() {
   aplicarTema();
 }
 
-// PWA: registrar service worker
+// PWA: registrar service worker com auto-atualização.
+// Antes, uma versão nova só entrava em vigor depois que o usuário limpava
+// o cache manualmente (F12 → Service Workers → Unregister). Agora: checa
+// por atualização periodicamente e recarrega a página sozinho quando uma
+// versão nova assume o controle.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+    navigator.serviceWorker.register('/service-worker.js').then((reg) => {
+      setInterval(() => reg.update().catch(() => {}), 5 * 60 * 1000);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update().catch(() => {});
+      });
+    }).catch(() => {});
+
+    let jaRecarregou = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (jaRecarregou) return;
+      jaRecarregou = true;
+      window.location.reload();
+    });
   });
 }
 
@@ -286,6 +302,25 @@ function montarShell(opcoes) {
     `<div class="main">${topbarHtml}<div class="conteudo" id="conteudo"></div></div>`;
   aplicarTema();
   mostrarBannerLgpd();
+  atualizarVersaoRodape();
+}
+
+// Busca a versão real do servidor (package.json) em vez de deixar fixa no
+// HTML — evita esquecer de atualizar o número a cada release.
+let cacheVersaoServidor = null;
+async function atualizarVersaoRodape() {
+  const el = document.getElementById('verSigaz');
+  if (!el) return;
+  try {
+    if (!cacheVersaoServidor) {
+      const r = await fetch('/api/health');
+      const d = await r.json();
+      cacheVersaoServidor = d.versao;
+    }
+    el.textContent = `SIGAZ v${cacheVersaoServidor}`;
+  } catch {
+    el.textContent = 'SIGAZ';
+  }
 }
 
 function mostrarBannerLgpd() {

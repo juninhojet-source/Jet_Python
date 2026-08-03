@@ -13,6 +13,7 @@ require('dotenv').config();
 
 const db = require('./db/connection');
 const { limitarTaxa } = require('./middleware/rateLimit');
+const { version: VERSAO_SISTEMA } = require('../package.json');
 
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -42,6 +43,14 @@ app.use((req, res, next) => {
 
 // ----- Frontend estático -----
 const frontendDir = path.join(__dirname, '..', 'frontend');
+
+// O arquivo do Service Worker nunca pode ser servido do cache HTTP — senão
+// o navegador não percebe uma versão nova mesmo com auto-update no cliente.
+app.get('/service-worker.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.join(frontendDir, 'service-worker.js'));
+});
+
 app.use(express.static(frontendDir));
 
 // ----- Verificar se o banco está inicializado -----
@@ -56,7 +65,7 @@ if (!tabela) {
 
 // Healthcheck
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', servico: 'SIGAZ', versao: '1.0.0', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', servico: 'SIGAZ', versao: VERSAO_SISTEMA, timestamp: new Date().toISOString() });
 });
 
 // Consulta pública via QR Code
