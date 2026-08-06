@@ -81,9 +81,16 @@ Acesse http://127.0.0.1:8000/ — sem arquivo `.env`, o sistema usa **SQLite** e
 - [x] Campos de **embarque** e **tipo de veículo** de preenchimento manual/livre
 - [x] Filtros de agendamento (data, status, paciente/destino) · testes automatizados
 
+## Fase 3 — entregue
+
+- [x] **Painel de Senhas** MT-01 a MT-50, com reinício após o máximo e **reinício diário**
+- [x] **Painel de controle** do operador (chamar próximo por guichê, repetir, voltar, avançar, finalizar)
+- [x] **Painel de TV** em tela cheia, tempo real por polling, com alerta sonoro
+- [x] **Kiosque** de autoatendimento para o paciente retirar a senha
+- [x] 13 novos testes (numeração, reinício diário, fluxo do painel)
+
 ### Próximas fases
 
-- **Fase 3:** Painel de Senhas (MT-01..50 + painel de TV).
 - **Fase 4:** Relatórios (por agendamento, dia, mês, nome...) e BPA.
 - **Fase 5:** Endurecimento LGPD, backup/restore, documentação e treinamento.
 
