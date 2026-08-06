@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.destinos",
     "apps.agendamentos",
     "apps.senhas",
+    "apps.relatorios",
 ]
 
 MIDDLEWARE = [

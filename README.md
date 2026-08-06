@@ -89,9 +89,16 @@ Acesse http://127.0.0.1:8000/ — sem arquivo `.env`, o sistema usa **SQLite** e
 - [x] **Kiosque** de autoatendimento para o paciente retirar a senha
 - [x] 13 novos testes (numeração, reinício diário, fluxo do painel)
 
-### Próximas fases
+## Fase 4 — entregue
 
-- **Fase 4:** Relatórios (por agendamento, dia, mês, nome...) e BPA.
+- [x] **Relatório de Agendamentos** com filtros (dia, mês, período, nome, município, destino, procedimento, status)
+- [x] **Relatório para o BPA** com os campos de digitação (CNS, CPF, raça/cor, IBGE, procedimento...)
+- [x] **Indicadores**: totais do dia/mês, faltas, por município, por destino e por status
+- [x] **Exportação em PDF e Excel** em todos os relatórios
+- [x] 8 novos testes (filtros e exportação)
+
+### Próxima fase
+
 - **Fase 5:** Endurecimento LGPD, backup/restore, documentação e treinamento.
 
 ## Substituir a logo
