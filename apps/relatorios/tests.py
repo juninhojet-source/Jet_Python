@@ -80,3 +80,23 @@ class ViewsTest(BaseDados):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r["Content-Type"], "application/pdf")
         self.assertTrue(r.content.startswith(b"%PDF"))
+
+
+class FormulaInjectionTest(TestCase):
+    def test_sanitiza_gatilhos_de_formula(self):
+        from openpyxl import load_workbook
+        from io import BytesIO
+
+        from .exports import _sanitizar, exportar_xlsx
+
+        # Campo de texto malicioso que iniciaria uma fórmula no Excel.
+        self.assertEqual(_sanitizar("=HYPERLINK(1)"), "'=HYPERLINK(1)")
+        self.assertEqual(_sanitizar("+1+1"), "'+1+1")
+        self.assertEqual(_sanitizar("texto normal"), "texto normal")
+
+        conteudo = exportar_xlsx("T", ["A"], [["=1+1"], ["ok"]])
+        wb = load_workbook(BytesIO(conteudo))
+        ws = wb.active
+        # A célula é armazenada como texto neutralizado, não como fórmula.
+        self.assertEqual(ws["A2"].value, "'=1+1")
+        self.assertEqual(ws["A2"].data_type, "s")

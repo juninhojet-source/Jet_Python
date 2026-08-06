@@ -13,6 +13,20 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 
 NAVY = "16386E"
 
+# Caracteres que iniciam uma fórmula no Excel/LibreOffice.
+_GATILHOS_FORMULA = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _sanitizar(valor):
+    """Neutraliza injeção de fórmula (CSV/formula injection).
+
+    Prefixa com apóstrofo qualquer texto que comece com um caractere capaz de
+    iniciar uma fórmula, evitando execução ao abrir a planilha exportada.
+    """
+    if isinstance(valor, str) and valor[:1] in _GATILHOS_FORMULA:
+        return "'" + valor
+    return valor
+
 
 def exportar_xlsx(titulo, colunas, linhas):
     wb = Workbook()
@@ -27,7 +41,7 @@ def exportar_xlsx(titulo, colunas, linhas):
         cel.alignment = Alignment(horizontal="left", vertical="center")
     for r, linha in enumerate(linhas, start=2):
         for c, valor in enumerate(linha, start=1):
-            ws.cell(row=r, column=c, value=valor)
+            ws.cell(row=r, column=c, value=_sanitizar(valor))
     # largura das colunas
     for c, nome in enumerate(colunas, start=1):
         largura = max(len(str(nome)), *(len(str(l[c - 1])) for l in linhas)) if linhas else len(str(nome))

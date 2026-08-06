@@ -7,11 +7,15 @@ Departamento de Informática e Tecnologia
 """
 from pathlib import Path
 import os
+import sys
 
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
+
+# Execução da suíte de testes (mantém defaults amigáveis a testes).
+TESTING = "test" in sys.argv
 
 
 def env_bool(name, default=False):
@@ -19,11 +23,25 @@ def env_bool(name, default=False):
 
 
 # --- Segurança ---------------------------------------------------------------
-SECRET_KEY = os.getenv(
-    "SECRET_KEY", "dev-inseguro-troque-em-producao-9c0b1f2e3d4a5b6c7d8e9f"
-)
+# Desenvolvimento assume DEBUG=True; produção DEVE definir DEBUG=False no .env.
 DEBUG = env_bool("DEBUG", True)
-ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "*").split(",") if h.strip()]
+
+# SECRET_KEY: em produção (DEBUG=False) é obrigatório definir por ambiente.
+# Em desenvolvimento, usa uma chave efêmera apenas para não travar o boot.
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if not DEBUG and not TESTING:
+        raise RuntimeError(
+            "SECRET_KEY não definida. Configure a variável de ambiente SECRET_KEY "
+            "em produção (veja .env.example)."
+        )
+    SECRET_KEY = "dev-inseguro-somente-para-desenvolvimento-nao-use-em-producao"
+
+# Em produção o ALLOWED_HOSTS deve ser explícito; nunca usar "*" por padrão.
+_hosts_default = "localhost,127.0.0.1" if DEBUG else ""
+ALLOWED_HOSTS = [
+    h.strip() for h in os.getenv("ALLOWED_HOSTS", _hosts_default).split(",") if h.strip()
+]
 CSRF_TRUSTED_ORIGINS = [
     o.strip() for o in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()
 ]
@@ -152,7 +170,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # storage padrão, evitando a exigência de manifesto (collectstatic).
 _staticfiles_backend = (
     "django.contrib.staticfiles.storage.StaticFilesStorage"
-    if DEBUG
+    if (DEBUG or TESTING)
     else "whitenoise.storage.CompressedManifestStaticFilesStorage"
 )
 STORAGES = {
@@ -165,7 +183,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- Segurança em produção ---------------------------------------------------
-if not DEBUG:
+if not DEBUG and not TESTING:
     SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", False)
     SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", True)
     CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", True)
