@@ -161,6 +161,8 @@ textarea.campo { resize: vertical; }
 .pagination .current { background: var(--navy); color: #fff; border-color: var(--navy); }
 
 .toolbar { display: flex; gap: 10px; align-items: center; }
+.nowrap { white-space: nowrap; }
+td.nowrap .btn { margin-left: 4px; }
 .search { display: flex; gap: 8px; }
 .search .campo { min-width: 260px; }
 .empty { text-align: center; padding: 40px 20px; color: var(--muted); }

@@ -8,17 +8,21 @@
     <div class="sub">Painel do {{ ORGAO.SISTEMA_NOME }}</div>
   </div>
   {% if user.pode_editar %}
-  <a href="{% url 'pacientes:create' %}" class="btn btn-primary">+ Novo paciente</a>
+  <a href="{% url 'agendamentos:create' %}" class="btn btn-primary">+ Novo agendamento</a>
   {% endif %}
 </div>
 
 <div class="stats">
   <div class="stat">
-    <div class="ico blue">👥</div>
+    <div class="ico blue">📅</div>
+    <div><div class="num">{{ total_agenda_hoje }}</div><div class="lbl">Agendamentos hoje</div></div>
+  </div>
+  <div class="stat">
+    <div class="ico gold">👥</div>
     <div><div class="num">{{ total_pacientes }}</div><div class="lbl">Pacientes ativos</div></div>
   </div>
   <div class="stat">
-    <div class="ico gold">📍</div>
+    <div class="ico red">📍</div>
     <div><div class="num">{{ total_destinos }}</div><div class="lbl">Destinos cadastrados</div></div>
   </div>
 </div>
@@ -26,27 +30,27 @@
 <div class="card">
   <div class="card-body">
     <div class="page-head" style="margin-bottom:12px">
-      <h1 style="font-size:16px">Últimos pacientes cadastrados</h1>
-      <a href="{% url 'pacientes:list' %}" class="btn btn-ghost btn-sm">Ver todos</a>
+      <h1 style="font-size:16px">Agenda de hoje — {{ hoje|date:"d/m/Y" }}</h1>
+      <a href="{% url 'agendamentos:agenda' %}" class="btn btn-ghost btn-sm">Ver agenda</a>
     </div>
-    {% if ultimos_pacientes %}
+    {% if agenda_hoje %}
     <div class="table-wrap">
       <table class="data">
-        <thead><tr><th>Nome</th><th>CPF / CNS</th><th>Idade</th><th>Telefone</th></tr></thead>
+        <thead><tr><th>Horário</th><th>Paciente</th><th>Destino</th><th>Situação</th></tr></thead>
         <tbody>
-          {% for p in ultimos_pacientes %}
+          {% for ag in agenda_hoje %}
           <tr>
-            <td><a href="{{ p.get_absolute_url }}">{{ p.nome }}</a></td>
-            <td class="muted">{{ p.cpf|default:p.cns|default:"—" }}</td>
-            <td>{{ p.idade|default:"—" }}</td>
-            <td>{{ p.telefone_principal }}</td>
+            <td><strong>{{ ag.horario|time:"H:i" }}</strong></td>
+            <td><a href="{{ ag.get_absolute_url }}">{{ ag.paciente.nome }}</a></td>
+            <td>{{ ag.destino }}</td>
+            <td>{{ ag.get_status_display }}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
     {% else %}
-    <div class="empty">Nenhum paciente cadastrado ainda.</div>
+    <div class="empty">Nenhum agendamento para hoje.</div>
     {% endif %}
   </div>
 </div>

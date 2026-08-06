@@ -31,6 +31,7 @@
     <div class="nav-inner">
       {% block nav %}
       <a href="{% url 'core:dashboard' %}" class="{% if request.resolver_match.namespace == 'core' %}active{% endif %}">Início</a>
+      <a href="{% url 'agendamentos:agenda' %}" class="{% if request.resolver_match.namespace == 'agendamentos' %}active{% endif %}">Agenda</a>
       <a href="{% url 'pacientes:list' %}" class="{% if request.resolver_match.namespace == 'pacientes' %}active{% endif %}">Pacientes</a>
       <a href="{% url 'destinos:list' %}" class="{% if request.resolver_match.namespace == 'destinos' %}active{% endif %}">Destinos</a>
       {% if user.is_admin %}

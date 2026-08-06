@@ -1,8 +1,9 @@
 # SIGTRANS Saúde — dependências de produção
-Django>=5.0,<5.2
+Django>=5.1,<5.3
 djangorestframework>=3.15
 django-simple-history>=3.5
 python-dotenv>=1.0
 psycopg2-binary>=2.9      # PostgreSQL (produção)
 whitenoise>=6.6           # servir arquivos estáticos
 waitress>=3.0             # servidor WSGI para Windows Server
+reportlab>=4.0            # geração de PDF (Cartão de Embarque)

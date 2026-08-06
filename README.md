@@ -72,11 +72,17 @@ Acesse http://127.0.0.1:8000/ — sem arquivo `.env`, o sistema usa **SQLite** e
 - [x] Cadastro de **Destinos** e **Municípios**
 - [x] Dashboard, pesquisa e paginação · testes automatizados
 
+## Fase 2 — entregue
+
+- [x] **Agendamento** por horário (05:00–18:00, seg–sex, **sem limite diário**)
+- [x] **Agenda do dia / Lista do Dia** — agendamentos por data, em ordem de horário
+- [x] **Cartão de Embarque em PDF** no modelo da Prefeitura (ReportLab)
+- [x] **Controle de embarque** (embarcou/faltou + horários) e confirmação da viagem
+- [x] Campos de **embarque** e **tipo de veículo** de preenchimento manual/livre
+- [x] Filtros de agendamento (data, status, paciente/destino) · testes automatizados
+
 ### Próximas fases
 
-- **Fase 2:** Agenda por horário (05:00–18:00, seg–sex, sem limite diário), Agendamento,
-  Cartão de Embarque (PDF), Lista do Dia. Campos de **embarque** e **tipo de veículo**
-  serão de preenchimento manual/livre.
 - **Fase 3:** Painel de Senhas (MT-01..50 + painel de TV).
 - **Fase 4:** Relatórios (por agendamento, dia, mês, nome...) e BPA.
 - **Fase 5:** Endurecimento LGPD, backup/restore, documentação e treinamento.
