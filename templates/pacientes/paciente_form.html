@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{% if form.instance.pk %}Editar paciente{% else %}Novo paciente{% endif %} — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% if form.instance.pk %}Editar paciente{% else %}Novo paciente{% endif %}</h1>
+    <div class="sub">Cadastro único, com os campos necessários ao BPA</div>
+  </div>
+  <a href="{% url 'pacientes:list' %}" class="btn btn-ghost">Voltar</a>
+</div>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <ul class="messages"><li class="error">{{ form.non_field_errors|join:" " }}</li></ul>
+  {% endif %}
+  <div class="card"><div class="card-body">
+    <div class="form-grid">
+      {% with full_width="observacoes" %}
+        {% include "includes/_form_fields.html" %}
+      {% endwith %}
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Salvar</button>
+      <a href="{% url 'pacientes:list' %}" class="btn btn-ghost">Cancelar</a>
+    </div>
+  </div></div>
+</form>
+{% endblock %}
