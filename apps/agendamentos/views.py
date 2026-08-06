@@ -148,6 +148,8 @@ class CartaoEmbarquePDFView(LoginRequiredMixin, View):
             Agendamento.objects.select_related("paciente", "destino"), pk=pk
         )
         pdf = gerar_cartao_embarque(ag)
+        from apps.auditoria.services import Acao, registrar
+        registrar(Acao.IMPRESSAO, detalhe=f"Cartão de embarque {ag.numero}", request=request)
         resp = HttpResponse(pdf, content_type="application/pdf")
         resp["Content-Disposition"] = f'inline; filename="cartao_{ag.numero}.pdf"'
         return resp

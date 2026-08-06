@@ -11,6 +11,13 @@ Sistema de Gestão de Transporte de Pacientes — Secretaria Municipal de Saúde
 - **[SIGTRANS_Saude_Apresentacao.pptx](./SIGTRANS_Saude_Apresentacao.pptx)** — Apresentação institucional
   do projeto (10 slides) para a Secretaria de Saúde, focada em benefícios.
 
+## Manuais (Fase 5)
+
+- **[MANUAL_INSTALACAO.md](./MANUAL_INSTALACAO.md)** — instalação, configuração e atualização.
+- **[MANUAL_USUARIO.md](./MANUAL_USUARIO.md)** — rotina de uso e material de treinamento.
+- **[MANUAL_BACKUP.md](./MANUAL_BACKUP.md)** — backup e restauração do banco.
+- **[SEGURANCA_LGPD.md](./SEGURANCA_LGPD.md)** — controles de segurança e conformidade com a LGPD.
+
 ## Premissas técnicas confirmadas
 
 - Desenvolvimento e manutenção pela própria TI da Prefeitura.

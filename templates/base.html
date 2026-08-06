@@ -38,6 +38,7 @@
       <a href="{% url 'relatorios:index' %}" class="{% if request.resolver_match.namespace == 'relatorios' %}active{% endif %}">Relatórios</a>
       {% if user.is_admin %}
       <a href="{% url 'accounts:usuario_list' %}" class="{% if request.resolver_match.namespace == 'accounts' %}active{% endif %}">Usuários</a>
+      <a href="{% url 'auditoria:lista' %}" class="{% if request.resolver_match.namespace == 'auditoria' %}active{% endif %}">Auditoria</a>
       {% endif %}
       {% endblock %}
     </div>

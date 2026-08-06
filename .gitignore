@@ -223,3 +223,4 @@ db.sqlite3
 /staticfiles/
 /media/
 .env
+/backups/

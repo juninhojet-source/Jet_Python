@@ -97,9 +97,20 @@ Acesse http://127.0.0.1:8000/ — sem arquivo `.env`, o sistema usa **SQLite** e
 - [x] **Exportação em PDF e Excel** em todos os relatórios
 - [x] 8 novos testes (filtros e exportação)
 
-### Próxima fase
+## Fase 5 — entregue
 
-- **Fase 5:** Endurecimento LGPD, backup/restore, documentação e treinamento.
+- [x] **Trilha de auditoria** de acessos e operações (login, logout, tentativas, exportações, impressões), imutável
+- [x] **Bloqueio por tentativas** de login e **logout automático por inatividade**
+- [x] **Política de senha forte** (letras + números, mínimo 8, evita senhas comuns)
+- [x] Comandos **`backup`** e **`restore`** do banco (+ documentação de `pg_dump`)
+- [x] **Documentação**: manuais de instalação, usuário, backup e segurança/LGPD ([docs/](docs/))
+- [x] 9 novos testes (auditoria, bloqueio, senha forte, inatividade, backup)
+
+## Segurança e LGPD
+
+Ver [docs/SEGURANCA_LGPD.md](docs/SEGURANCA_LGPD.md). Resumo: contas individuais por
+perfil, senhas com hash, trilha de auditoria imutável, backup/restauração e hospedagem
+local sob domínio exclusivo da Prefeitura.
 
 ## Substituir a logo
 

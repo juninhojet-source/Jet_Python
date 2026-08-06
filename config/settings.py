@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "apps.agendamentos",
     "apps.senhas",
     "apps.relatorios",
+    "apps.auditoria",
 ]
 
 MIDDLEWARE = [
@@ -59,6 +60,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Encerra a sessão por inatividade (LGPD)
+    "apps.core.middleware.IdleTimeoutMiddleware",
     # Auditoria: registra o usuário responsável por cada alteração
     "simple_history.middleware.HistoryRequestMiddleware",
 ]
@@ -120,7 +123,15 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {"NAME": "apps.accounts.validators.SenhaForteValidator"},
 ]
+
+# Logout automático por inatividade e bloqueio por tentativas de login (LGPD).
+IDLE_TIMEOUT_SECONDS = int(os.getenv("IDLE_TIMEOUT_SECONDS", str(30 * 60)))
+LOGIN_MAX_TENTATIVAS = int(os.getenv("LOGIN_MAX_TENTATIVAS", "5"))
+LOGIN_BLOQUEIO_SEGUNDOS = int(os.getenv("LOGIN_BLOQUEIO_SEGUNDOS", str(15 * 60)))
+
+SECURE_REFERRER_POLICY = "same-origin"
 
 # Bloqueio por inatividade (LGPD): expira a sessão após o tempo definido.
 SESSION_COOKIE_AGE = int(os.getenv("SESSION_COOKIE_AGE", str(30 * 60)))  # 30 min

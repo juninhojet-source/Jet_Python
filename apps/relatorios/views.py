@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.views import View
 
 from apps.agendamentos.models import Agendamento, StatusAgendamento
+from apps.auditoria.services import Acao, registrar
 from apps.core.models import Municipio
 from apps.destinos.models import Destino
 
@@ -16,7 +17,9 @@ from .exports import exportar_pdf, exportar_xlsx
 from .filtros import filtrar
 
 
-def _resposta_arquivo(conteudo, nome, tipo):
+def _resposta_arquivo(conteudo, nome, tipo, request=None, detalhe=""):
+    if request is not None:
+        registrar(Acao.EXPORTACAO, detalhe=detalhe or nome, request=request)
     resp = HttpResponse(conteudo, content_type=tipo)
     resp["Content-Disposition"] = f'attachment; filename="{nome}"'
     return resp
@@ -55,11 +58,13 @@ class AgendamentosView(LoginRequiredMixin, View):
             return _resposta_arquivo(
                 dados, "agendamentos.xlsx",
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                request=request, detalhe="Relatório de Agendamentos (Excel)",
             )
         if export == "pdf":
             sub = " · ".join(f"{k}: {v}" for k, v in resumo) or "Todos os registros"
             dados = exportar_pdf("Relatório de Agendamentos", sub, COLUNAS_AGEND, list(_linhas_agend(qs)))
-            return _resposta_arquivo(dados, "agendamentos.pdf", "application/pdf")
+            return _resposta_arquivo(dados, "agendamentos.pdf", "application/pdf",
+                                     request=request, detalhe="Relatório de Agendamentos (PDF)")
 
         ctx = {
             "agendamentos": qs[:300], "total": qs.count(), "resumo": resumo,
@@ -99,11 +104,13 @@ class BPAView(LoginRequiredMixin, View):
             return _resposta_arquivo(
                 dados, "relatorio_bpa.xlsx",
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                request=request, detalhe="Relatório BPA (Excel)",
             )
         if export == "pdf":
             sub = " · ".join(f"{k}: {v}" for k, v in resumo) or "Todos os registros"
             dados = exportar_pdf("Relatório para o BPA", sub, COLUNAS_BPA, list(_linhas_bpa(qs)))
-            return _resposta_arquivo(dados, "relatorio_bpa.pdf", "application/pdf")
+            return _resposta_arquivo(dados, "relatorio_bpa.pdf", "application/pdf",
+                                     request=request, detalhe="Relatório BPA (PDF)")
 
         ctx = {
             "agendamentos": qs[:300], "total": qs.count(), "resumo": resumo,
