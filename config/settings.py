@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "apps.pacientes",
     "apps.destinos",
     "apps.agendamentos",
+    "apps.senhas",
 ]
 
 MIDDLEWARE = [
@@ -176,6 +177,8 @@ SIGTRANS = {
     "AGENDA_HORA_FIM": os.getenv("AGENDA_HORA_FIM", "18:00"),
     "AGENDA_DIAS_UTEIS": [0, 1, 2, 3, 4],  # 0=segunda ... 4=sexta
     "AGENDA_LIMITE_DIARIO": None,  # None = sem limite diário de agendamentos
+    "SENHA_MAX": 50,        # senhas de MT-01 a MT-50, reiniciando em seguida
+    "SENHA_PREFIXO": "MT",  # MT = Marcação de Transporte
 }
 
 # --- Identidade institucional (branding) -------------------------------------

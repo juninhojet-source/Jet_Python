@@ -171,3 +171,60 @@ td.nowrap .btn { margin-left: 4px; }
   .form-grid, .dl { grid-template-columns: 1fr; }
   .brand-text span { display: none; }
 }
+
+/* ================= Painel de Senhas ================= */
+.senha-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.senha-atual-box { text-align: center; padding: 24px; }
+.senha-atual-box .lbl { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.senha-num { font-size: 84px; font-weight: 800; color: var(--navy); line-height: 1; margin: 8px 0; font-variant-numeric: tabular-nums; }
+.senha-gui { font-size: 22px; font-weight: 700; color: var(--red); }
+.senha-controls { display: flex; flex-direction: column; gap: 12px; }
+.guiche-row { display: flex; align-items: center; gap: 10px; }
+.guiche-row label { font-weight: 600; font-size: 14px; color: #334155; }
+.btn-block { width: 100%; justify-content: center; }
+.senha-controls .btn-primary { font-size: 18px; padding: 16px; }
+.btn-row { display: flex; gap: 10px; }
+.btn-row .btn { flex: 1; justify-content: center; }
+.chamadas-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.chamada-chip { border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; text-align: center; min-width: 110px; background: #f8fafd; }
+.chamada-chip .c-num { font-size: 22px; font-weight: 800; color: var(--navy); }
+.chamada-chip .c-gui { font-size: 12px; color: var(--muted); }
+.chamada-chip .c-hora { font-size: 11px; color: var(--muted); }
+
+/* ---- Painel de TV (tela cheia) ---- */
+body.tv { background: #0b1f3a; color: #fff; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.tv-head { display: flex; align-items: center; gap: 16px; padding: 20px 34px; border-bottom: 3px solid var(--gold); }
+.tv-logo { height: 60px; }
+.tv-title { font-size: 22px; font-weight: 700; }
+.tv-sub { font-size: 14px; color: #9fc4e4; }
+.tv-main { flex: 1; display: grid; grid-template-columns: 2fr 1fr; gap: 24px; padding: 24px 34px; min-height: 0; }
+.tv-current { background: rgba(255,255,255,.05); border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.tv-current.flash { animation: flash 1s ease; }
+@keyframes flash { 0%,100% { background: rgba(255,255,255,.05); } 20% { background: var(--gold); } }
+.tv-label { font-size: 26px; letter-spacing: 8px; color: #9fc4e4; }
+.tv-senha { font-size: 20vw; font-weight: 800; line-height: .9; color: #fff; font-variant-numeric: tabular-nums; }
+.tv-current.flash .tv-senha, .tv-current.flash .tv-label, .tv-current.flash .tv-guiche { color: #0b1f3a; }
+.tv-guiche { font-size: 5vw; font-weight: 800; color: var(--gold); }
+.tv-side { background: rgba(255,255,255,.05); border-radius: 20px; padding: 20px 24px; display: flex; flex-direction: column; min-height: 0; }
+.tv-side-title { font-size: 18px; color: #9fc4e4; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
+.tv-list { list-style: none; margin: 0; padding: 0; overflow: hidden; }
+.tv-list li { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.12); }
+.tv-list .u-cod { font-size: 34px; font-weight: 800; }
+.tv-list .u-gui { font-size: 16px; color: #9fc4e4; }
+.tv-foot { display: flex; justify-content: space-between; padding: 12px 34px; font-size: 14px; color: #7fa8cf; border-top: 1px solid rgba(255,255,255,.12); }
+
+/* ---- Kiosque ---- */
+body.kiosk { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--navy), var(--navy-dark)); }
+.kiosk-box { background: #fff; border-radius: 20px; padding: 44px 48px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,.3); max-width: 460px; width: 92%; }
+.kiosk-logo { height: 84px; margin-bottom: 10px; }
+.kiosk-org { font-size: 15px; color: var(--muted); }
+.kiosk-title { font-size: 22px; font-weight: 700; color: var(--navy); margin-bottom: 26px; }
+.kiosk-btn { font-size: 30px; font-weight: 800; color: #fff; background: var(--navy); border: none; border-radius: 16px; padding: 34px 20px; width: 100%; cursor: pointer; letter-spacing: 1px; }
+.kiosk-btn:hover { background: var(--navy-dark); }
+.kiosk-emitida .k-lbl { font-size: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+.kiosk-emitida .k-num { font-size: 96px; font-weight: 800; color: var(--navy); line-height: 1; margin: 6px 0; }
+.kiosk-emitida .k-hora { color: var(--muted); }
+.kiosk-emitida .k-msg { font-size: 18px; color: var(--ink); margin-top: 14px; }
+.kiosk-btn-sm { margin-top: 20px; }
+
+@media (max-width: 720px) { .senha-grid { grid-template-columns: 1fr; } .tv-main { grid-template-columns: 1fr; } }

@@ -1,0 +1,97 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel de Senhas — {{ ORGAO.SISTEMA_NOME }}</title>
+  <link rel="stylesheet" href="{% static 'css/sigtrans.css' %}">
+</head>
+<body class="tv">
+  <header class="tv-head">
+    {% static ORGAO.LOGO as logo_url %}
+    <img src="{{ logo_url }}" alt="" class="tv-logo" onerror="this.style.display='none'">
+    <div>
+      <div class="tv-title">{{ ORGAO.SECRETARIA }}</div>
+      <div class="tv-sub">Marcação de Transporte — Painel de Senhas</div>
+    </div>
+  </header>
+
+  <main class="tv-main">
+    <section class="tv-current">
+      <div class="tv-label">SENHA</div>
+      <div id="senha" class="tv-senha">—</div>
+      <div id="guiche" class="tv-guiche">&nbsp;</div>
+    </section>
+    <aside class="tv-side">
+      <div class="tv-side-title">Últimas chamadas</div>
+      <ul id="ultimas" class="tv-list"></ul>
+    </aside>
+  </main>
+
+  <footer class="tv-foot">
+    <span>{{ ORGAO.PREFEITURA }}</span>
+    <span id="relogio"></span>
+  </footer>
+
+  <script>
+    const ESTADO_URL = "{% url 'senhas:estado' %}";
+    let seq = -1;
+    let audioCtx = null;
+
+    function beep() {
+      try {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        [0, 0.18].forEach((t, i) => {
+          const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+          o.connect(g); g.connect(audioCtx.destination);
+          o.type = "sine"; o.frequency.value = i ? 1046 : 784;
+          const s = audioCtx.currentTime + t;
+          g.gain.setValueAtTime(0.0001, s);
+          g.gain.exponentialRampToValueAtTime(0.35, s + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, s + 0.16);
+          o.start(s); o.stop(s + 0.17);
+        });
+      } catch (e) {}
+    }
+
+    function render(d) {
+      document.getElementById("senha").textContent = d.atual ? d.atual.codigo : "—";
+      document.getElementById("guiche").textContent =
+        d.atual && d.atual.guiche ? "GUICHÊ " + String(d.atual.guiche).padStart(2, "0") : " ";
+      const ul = document.getElementById("ultimas");
+      ul.innerHTML = "";
+      d.ultimas.forEach(s => {
+        const li = document.createElement("li");
+        li.innerHTML = `<span class="u-cod">${s.codigo}</span><span class="u-gui">Guichê ${String(s.guiche || "").padStart(2, "0")}</span>`;
+        ul.appendChild(li);
+      });
+    }
+
+    function flash() {
+      const el = document.querySelector(".tv-current");
+      el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+    }
+
+    async function atualizar() {
+      try {
+        const r = await fetch(ESTADO_URL, { cache: "no-store" });
+        const d = await r.json();
+        render(d);
+        if (seq !== -1 && d.sequencia !== seq) { beep(); flash(); }
+        seq = d.sequencia;
+      } catch (e) {}
+    }
+
+    function relogio() {
+      document.getElementById("relogio").textContent =
+        new Date().toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    // Um clique/tecla habilita o áudio nos navegadores modernos.
+    document.body.addEventListener("click", () => { if (!audioCtx) beep(); }, { once: true });
+    atualizar(); setInterval(atualizar, 3500);
+    relogio(); setInterval(relogio, 1000);
+  </script>
+</body>
+</html>
