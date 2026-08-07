@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
-from apps.accounts.mixins import EditorRequiredMixin
+from apps.accounts.mixins import SenhaOperadorRequiredMixin
 
 from . import services
 from .models import fila_config, tipos_ordenados
@@ -49,7 +49,7 @@ def _fila_dict(e):
     }
 
 
-class OperadorView(EditorRequiredMixin, View):
+class OperadorView(SenhaOperadorRequiredMixin, View):
     """Painel de controle usado pela atendente de uma sala."""
 
     def get(self, request):

@@ -17,6 +17,7 @@ treinamento das equipes.
 | Atendente | Cadastrar pacientes e agendamentos, emitir cartão e senhas |
 | Coordenação | Consultar, gerenciar e emitir relatórios |
 | Consulta | Somente leitura |
+| Recepção (Senhas) | Acesso exclusivo ao painel de senhas (não vê pacientes, agenda, relatórios) |
 
 ## Fluxo do atendimento
 

@@ -30,6 +30,9 @@
   <nav class="nav">
     <div class="nav-inner">
       {% block nav %}
+      {% if user.so_senhas %}
+      <a href="{% url 'senhas:operador' %}" class="active">Senhas</a>
+      {% else %}
       <a href="{% url 'core:dashboard' %}" class="{% if request.resolver_match.namespace == 'core' %}active{% endif %}">Início</a>
       <a href="{% url 'agendamentos:agenda' %}" class="{% if request.resolver_match.namespace == 'agendamentos' %}active{% endif %}">Agenda</a>
       <a href="{% url 'pacientes:list' %}" class="{% if request.resolver_match.namespace == 'pacientes' %}active{% endif %}">Pacientes</a>
@@ -39,6 +42,7 @@
       {% if user.is_admin %}
       <a href="{% url 'accounts:usuario_list' %}" class="{% if request.resolver_match.namespace == 'accounts' %}active{% endif %}">Usuários</a>
       <a href="{% url 'auditoria:lista' %}" class="{% if request.resolver_match.namespace == 'auditoria' %}active{% endif %}">Auditoria</a>
+      {% endif %}
       {% endif %}
       {% endblock %}
     </div>

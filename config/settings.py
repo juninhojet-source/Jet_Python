@@ -80,6 +80,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Encerra a sessão por inatividade (LGPD)
     "apps.core.middleware.IdleTimeoutMiddleware",
+    # Restringe o perfil de recepção à área de senhas
+    "apps.core.middleware.RestricaoPerfilMiddleware",
     # Auditoria: registra o usuário responsável por cada alteração
     "simple_history.middleware.HistoryRequestMiddleware",
 ]

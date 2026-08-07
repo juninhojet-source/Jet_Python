@@ -25,3 +25,15 @@ class AdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
         if self.request.user.is_authenticated:
             raise PermissionDenied("Acesso restrito a administradores.")
         return super().handle_no_permission()
+
+
+class SenhaOperadorRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """Exige perfil autorizado a operar o painel de senhas."""
+
+    def test_func(self):
+        return self.request.user.is_authenticated and self.request.user.pode_operar_senha
+
+    def handle_no_permission(self):
+        if self.request.user.is_authenticated:
+            raise PermissionDenied("Seu perfil não permite operar as senhas.")
+        return super().handle_no_permission()

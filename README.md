@@ -61,6 +61,7 @@ Acesse http://127.0.0.1:8000/ — sem arquivo `.env`, o sistema usa **SQLite** e
 | Atendente | Cadastra e edita pacientes/destinos |
 | Coordenação | Cadastra, edita e consulta |
 | Consulta | Somente leitura |
+| Recepção (Senhas) | Acesso exclusivo ao painel de senhas |
 
 ## Fase 1 — entregue
 

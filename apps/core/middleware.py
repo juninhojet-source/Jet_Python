@@ -8,6 +8,22 @@ from django.shortcuts import redirect
 from django.urls import reverse
 
 
+class RestricaoPerfilMiddleware:
+    """Mantém o perfil de recepção (só senhas) restrito à área de senhas."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, "user", None)
+        if user is not None and user.is_authenticated and getattr(user, "so_senhas", False):
+            path = request.path
+            liberados = ("/senhas/", "/contas/", "/static/", "/media/")
+            if not path.startswith(liberados):
+                return redirect(reverse("senhas:operador"))
+        return self.get_response(request)
+
+
 class IdleTimeoutMiddleware:
     """Encerra a sessão após um período de inatividade (LGPD)."""
 

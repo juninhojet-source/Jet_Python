@@ -9,6 +9,7 @@ class Perfil(models.TextChoices):
     ATENDENTE = "ATENDENTE", "Atendente"
     COORDENACAO = "COORDENACAO", "Coordenação"
     CONSULTA = "CONSULTA", "Consulta"
+    RECEPCAO = "RECEPCAO", "Recepção (Senhas)"
 
 
 class User(AbstractUser):
@@ -45,3 +46,15 @@ class User(AbstractUser):
     def pode_editar(self):
         """Perfis que podem cadastrar/editar (não somente leitura)."""
         return self.is_admin or self.perfil in {Perfil.ATENDENTE, Perfil.COORDENACAO}
+
+    @property
+    def so_senhas(self):
+        """Perfil restrito ao painel de senhas (recepção)."""
+        return self.perfil == Perfil.RECEPCAO
+
+    @property
+    def pode_operar_senha(self):
+        """Perfis que podem operar o painel de senhas."""
+        return self.is_admin or self.perfil in {
+            Perfil.ATENDENTE, Perfil.COORDENACAO, Perfil.RECEPCAO
+        }
