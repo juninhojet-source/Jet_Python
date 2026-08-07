@@ -20,6 +20,13 @@ def _sala(tipo):
     return fila_config(tipo).get("sala")
 
 
+def _painel_bloqueado(tipo):
+    """Retorna o painel da fila com a linha bloqueada (evita perda de
+    atualização quando vários operadores agem ao mesmo tempo)."""
+    painel = Painel.carregar(tipo)  # garante a existência da linha
+    return Painel.objects.select_for_update().get(pk=painel.pk)
+
+
 def proximo_numero(tipo, data):
     """Próximo número da fila no dia: 1..MAX, reiniciando após o MAX."""
     ultima = (
@@ -58,7 +65,7 @@ def chamar_proximo(tipo):
     senha.guiche = _sala(tipo)
     senha.chamada_em = timezone.now()
     senha.save()
-    painel = Painel.carregar(tipo)
+    painel = _painel_bloqueado(tipo)
     painel.senha_atual = senha
     painel.sequencia += 1
     painel.save()
@@ -67,7 +74,7 @@ def chamar_proximo(tipo):
 
 @transaction.atomic
 def repetir(tipo):
-    painel = Painel.carregar(tipo)
+    painel = _painel_bloqueado(tipo)
     if painel.senha_atual:
         painel.sequencia += 1
         painel.save()
@@ -77,7 +84,7 @@ def repetir(tipo):
 @transaction.atomic
 def navegar(tipo, delta):
     """Move o painel da fila para a chamada anterior (-1) ou seguinte (+1)."""
-    painel = Painel.carregar(tipo)
+    painel = _painel_bloqueado(tipo)
     chamadas = _chamadas_do_dia(tipo, timezone.localdate())
     if not chamadas:
         return None
@@ -94,7 +101,7 @@ def navegar(tipo, delta):
 
 @transaction.atomic
 def finalizar_atual(tipo):
-    painel = Painel.carregar(tipo)
+    painel = _painel_bloqueado(tipo)
     senha = painel.senha_atual
     if senha and senha.status != StatusSenha.FINALIZADA:
         senha.status = StatusSenha.FINALIZADA
