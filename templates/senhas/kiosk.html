@@ -12,22 +12,31 @@
     {% static ORGAO.LOGO as logo_url %}
     <img src="{{ logo_url }}" alt="" class="kiosk-logo" onerror="this.style.display='none'">
     <div class="kiosk-org">{{ ORGAO.SECRETARIA }}</div>
-    <div class="kiosk-title">Marcação de Transporte</div>
 
     {% if emitida %}
+      <div class="kiosk-title">{{ fila_nome }}</div>
       <div class="kiosk-emitida">
         <div class="k-lbl">Sua senha</div>
         <div class="k-num">{{ emitida.codigo }}</div>
         <div class="k-hora">{{ agora|date:"d/m/Y H:i" }}</div>
-        <p class="k-msg">Aguarde ser chamado(a) no painel.</p>
+        <p class="k-msg">Aguarde ser chamado(a) na <strong>{{ sala_label }} {{ sala|stringformat:"02d" }}</strong>.</p>
       </div>
       <a href="{% url 'senhas:kiosk' %}" class="btn btn-ghost kiosk-btn-sm">Nova senha</a>
       <script>setTimeout(() => location.href="{% url 'senhas:kiosk' %}", 12000);</script>
     {% else %}
-      <form method="post">
-        {% csrf_token %}
-        <button type="submit" class="kiosk-btn">RETIRAR SENHA</button>
-      </form>
+      <div class="kiosk-title">Selecione o atendimento</div>
+      <div class="kiosk-opcoes">
+        {% for f in filas %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="fila" value="{{ f.tipo }}">
+          <button type="submit" class="kiosk-btn">
+            <span class="kb-nome">{{ f.nome }}</span>
+            <span class="kb-sala">{{ sala_label|default:"Sala" }} {{ f.sala|stringformat:"02d" }}</span>
+          </button>
+        </form>
+        {% endfor %}
+      </div>
     {% endif %}
   </div>
 </body>

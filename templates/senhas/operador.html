@@ -5,12 +5,20 @@
 <div class="page-head">
   <div>
     <h1>Painel de Senhas</h1>
-    <div class="sub">{{ aguardando }} senha(s) aguardando · reinício diário automático</div>
+    <div class="sub">{{ nome }} · {{ sala_label }} {{ sala|stringformat:"02d" }} · {{ aguardando }} aguardando</div>
   </div>
   <div class="toolbar">
     <a href="{% url 'senhas:painel_tv' %}" target="_blank" class="btn btn-ghost">Abrir painel de TV ↗</a>
     <a href="{% url 'senhas:kiosk' %}" target="_blank" class="btn btn-ghost">Kiosque (emitir) ↗</a>
   </div>
+</div>
+
+<div class="fila-tabs">
+  {% for f in filas_menu %}
+  <a href="?fila={{ f.tipo }}" class="fila-tab {% if f.ativa %}active{% endif %}">
+    {{ sala_label }} {{ f.sala|stringformat:"02d" }} — {{ f.nome }}
+  </a>
+  {% endfor %}
 </div>
 
 <div class="senha-grid">
@@ -23,14 +31,10 @@
   <div class="card"><div class="card-body">
     <form method="post" class="senha-controls">
       {% csrf_token %}
+      <input type="hidden" name="fila" value="{{ fila }}">
       <div class="guiche-row">
-        {% if sala_fixa %}
-          <label>{{ sala_label }}</label>
-          <span class="sala-fixa">{{ sala_fixa|stringformat:"02d" }}</span>
-        {% else %}
-          <label for="guiche">{{ sala_label }}</label>
-          <input type="number" name="guiche" id="guiche" min="1" max="99" value="{{ guiche }}" class="campo" style="width:90px">
-        {% endif %}
+        <label>{{ sala_label }}</label>
+        <span class="sala-fixa">{{ sala|stringformat:"02d" }}</span>
       </div>
       <button class="btn btn-primary btn-block" name="acao" value="chamar" type="submit">▶ Chamar próximo</button>
       <div class="btn-row">
@@ -47,7 +51,7 @@
 </div>
 
 <div class="card" style="margin-top:16px"><div class="card-body">
-  <div class="section-title" style="margin-top:0">Últimas chamadas</div>
+  <div class="section-title" style="margin-top:0">Últimas chamadas — {{ nome }}</div>
   {% if ultimas %}
   <div class="chamadas-row">
     {% for s in ultimas %}
@@ -59,7 +63,7 @@
     {% endfor %}
   </div>
   {% else %}
-  <div class="empty">Nenhuma senha chamada hoje.</div>
+  <div class="empty">Nenhuma senha chamada hoje nesta sala.</div>
   {% endif %}
 </div></div>
 {% endblock %}

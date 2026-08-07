@@ -26,11 +26,15 @@ Senha → Cadastro do paciente → Agendamento → Cartão de embarque → Embar
 
 ### 1. Senha (recepção)
 
-- **Senhas → Painel de Senhas**: o operador clica em **Chamar próximo** (informando o
-  guichê). Também há **Repetir**, **Voltar** e **Avançar**.
-- O paciente retira a senha no **Kiosque** (`/senhas/emitir/`).
-- A **TV da recepção** exibe a senha atual em `/senhas/painel/`.
-- As senhas vão de MT-01 a MT-50 e reiniciam automaticamente a cada dia.
+- Há **duas filas/salas** de atendimento, cada uma com sua numeração própria:
+  - **Sala 01 — Marcação de Consultas e Exames** (senhas `MC-01`…);
+  - **Sala 02 — Marcação de Transporte** (senhas `MT-01`…).
+- O paciente retira a senha no **Kiosque** (`/senhas/emitir/`), escolhendo o serviço.
+- **Senhas → Painel de Senhas**: o operador seleciona a sala na aba e clica em
+  **Chamar próximo**. Também há **Repetir**, **Voltar** e **Avançar**.
+- A **TV da recepção** (`/senhas/painel/`) exibe as duas salas lado a lado.
+- As senhas vão de 01 a 50 e reiniciam automaticamente a cada dia, por fila.
+- As filas/salas são configuráveis em `SIGTRANS["SENHA_FILAS"]` (settings).
 
 ### 2. Cadastro do paciente
 

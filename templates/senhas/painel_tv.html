@@ -13,21 +13,11 @@
     <img src="{{ logo_url }}" alt="" class="tv-logo" onerror="this.style.display='none'">
     <div>
       <div class="tv-title">{{ ORGAO.SECRETARIA }}</div>
-      <div class="tv-sub">Marcação de Transporte — Painel de Senhas</div>
+      <div class="tv-sub">Painel de Senhas</div>
     </div>
   </header>
 
-  <main class="tv-main">
-    <section class="tv-current">
-      <div class="tv-label">SENHA</div>
-      <div id="senha" class="tv-senha">—</div>
-      <div id="guiche" class="tv-guiche">&nbsp;</div>
-    </section>
-    <aside class="tv-side">
-      <div class="tv-side-title">Últimas chamadas</div>
-      <ul id="ultimas" class="tv-list"></ul>
-    </aside>
-  </main>
+  <main id="filas" class="tv-filas"></main>
 
   <footer class="tv-foot">
     <span>{{ ORGAO.PREFEITURA }}</span>
@@ -36,7 +26,7 @@
 
   <script>
     const ESTADO_URL = "{% url 'senhas:estado' %}";
-    let seq = -1;
+    let seqTotal = -1;
     let audioCtx = null;
 
     function beep() {
@@ -55,21 +45,40 @@
       } catch (e) {}
     }
 
+    function pad2(n) { return String(n == null ? "" : n).padStart(2, "0"); }
+
     function render(d) {
-      document.getElementById("senha").textContent = d.atual ? d.atual.codigo : "—";
-      document.getElementById("guiche").textContent =
-        d.atual && d.atual.guiche ? (d.sala_label || "Sala").toUpperCase() + " " + String(d.atual.guiche).padStart(2, "0") : " ";
-      const ul = document.getElementById("ultimas");
-      ul.innerHTML = "";
-      d.ultimas.forEach(s => {
-        const li = document.createElement("li");
-        li.innerHTML = `<span class="u-cod">${s.codigo}</span><span class="u-gui">${d.sala_label || "Sala"} ${String(s.guiche || "").padStart(2, "0")}</span>`;
-        ul.appendChild(li);
+      const sala = (d.sala_label || "Sala");
+      const cont = document.getElementById("filas");
+      if (cont.children.length !== d.filas.length) {
+        cont.innerHTML = "";
+        d.filas.forEach(f => {
+          const col = document.createElement("section");
+          col.className = "tv-fila";
+          col.dataset.tipo = f.tipo;
+          col.innerHTML =
+            `<div class="tv-fila-head">${sala.toUpperCase()} ${pad2(f.sala)}<span>${f.nome}</span></div>` +
+            `<div class="tv-senha js-senha">—</div>` +
+            `<ul class="tv-mini js-ultimas"></ul>`;
+          cont.appendChild(col);
+        });
+      }
+      d.filas.forEach(f => {
+        const col = cont.querySelector(`[data-tipo="${f.tipo}"]`);
+        if (!col) return;
+        col.querySelector(".js-senha").textContent = f.atual ? f.atual.codigo : "—";
+        const ul = col.querySelector(".js-ultimas");
+        ul.innerHTML = "";
+        f.ultimas.slice(0, 4).forEach(s => {
+          const li = document.createElement("li");
+          li.textContent = s.codigo;
+          ul.appendChild(li);
+        });
       });
     }
 
     function flash() {
-      const el = document.querySelector(".tv-current");
+      const el = document.querySelector(".tv-filas");
       el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
     }
 
@@ -78,8 +87,8 @@
         const r = await fetch(ESTADO_URL, { cache: "no-store" });
         const d = await r.json();
         render(d);
-        if (seq !== -1 && d.sequencia !== seq) { beep(); flash(); }
-        seq = d.sequencia;
+        if (seqTotal !== -1 && d.seq_total !== seqTotal) { beep(); flash(); }
+        seqTotal = d.seq_total;
       } catch (e) {}
     }
 
@@ -88,7 +97,6 @@
         new Date().toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     }
 
-    // Um clique/tecla habilita o áudio nos navegadores modernos.
     document.body.addEventListener("click", () => { if (!audioCtx) beep(); }, { once: true });
     atualizar(); setInterval(atualizar, 3500);
     relogio(); setInterval(relogio, 1000);

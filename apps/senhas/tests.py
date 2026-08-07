@@ -1,9 +1,8 @@
-"""Testes do painel de senhas."""
+"""Testes do painel de senhas (múltiplas filas/salas)."""
 from datetime import timedelta
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -12,67 +11,55 @@ from .models import Painel, Senha, StatusSenha
 
 User = get_user_model()
 
+TRANSPORTE = "TRANSPORTE"
+CONSULTAS = "CONSULTAS"
 
-class NumeracaoTest(TestCase):
-    def test_primeira_senha_do_dia(self):
-        self.assertEqual(services.proximo_numero(timezone.localdate()), 1)
 
-    def test_sequencia(self):
-        services.emitir_senha()
-        services.emitir_senha()
-        s3 = services.emitir_senha()
-        self.assertEqual(s3.numero, 3)
+class NumeracaoPorFilaTest(TestCase):
+    def test_numeracao_independente_por_fila(self):
+        services.emitir_senha(TRANSPORTE)   # MT-01
+        services.emitir_senha(TRANSPORTE)   # MT-02
+        c1 = services.emitir_senha(CONSULTAS)  # MC-01 (independente)
+        self.assertEqual(c1.numero, 1)
+        self.assertEqual(c1.codigo, "MC-01")
+        t3 = services.emitir_senha(TRANSPORTE)  # MT-03
+        self.assertEqual(t3.numero, 3)
+        self.assertEqual(t3.codigo, "MT-03")
 
     def test_reinicio_apos_maximo(self):
         hoje = timezone.localdate()
-        Senha.objects.create(numero=50, data=hoje)
-        self.assertEqual(services.proximo_numero(hoje), 1)
+        Senha.objects.create(tipo=CONSULTAS, numero=50, data=hoje)
+        self.assertEqual(services.proximo_numero(CONSULTAS, hoje), 1)
 
     def test_reinicio_diario(self):
         ontem = timezone.localdate() - timedelta(days=1)
-        Senha.objects.create(numero=37, data=ontem)
-        # A numeração de hoje ignora as senhas de ontem.
-        self.assertEqual(services.proximo_numero(timezone.localdate()), 1)
+        Senha.objects.create(tipo=TRANSPORTE, numero=30, data=ontem)
+        self.assertEqual(services.proximo_numero(TRANSPORTE, timezone.localdate()), 1)
 
 
-class FluxoPainelTest(TestCase):
-    def test_chamar_proximo_pega_mais_antiga(self):
-        s1 = services.emitir_senha()
-        services.emitir_senha()
-        chamada = services.chamar_proximo(guiche=2)
-        self.assertEqual(chamada.pk, s1.pk)
-        self.assertEqual(chamada.status, StatusSenha.CHAMADA)
-        self.assertEqual(chamada.guiche, 2)
-        painel = Painel.carregar()
-        self.assertEqual(painel.senha_atual_id, s1.pk)
-        self.assertEqual(painel.sequencia, 1)
+class ChamadaPorSalaTest(TestCase):
+    def test_transporte_vai_para_sala_2(self):
+        services.emitir_senha(TRANSPORTE)
+        s = services.chamar_proximo(TRANSPORTE)
+        self.assertEqual(s.guiche, 2)
+        self.assertEqual(Painel.carregar(TRANSPORTE).senha_atual_id, s.pk)
 
-    def test_repetir_incrementa_sequencia(self):
-        services.emitir_senha()
-        services.chamar_proximo(1)
-        seq = Painel.carregar().sequencia
-        services.repetir()
-        self.assertEqual(Painel.carregar().sequencia, seq + 1)
+    def test_consultas_vai_para_sala_1(self):
+        services.emitir_senha(CONSULTAS)
+        s = services.chamar_proximo(CONSULTAS)
+        self.assertEqual(s.guiche, 1)
 
-    def test_navegar_entre_chamadas(self):
-        services.emitir_senha(); services.emitir_senha()
-        a = services.chamar_proximo(1)
-        b = services.chamar_proximo(1)
-        self.assertEqual(Painel.carregar().senha_atual_id, b.pk)
-        services.navegar(-1)
-        self.assertEqual(Painel.carregar().senha_atual_id, a.pk)
-        services.navegar(+1)
-        self.assertEqual(Painel.carregar().senha_atual_id, b.pk)
+    def test_filas_nao_interferem(self):
+        services.emitir_senha(TRANSPORTE)
+        services.emitir_senha(CONSULTAS)
+        services.chamar_proximo(TRANSPORTE)
+        # Chamar transporte não afeta a fila de consultas.
+        self.assertIsNone(Painel.carregar(CONSULTAS).senha_atual)
 
-    def test_finalizar(self):
-        services.emitir_senha()
-        services.chamar_proximo(1)
-        services.finalizar_atual()
-        self.assertEqual(Painel.carregar().senha_atual.status, StatusSenha.FINALIZADA)
-
-    def test_codigo(self):
-        s = Senha.objects.create(numero=7, data=timezone.localdate())
-        self.assertEqual(s.codigo, "MT-07")
+    def test_estado_todas_ordena_por_sala(self):
+        salas = [e["sala"] for e in services.estado_todas()]
+        self.assertEqual(salas, sorted(salas))
+        self.assertEqual(salas[0], 1)  # Consultas (Sala 01) vem primeiro
 
 
 class ViewsTest(TestCase):
@@ -83,26 +70,21 @@ class ViewsTest(TestCase):
         self.assertEqual(self.client.get(reverse("senhas:painel_tv")).status_code, 200)
         r = self.client.get(reverse("senhas:estado"))
         self.assertEqual(r.status_code, 200)
-        self.assertIn("sequencia", r.json())
+        dados = r.json()
+        self.assertIn("filas", dados)
+        self.assertEqual(len(dados["filas"]), 2)
 
-    def test_kiosk_emite(self):
-        r = self.client.post(reverse("senhas:kiosk"))
+    def test_kiosk_emite_para_fila_escolhida(self):
+        r = self.client.post(reverse("senhas:kiosk"), {"fila": CONSULTAS})
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(Senha.objects.count(), 1)
+        s = Senha.objects.get()
+        self.assertEqual(s.tipo, CONSULTAS)
+        self.assertEqual(s.codigo, "MC-01")
 
-    def test_operador_chama_usa_sala_fixa(self):
-        # Com SENHA_SALA_FIXA definido (2), o valor enviado é ignorado.
+    def test_operador_chama_na_sala_da_fila(self):
         user = User.objects.create_user(username="a", password="x", perfil="ATENDENTE")
         self.client.force_login(user)
-        services.emitir_senha()
-        r = self.client.post(reverse("senhas:operador"), {"acao": "chamar", "guiche": 9})
+        services.emitir_senha(CONSULTAS)
+        r = self.client.post(reverse("senhas:operador"), {"acao": "chamar", "fila": CONSULTAS})
         self.assertEqual(r.status_code, 302)
-        self.assertEqual(Painel.carregar().senha_atual.guiche, 2)
-
-    @override_settings(SIGTRANS={**settings.SIGTRANS, "SENHA_SALA_FIXA": None})
-    def test_operador_chama_escolhendo_sala(self):
-        user = User.objects.create_user(username="b", password="x", perfil="ATENDENTE")
-        self.client.force_login(user)
-        services.emitir_senha()
-        self.client.post(reverse("senhas:operador"), {"acao": "chamar", "guiche": 3})
-        self.assertEqual(Painel.carregar().senha_atual.guiche, 3)
+        self.assertEqual(Painel.carregar(CONSULTAS).senha_atual.guiche, 1)

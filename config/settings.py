@@ -207,13 +207,15 @@ SIGTRANS = {
     "AGENDA_HORA_FIM": os.getenv("AGENDA_HORA_FIM", "18:00"),
     "AGENDA_DIAS_UTEIS": [0, 1, 2, 3, 4],  # 0=segunda ... 4=sexta
     "AGENDA_LIMITE_DIARIO": None,  # None = sem limite diário de agendamentos
-    "SENHA_MAX": 50,        # senhas de MT-01 a MT-50, reiniciando em seguida
-    "SENHA_PREFIXO": "MT",  # MT = Marcação de Transporte
-    # Sala/guichê fixo para as chamadas de senha. Enquanto houver apenas uma
-    # sala, todas as chamadas vão para a Sala 02. Para reativar a escolha (mais
-    # salas no futuro), defina como None.
-    "SENHA_SALA_FIXA": 2,
+    "SENHA_MAX": 50,          # senhas de 01 a 50, reiniciando em seguida
     "SENHA_SALA_LABEL": "Sala",
+    # Filas de senha: cada fila tem prefixo, sala fixa e nome próprios, com
+    # numeração independente. Para incluir/remover salas, edite este dicionário.
+    "SENHA_FILAS": {
+        "CONSULTAS": {"prefixo": "MC", "sala": 1, "nome": "Marcação de Consultas e Exames"},
+        "TRANSPORTE": {"prefixo": "MT", "sala": 2, "nome": "Marcação de Transporte"},
+    },
+    "SENHA_FILA_PADRAO": "TRANSPORTE",
 }
 
 # --- Identidade institucional (branding) -------------------------------------
