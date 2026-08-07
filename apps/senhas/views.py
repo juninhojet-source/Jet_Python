@@ -1,4 +1,5 @@
 """Views do painel de senhas: controle (operador), painel de TV e kiosque."""
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
@@ -11,11 +12,16 @@ from apps.accounts.mixins import EditorRequiredMixin
 from . import services
 
 
+def _sala_fixa():
+    return settings.SIGTRANS.get("SENHA_SALA_FIXA")
+
+
 def _estado_dict():
     e = services.estado()
     atual = e["atual"]
     return {
         "sequencia": e["painel"].sequencia,
+        "sala_label": settings.SIGTRANS.get("SENHA_SALA_LABEL", "Sala"),
         "atual": (
             {"codigo": atual.codigo, "guiche": atual.guiche} if atual else None
         ),
@@ -31,7 +37,10 @@ class OperadorView(EditorRequiredMixin, View):
 
     def get(self, request):
         ctx = services.estado()
-        ctx["guiche"] = request.session.get("guiche", 1)
+        fixa = _sala_fixa()
+        ctx["sala_fixa"] = fixa
+        ctx["sala_label"] = settings.SIGTRANS.get("SENHA_SALA_LABEL", "Sala")
+        ctx["guiche"] = fixa if fixa else request.session.get("guiche", 1)
         return render(request, "senhas/operador.html", ctx)
 
     def post(self, request):
@@ -39,8 +48,12 @@ class OperadorView(EditorRequiredMixin, View):
         if acao == "emitir":
             services.emitir_senha()
         elif acao == "chamar":
-            guiche = int(request.POST.get("guiche") or request.session.get("guiche", 1))
-            request.session["guiche"] = guiche
+            fixa = _sala_fixa()
+            if fixa:
+                guiche = int(fixa)
+            else:
+                guiche = int(request.POST.get("guiche") or request.session.get("guiche", 1))
+                request.session["guiche"] = guiche
             services.chamar_proximo(guiche)
         elif acao == "repetir":
             services.repetir()

@@ -58,12 +58,12 @@
     function render(d) {
       document.getElementById("senha").textContent = d.atual ? d.atual.codigo : "—";
       document.getElementById("guiche").textContent =
-        d.atual && d.atual.guiche ? "GUICHÊ " + String(d.atual.guiche).padStart(2, "0") : " ";
+        d.atual && d.atual.guiche ? (d.sala_label || "Sala").toUpperCase() + " " + String(d.atual.guiche).padStart(2, "0") : " ";
       const ul = document.getElementById("ultimas");
       ul.innerHTML = "";
       d.ultimas.forEach(s => {
         const li = document.createElement("li");
-        li.innerHTML = `<span class="u-cod">${s.codigo}</span><span class="u-gui">Guichê ${String(s.guiche || "").padStart(2, "0")}</span>`;
+        li.innerHTML = `<span class="u-cod">${s.codigo}</span><span class="u-gui">${d.sala_label || "Sala"} ${String(s.guiche || "").padStart(2, "0")}</span>`;
         ul.appendChild(li);
       });
     }

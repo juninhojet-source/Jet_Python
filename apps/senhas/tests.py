@@ -1,8 +1,9 @@
 """Testes do painel de senhas."""
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -89,10 +90,19 @@ class ViewsTest(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(Senha.objects.count(), 1)
 
-    def test_operador_chama(self):
+    def test_operador_chama_usa_sala_fixa(self):
+        # Com SENHA_SALA_FIXA definido (2), o valor enviado é ignorado.
         user = User.objects.create_user(username="a", password="x", perfil="ATENDENTE")
         self.client.force_login(user)
         services.emitir_senha()
-        r = self.client.post(reverse("senhas:operador"), {"acao": "chamar", "guiche": 3})
+        r = self.client.post(reverse("senhas:operador"), {"acao": "chamar", "guiche": 9})
         self.assertEqual(r.status_code, 302)
+        self.assertEqual(Painel.carregar().senha_atual.guiche, 2)
+
+    @override_settings(SIGTRANS={**settings.SIGTRANS, "SENHA_SALA_FIXA": None})
+    def test_operador_chama_escolhendo_sala(self):
+        user = User.objects.create_user(username="b", password="x", perfil="ATENDENTE")
+        self.client.force_login(user)
+        services.emitir_senha()
+        self.client.post(reverse("senhas:operador"), {"acao": "chamar", "guiche": 3})
         self.assertEqual(Painel.carregar().senha_atual.guiche, 3)

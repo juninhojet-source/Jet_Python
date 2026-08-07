@@ -17,15 +17,20 @@
   <div class="card"><div class="card-body senha-atual-box">
     <div class="lbl">Senha atual</div>
     <div class="senha-num">{% if atual %}{{ atual.codigo }}{% else %}—{% endif %}</div>
-    <div class="senha-gui">{% if atual and atual.guiche %}Guichê {{ atual.guiche|stringformat:"02d" }}{% else %}&nbsp;{% endif %}</div>
+    <div class="senha-gui">{% if atual and atual.guiche %}{{ sala_label }} {{ atual.guiche|stringformat:"02d" }}{% else %}&nbsp;{% endif %}</div>
   </div></div>
 
   <div class="card"><div class="card-body">
     <form method="post" class="senha-controls">
       {% csrf_token %}
       <div class="guiche-row">
-        <label for="guiche">Guichê</label>
-        <input type="number" name="guiche" id="guiche" min="1" max="99" value="{{ guiche }}" class="campo" style="width:90px">
+        {% if sala_fixa %}
+          <label>{{ sala_label }}</label>
+          <span class="sala-fixa">{{ sala_fixa|stringformat:"02d" }}</span>
+        {% else %}
+          <label for="guiche">{{ sala_label }}</label>
+          <input type="number" name="guiche" id="guiche" min="1" max="99" value="{{ guiche }}" class="campo" style="width:90px">
+        {% endif %}
       </div>
       <button class="btn btn-primary btn-block" name="acao" value="chamar" type="submit">▶ Chamar próximo</button>
       <div class="btn-row">
@@ -48,7 +53,7 @@
     {% for s in ultimas %}
     <div class="chamada-chip">
       <div class="c-num">{{ s.codigo }}</div>
-      <div class="c-gui">Guichê {{ s.guiche|stringformat:"02d" }}</div>
+      <div class="c-gui">{{ sala_label }} {{ s.guiche|stringformat:"02d" }}</div>
       <div class="c-hora">{{ s.chamada_em|time:"H:i" }}</div>
     </div>
     {% endfor %}

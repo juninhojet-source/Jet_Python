@@ -209,6 +209,11 @@ SIGTRANS = {
     "AGENDA_LIMITE_DIARIO": None,  # None = sem limite diário de agendamentos
     "SENHA_MAX": 50,        # senhas de MT-01 a MT-50, reiniciando em seguida
     "SENHA_PREFIXO": "MT",  # MT = Marcação de Transporte
+    # Sala/guichê fixo para as chamadas de senha. Enquanto houver apenas uma
+    # sala, todas as chamadas vão para a Sala 02. Para reativar a escolha (mais
+    # salas no futuro), defina como None.
+    "SENHA_SALA_FIXA": 2,
+    "SENHA_SALA_LABEL": "Sala",
 }
 
 # --- Identidade institucional (branding) -------------------------------------

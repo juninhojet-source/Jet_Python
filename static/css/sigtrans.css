@@ -181,6 +181,7 @@ td.nowrap .btn { margin-left: 4px; }
 .senha-controls { display: flex; flex-direction: column; gap: 12px; }
 .guiche-row { display: flex; align-items: center; gap: 10px; }
 .guiche-row label { font-weight: 600; font-size: 14px; color: #334155; }
+.sala-fixa { font-size: 22px; font-weight: 800; color: var(--red); font-variant-numeric: tabular-nums; }
 .btn-block { width: 100%; justify-content: center; }
 .senha-controls .btn-primary { font-size: 18px; padding: 16px; }
 .btn-row { display: flex; gap: 10px; }
