@@ -41,7 +41,7 @@ a:hover { text-decoration: underline; }
 }
 .brand { display: flex; align-items: center; gap: 12px; color: #fff; }
 .brand:hover { text-decoration: none; }
-.brand img { height: 46px; width: auto; display: block; }
+.brand img { height: 44px; width: auto; display: block; background: #fff; border-radius: 6px; padding: 3px; }
 .brand .logo-fallback {
   height: 46px; width: 46px; border-radius: 8px; background: var(--gold);
   color: var(--navy); display: flex; align-items: center; justify-content: center;
@@ -194,7 +194,7 @@ td.nowrap .btn { margin-left: 4px; }
 /* ---- Painel de TV (tela cheia) ---- */
 body.tv { background: #0b1f3a; color: #fff; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .tv-head { display: flex; align-items: center; gap: 16px; padding: 20px 34px; border-bottom: 3px solid var(--gold); }
-.tv-logo { height: 60px; }
+.tv-logo { height: 58px; background: #fff; border-radius: 8px; padding: 5px; }
 .tv-title { font-size: 22px; font-weight: 700; }
 .tv-sub { font-size: 14px; color: #9fc4e4; }
 .tv-main { flex: 1; display: grid; grid-template-columns: 2fr 1fr; gap: 24px; padding: 24px 34px; min-height: 0; }

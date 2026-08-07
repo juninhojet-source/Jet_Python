@@ -220,5 +220,5 @@ ORGAO = {
     "DEPARTAMENTO": "Departamento de Informática e Tecnologia",
     "RESPONSAVEL": "Aristides Ferreira Junior",
     "RESPONSAVEL_TELEFONE": "(31) 3837-7661",
-    "LOGO": "img/logo-prefeitura.png",  # substituir pelo brasão oficial
+    "LOGO": "img/logo-prefeitura.jpg",  # brasão oficial da Prefeitura
 }

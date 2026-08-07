@@ -17,7 +17,8 @@ TELEFONES = "3837-7642  |  3837-5530"
 
 
 def _logo_path():
-    p = Path(settings.BASE_DIR) / "static" / "img" / "logo-prefeitura.png"
+    rel = settings.ORGAO.get("LOGO", "img/logo-prefeitura.jpg")
+    p = Path(settings.BASE_DIR) / "static" / rel
     return str(p) if p.exists() else None
 
 

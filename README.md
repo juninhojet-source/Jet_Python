@@ -24,7 +24,7 @@ apps/
   pacientes/       Cadastro de pacientes (campos do BPA)
   destinos/        Cadastro de estabelecimentos de destino
 templates/         Templates HTML
-static/            CSS e imagens (brasão em static/img/logo-prefeitura.png)
+static/            CSS e imagens (brasão em static/img/logo-prefeitura.jpg)
 docs/              Escopo, arquitetura e apresentação
 ```
 
@@ -112,7 +112,8 @@ Ver [docs/SEGURANCA_LGPD.md](docs/SEGURANCA_LGPD.md). Resumo: contas individuais
 perfil, senhas com hash, trilha de auditoria imutável, backup/restauração e hospedagem
 local sob domínio exclusivo da Prefeitura.
 
-## Substituir a logo
+## Logo
 
-O cabeçalho usa `static/img/logo-prefeitura.png` (hoje um **placeholder**).
-Substitua pelo brasão oficial do Departamento de Informática, mantendo o nome do arquivo.
+O brasão oficial fica em `static/img/logo-prefeitura.jpg` e é referenciado por
+`ORGAO["LOGO"]` em `config/settings.py`. Para trocar, substitua o arquivo (ou aponte
+o `ORGAO["LOGO"]` para outro caminho em `static/`).
