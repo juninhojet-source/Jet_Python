@@ -5,11 +5,14 @@ from django.db.models import Q
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
+from django.http import JsonResponse
+from django.views import View
+
 from apps.accounts.mixins import EditorRequiredMixin
 from apps.core.mixins import SalvarAutorMixin
 from apps.core.validators import apenas_digitos
 
-from .forms import PacienteForm
+from .forms import PacienteForm, PacienteRapidoForm
 from .models import Paciente
 
 
@@ -60,3 +63,17 @@ class PacienteUpdateView(EditorRequiredMixin, SalvarAutorMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, "Cadastro atualizado com sucesso.")
         return super().form_valid(form)
+
+
+class PacienteQuickCreateView(EditorRequiredMixin, View):
+    """Cadastro rápido de paciente (via modal do agendamento). Retorna JSON."""
+
+    def post(self, request):
+        form = PacienteRapidoForm(request.POST)
+        if form.is_valid():
+            paciente = form.save(commit=False)
+            paciente.criado_por = request.user
+            paciente.atualizado_por = request.user
+            paciente.save()
+            return JsonResponse({"ok": True, "id": paciente.pk, "texto": str(paciente)})
+        return JsonResponse({"ok": False, "errors": form.errors.get_json_data()}, status=400)

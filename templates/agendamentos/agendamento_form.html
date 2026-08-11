@@ -25,4 +25,183 @@
     </div>
   </div></div>
 </form>
+
+{# ---- Modais de cadastro rápido ---- #}
+<div class="modal-overlay" id="modal-paciente" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-paciente-titulo">
+    <div class="modal-head">
+      <h2 id="modal-paciente-titulo">Cadastrar paciente</h2>
+      <button type="button" class="modal-fechar" data-fechar aria-label="Fechar">&times;</button>
+    </div>
+    <div class="modal-erros" hidden></div>
+    <div class="modal-body form-grid" data-form="paciente">
+      {% for field in paciente_form %}
+        <div class="field" data-campo="{{ field.name }}">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+          <ul class="errorlist" hidden></ul>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-primary" data-salvar
+              data-url="{% url 'pacientes:quick_create' %}" data-alvo="id_paciente">Salvar paciente</button>
+      <button type="button" class="btn btn-ghost" data-fechar>Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-destino" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-destino-titulo">
+    <div class="modal-head">
+      <h2 id="modal-destino-titulo">Cadastrar destino</h2>
+      <button type="button" class="modal-fechar" data-fechar aria-label="Fechar">&times;</button>
+    </div>
+    <div class="modal-erros" hidden></div>
+    <div class="modal-body form-grid" data-form="destino">
+      {% for field in destino_form %}
+        <div class="field{% if field.field.widget.input_type == 'checkbox' %} check{% endif %}" data-campo="{{ field.name }}">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+          <ul class="errorlist" hidden></ul>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-primary" data-salvar
+              data-url="{% url 'destinos:quick_create' %}" data-alvo="id_destino">Salvar destino</button>
+      <button type="button" class="btn btn-ghost" data-fechar>Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  function csrf() {
+    var el = document.querySelector('input[name=csrfmiddlewaretoken]');
+    return el ? el.value : "";
+  }
+
+  // Insere o botão "+ Cadastrar" ao lado de um <select>.
+  function botaoAoLado(selectId, rotulo, modalId) {
+    var select = document.getElementById(selectId);
+    if (!select) return;
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-ghost btn-inline";
+    btn.textContent = rotulo;
+    btn.addEventListener("click", function () { abrir(modalId); });
+    select.insertAdjacentElement("afterend", btn);
+  }
+
+  function abrir(modalId) {
+    var m = document.getElementById(modalId);
+    if (m) m.hidden = false;
+  }
+  function fechar(modal) {
+    modal.hidden = true;
+    modal.querySelectorAll(".modal-erros").forEach(function (e) { e.hidden = true; e.textContent = ""; });
+    modal.querySelectorAll(".errorlist").forEach(function (u) { u.hidden = true; u.innerHTML = ""; });
+  }
+
+  function limparErros(modal) {
+    var box = modal.querySelector(".modal-erros");
+    box.hidden = true; box.textContent = "";
+    modal.querySelectorAll(".errorlist").forEach(function (u) { u.hidden = true; u.innerHTML = ""; });
+  }
+
+  function mostrarErros(modal, errors) {
+    var geral = [];
+    Object.keys(errors).forEach(function (campo) {
+      var msgs = errors[campo].map(function (e) { return e.message; });
+      var div = modal.querySelector('[data-campo="' + campo + '"] .errorlist');
+      if (div) {
+        div.hidden = false;
+        div.innerHTML = msgs.map(function (m) { return "<li>" + m + "</li>"; }).join("");
+      } else {
+        geral = geral.concat(msgs);
+      }
+    });
+    if (geral.length) {
+      var box = modal.querySelector(".modal-erros");
+      box.hidden = false;
+      box.textContent = geral.join(" ");
+    }
+  }
+
+  function salvar(btn) {
+    var modal = btn.closest(".modal-overlay");
+    var corpo = modal.querySelector(".modal-body");
+    var url = btn.getAttribute("data-url");
+    var alvoId = btn.getAttribute("data-alvo");
+    limparErros(modal);
+    btn.disabled = true;
+
+    var dados = new FormData();
+    corpo.querySelectorAll("input, select, textarea").forEach(function (el) {
+      if (el.type === "checkbox") {
+        if (el.checked) dados.append(el.name, el.value || "on");
+      } else if (el.name) {
+        dados.append(el.name, el.value);
+      }
+    });
+
+    fetch(url, {
+      method: "POST",
+      headers: { "X-CSRFToken": csrf(), "X-Requested-With": "XMLHttpRequest" },
+      body: dados,
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.j.ok) {
+          var select = document.getElementById(alvoId);
+          var opt = document.createElement("option");
+          opt.value = res.j.id;
+          opt.textContent = res.j.texto;
+          opt.selected = true;
+          select.appendChild(opt);
+          fechar(modal);
+          corpo.querySelectorAll("input, select, textarea").forEach(function (el) {
+            if (el.type === "checkbox") el.checked = el.defaultChecked;
+            else el.value = "";
+          });
+        } else {
+          mostrarErros(modal, (res.j && res.j.errors) || {});
+        }
+      })
+      .catch(function () {
+        var box = modal.querySelector(".modal-erros");
+        box.hidden = false;
+        box.textContent = "Não foi possível salvar. Verifique a conexão e tente novamente.";
+      })
+      .finally(function () { btn.disabled = false; });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    botaoAoLado("id_paciente", "＋ Cadastrar paciente", "modal-paciente");
+    botaoAoLado("id_destino", "＋ Cadastrar destino", "modal-destino");
+
+    document.querySelectorAll(".modal-overlay").forEach(function (modal) {
+      modal.querySelectorAll("[data-fechar]").forEach(function (b) {
+        b.addEventListener("click", function () { fechar(modal); });
+      });
+      modal.addEventListener("click", function (ev) {
+        if (ev.target === modal) fechar(modal);
+      });
+      var salvarBtn = modal.querySelector("[data-salvar]");
+      if (salvarBtn) salvarBtn.addEventListener("click", function () { salvar(salvarBtn); });
+    });
+
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape") {
+        document.querySelectorAll(".modal-overlay:not([hidden])").forEach(fechar);
+      }
+    });
+  });
+})();
+</script>
 {% endblock %}

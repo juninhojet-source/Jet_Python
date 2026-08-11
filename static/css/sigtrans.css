@@ -267,3 +267,21 @@ body.kiosk { min-height: 100vh; display: flex; align-items: center; justify-cont
   background: rgba(242,194,48,.95); color: #16386e; font-weight: 700; font-size: 16px;
   padding: 10px 18px; border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,.3); cursor: pointer; z-index: 50; }
 .tv-fila.flash { animation: flash 1s ease; }
+
+/* ---- Modais de cadastro rápido (agendamento) ---- */
+.btn-inline { margin-top: 8px; padding: 6px 12px; font-size: 13px; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(15, 42, 84, .45);
+  display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px;
+  overflow-y: auto; z-index: 100; }
+.modal-overlay[hidden] { display: none; }
+.modal { background: var(--card); border-radius: 14px; box-shadow: 0 24px 55px rgba(0,0,0,.3);
+  width: 100%; max-width: 640px; padding: 22px 24px 24px; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.modal-head h2 { margin: 0; font-size: 20px; color: var(--navy); }
+.modal-fechar { background: none; border: none; font-size: 26px; line-height: 1; color: var(--muted); cursor: pointer; padding: 0 4px; }
+.modal-fechar:hover { color: var(--ink); }
+.modal-erros { background: var(--err-bg); border: 1px solid var(--err); color: var(--err);
+  border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 14px; }
+.modal-body.form-grid { margin-bottom: 18px; }
+.modal-foot { display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--line); padding-top: 16px; }
+@media (max-width: 560px) { .modal { padding: 18px 16px; } }

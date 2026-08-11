@@ -57,3 +57,13 @@ class PacienteForm(forms.ModelForm):
                 "Informe ao menos um identificador: CPF ou Cartão SUS (CNS)."
             )
         return cleaned
+
+
+class PacienteRapidoForm(PacienteForm):
+    """Versão enxuta para cadastro rápido a partir do agendamento."""
+
+    class Meta(PacienteForm.Meta):
+        fields = [
+            "nome", "data_nascimento", "sexo", "raca_cor",
+            "telefone_principal", "municipio",
+        ]

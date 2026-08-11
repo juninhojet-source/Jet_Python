@@ -13,10 +13,22 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from apps.accounts.mixins import EditorRequiredMixin
 from apps.core.mixins import SalvarAutorMixin
+from apps.destinos.forms import DestinoForm
+from apps.pacientes.forms import PacienteRapidoForm
 
 from .forms import AgendamentoForm, EmbarqueForm
 from .models import Agendamento, StatusAgendamento
 from .pdf import gerar_cartao_embarque
+
+
+class CadastroRapidoMixin:
+    """Disponibiliza os formulários de cadastro rápido (paciente/destino) no template."""
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.setdefault("paciente_form", PacienteRapidoForm(auto_id="id_pac_%s"))
+        ctx.setdefault("destino_form", DestinoForm(auto_id="id_dest_%s"))
+        return ctx
 
 
 def _parse_data(texto, padrao=None):
@@ -87,7 +99,7 @@ class AgendamentoDetailView(LoginRequiredMixin, DetailView):
     queryset = Agendamento.objects.select_related("paciente", "destino")
 
 
-class AgendamentoCreateView(EditorRequiredMixin, SalvarAutorMixin, CreateView):
+class AgendamentoCreateView(EditorRequiredMixin, CadastroRapidoMixin, SalvarAutorMixin, CreateView):
     model = Agendamento
     form_class = AgendamentoForm
     template_name = "agendamentos/agendamento_form.html"
@@ -104,7 +116,7 @@ class AgendamentoCreateView(EditorRequiredMixin, SalvarAutorMixin, CreateView):
         return super().form_valid(form)
 
 
-class AgendamentoUpdateView(EditorRequiredMixin, SalvarAutorMixin, UpdateView):
+class AgendamentoUpdateView(EditorRequiredMixin, CadastroRapidoMixin, SalvarAutorMixin, UpdateView):
     model = Agendamento
     form_class = AgendamentoForm
     template_name = "agendamentos/agendamento_form.html"
