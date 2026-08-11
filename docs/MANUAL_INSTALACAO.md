@@ -20,6 +20,9 @@ python -m venv .venv
 source .venv/bin/activate
 
 pip install -r requirements.txt
+
+# Em produção com PostgreSQL, instale também o driver:
+pip install -r requirements-producao.txt
 ```
 
 ## 3. Configuração (arquivo .env)

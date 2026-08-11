@@ -1,9 +1,11 @@
-# SIGTRANS Saúde — dependências de produção
+# SIGTRANS Saúde — dependências da aplicação
+# Instala em qualquer ambiente (inclusive testes com SQLite).
+# Para produção com PostgreSQL, use também: pip install -r requirements-producao.txt
 Django>=5.1,<5.3
 djangorestframework>=3.15
 django-simple-history>=3.5
 python-dotenv>=1.0
-psycopg2-binary>=2.9      # PostgreSQL (produção)
 whitenoise>=6.6           # servir arquivos estáticos
 waitress>=3.0             # servidor WSGI para Windows Server
 reportlab>=4.0            # geração de PDF (Cartão de Embarque)
+openpyxl>=3.1             # exportação de relatórios em Excel
