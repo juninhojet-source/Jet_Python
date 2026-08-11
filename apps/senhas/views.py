@@ -82,7 +82,10 @@ class PainelTVView(View):
     """Exibição pública para a TV da recepção (todas as salas)."""
 
     def get(self, request):
-        return render(request, "senhas/painel_tv.html", {"sala_label": _sala_label()})
+        return render(request, "senhas/painel_tv.html", {
+            "sala_label": _sala_label(),
+            "voz": settings.SIGTRANS.get("SENHA_VOZ", True),
+        })
 
 
 class EstadoJSONView(View):

@@ -259,3 +259,9 @@ body.kiosk { min-height: 100vh; display: flex; align-items: center; justify-cont
 .kb-sala { font-size: 15px; font-weight: 600; opacity: .85; }
 
 @media (max-width: 820px) { .tv-filas { grid-auto-flow: row; } .tv-fila .tv-senha { font-size: 22vw; } }
+
+/* ---- Painel de TV: aviso de som e flash por coluna ---- */
+.som-hint { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+  background: rgba(242,194,48,.95); color: #16386e; font-weight: 700; font-size: 16px;
+  padding: 10px 18px; border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,.3); cursor: pointer; z-index: 50; }
+.tv-fila.flash { animation: flash 1s ease; }

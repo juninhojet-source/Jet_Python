@@ -218,6 +218,7 @@ SIGTRANS = {
         "TRANSPORTE": {"prefixo": "MT", "sala": 2, "nome": "Marcação de Transporte"},
     },
     "SENHA_FILA_PADRAO": "TRANSPORTE",
+    "SENHA_VOZ": True,        # anúncio por voz das senhas no painel de TV
 }
 
 # --- Identidade institucional (branding) -------------------------------------
