@@ -84,6 +84,8 @@ a:hover { text-decoration: underline; }
 .btn-primary:hover { background: var(--navy-dark); color: #fff; }
 .btn-ghost { background: #fff; color: var(--navy); border-color: var(--line); }
 .btn-ghost:hover { background: #f1f5fb; }
+.btn-perigo { background: #fff; color: var(--red); border-color: #f0c2bf; }
+.btn-perigo:hover { background: var(--err-bg); }
 .btn-sm { padding: 6px 12px; font-size: 13px; }
 
 /* ---------- Estatísticas (dashboard) ---------- */

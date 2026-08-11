@@ -52,6 +52,7 @@ def _chamadas_do_dia(tipo, data):
 
 @transaction.atomic
 def chamar_proximo(tipo):
+    """Chama a próxima senha aguardando; se não houver, emite e chama a próxima."""
     hoje = timezone.localdate()
     senha = (
         Senha.objects.select_for_update()
@@ -60,7 +61,8 @@ def chamar_proximo(tipo):
         .first()
     )
     if not senha:
-        return None
+        # Nenhuma senha na fila: gera o próximo número e chama direto.
+        senha = Senha.objects.create(tipo=tipo, numero=proximo_numero(tipo, hoje), data=hoje)
     senha.status = StatusSenha.CHAMADA
     senha.guiche = _sala(tipo)
     senha.chamada_em = timezone.now()
@@ -97,6 +99,17 @@ def navegar(tipo, delta):
     painel.sequencia += 1
     painel.save()
     return painel.senha_atual
+
+
+@transaction.atomic
+def reiniciar(tipo):
+    """Zera a fila do dia: remove as senhas de hoje e reinicia a numeração em 01."""
+    hoje = timezone.localdate()
+    Senha.objects.filter(tipo=tipo, data=hoje).delete()
+    painel = _painel_bloqueado(tipo)
+    painel.senha_atual = None
+    painel.sequencia += 1  # sinaliza a mudança para o painel de TV limpar
+    painel.save()
 
 
 @transaction.atomic

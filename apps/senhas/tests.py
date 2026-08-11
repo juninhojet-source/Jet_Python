@@ -61,6 +61,30 @@ class ChamadaPorSalaTest(TestCase):
         self.assertEqual(salas, sorted(salas))
         self.assertEqual(salas[0], 1)  # Consultas (Sala 01) vem primeiro
 
+    def test_chamar_auto_emite_quando_vazio(self):
+        # Sem senha na fila, "chamar" gera o próximo número e chama direto.
+        self.assertEqual(Senha.objects.filter(tipo=TRANSPORTE).count(), 0)
+        s = services.chamar_proximo(TRANSPORTE)
+        self.assertIsNotNone(s)
+        self.assertEqual(s.codigo, "MT-01")
+        self.assertEqual(s.status, StatusSenha.CHAMADA)
+        self.assertEqual(s.guiche, 2)
+        # A próxima chamada segue a numeração.
+        s2 = services.chamar_proximo(TRANSPORTE)
+        self.assertEqual(s2.codigo, "MT-02")
+
+    def test_reiniciar_zera_a_fila(self):
+        services.emitir_senha(TRANSPORTE)
+        services.chamar_proximo(TRANSPORTE)
+        services.emitir_senha(TRANSPORTE)
+        services.reiniciar(TRANSPORTE)
+        hoje = timezone.localdate()
+        self.assertEqual(Senha.objects.filter(tipo=TRANSPORTE, data=hoje).count(), 0)
+        self.assertEqual(services.proximo_numero(TRANSPORTE, hoje), 1)
+        self.assertIsNone(Painel.carregar(TRANSPORTE).senha_atual)
+        # Após reiniciar, a próxima chamada volta para MT-01.
+        self.assertEqual(services.chamar_proximo(TRANSPORTE).codigo, "MT-01")
+
 
 class ViewsTest(TestCase):
     def test_operador_exige_login(self):

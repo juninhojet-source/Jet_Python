@@ -75,6 +75,8 @@ class OperadorView(SenhaOperadorRequiredMixin, View):
             services.navegar(tipo, +1)
         elif acao == "finalizar":
             services.finalizar_atual(tipo)
+        elif acao == "reiniciar":
+            services.reiniciar(tipo)
         return redirect(reverse("senhas:operador") + f"?fila={tipo}")
 
 
