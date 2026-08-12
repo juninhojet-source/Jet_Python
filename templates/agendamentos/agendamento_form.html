@@ -212,6 +212,8 @@
     botaoAoLado("id_veiculo", "＋ Cadastrar veículo", "modal-veiculo");
 
     document.querySelectorAll(".modal-overlay").forEach(function (modal) {
+      // O modal de município tem JS próprio (include _quick_municipio.html).
+      if (modal.id === "modal-municipio") return;
       modal.querySelectorAll("[data-fechar]").forEach(function (b) {
         b.addEventListener("click", function () { fechar(modal); });
       });
@@ -230,4 +232,6 @@
   });
 })();
 </script>
+
+{% include "includes/_quick_municipio.html" %}
 {% endblock %}
