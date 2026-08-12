@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Mapa de Viagem — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Mapa de Viagem — Garagem</h1>
+    <div class="sub">{{ dia|date:"l, d/m/Y" }} · {{ total }} paciente(s) · agrupado por veículo</div>
+  </div>
+  <a href="{% url 'relatorios:index' %}" class="btn btn-ghost">Voltar</a>
+</div>
+
+<div class="card" style="margin-bottom:16px"><div class="card-body">
+  <form method="get" class="rel-filtros">
+    <div class="rel-grid">
+      <div class="field"><label>Data</label>
+        <input type="date" name="data" value="{{ dia|date:'Y-m-d' }}" class="campo"></div>
+      <div class="field"><label>Motorista (opcional)</label>
+        <input type="text" name="motorista" value="{{ motorista }}" class="campo"
+               placeholder="Nome do motorista"></div>
+    </div>
+    <div class="form-actions" style="margin-top:14px">
+      <button type="submit" class="btn btn-primary">Ver mapa</button>
+      <span style="flex:1"></span>
+      <button type="submit" name="export" value="pdf" class="btn btn-ghost">⬇ PDF (imprimir)</button>
+      <button type="submit" name="export" value="xlsx" class="btn btn-primary">⬇ Excel (modelo)</button>
+    </div>
+  </form>
+</div></div>
+
+<div class="card"><div class="card-body">
+  {% if grupos %}
+  <div class="table-wrap">
+    <table class="data mapa">
+      <thead><tr>
+        <th>Veículo</th><th>Nome do paciente</th><th>Telefone</th><th>Horário</th>
+        <th>Embarque</th><th>Destino</th><th>Local</th><th>Saída</th>
+      </tr></thead>
+      <tbody>
+        {% for g in grupos %}
+        {% for lin in g.linhas %}
+        <tr {% if lin.ac %}class="ac"{% endif %}{% if forloop.first %} class="grupo-inicio"{% endif %}>
+          {% if forloop.first %}
+            <td rowspan="{{ g.linhas|length }}" class="veiculo">{{ g.veiculo }}</td>
+          {% endif %}
+          <td>{{ lin.nome }}</td>
+          <td>{{ lin.telefone }}</td>
+          <td class="c">{{ lin.horario }}</td>
+          <td>{{ lin.embarque }}</td>
+          <td class="c">{{ lin.destino }}</td>
+          <td>{{ lin.local }}</td>
+          {% if forloop.first %}
+            <td rowspan="{{ g.linhas|length }}" class="saida">{{ g.saida|time:"H:i" }}</td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="muted" style="margin-top:12px">
+    <b>Legenda:</b> N = não compareceu · P = presente · D = desceu do veículo · R = retornou ao veículo.
+    O agrupamento usa o campo <b>Tipo de veículo</b> do agendamento; sem veículo definido fica em <b>A DEFINIR</b>.
+  </p>
+  {% else %}
+  <div class="empty">Nenhum agendamento para a data selecionada.</div>
+  {% endif %}
+</div></div>
+{% endblock %}

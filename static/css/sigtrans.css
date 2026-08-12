@@ -285,3 +285,12 @@ body.kiosk { min-height: 100vh; display: flex; align-items: center; justify-cont
 .modal-body.form-grid { margin-bottom: 18px; }
 .modal-foot { display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--line); padding-top: 16px; }
 @media (max-width: 560px) { .modal { padding: 18px 16px; } }
+
+/* ---- Mapa de Viagem (Garagem) ---- */
+.data.mapa td, .data.mapa th { font-size: 13px; }
+.data.mapa td.c { text-align: center; }
+.data.mapa td.veiculo { font-weight: 700; color: var(--navy); text-align: center;
+  background: #f1f5fb; vertical-align: middle; white-space: nowrap; }
+.data.mapa td.saida { font-weight: 700; color: var(--red); text-align: center; vertical-align: middle; }
+.data.mapa tr.ac td { color: var(--muted); font-style: italic; }
+.data.mapa tr.grupo-inicio td { border-top: 2px solid var(--navy); }

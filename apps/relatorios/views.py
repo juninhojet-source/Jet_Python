@@ -1,5 +1,5 @@
 """Relatórios e consultas (Fase 4)."""
-from datetime import date
+from datetime import date, datetime
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count
@@ -15,6 +15,7 @@ from apps.destinos.models import Destino
 
 from .exports import exportar_pdf, exportar_xlsx
 from .filtros import filtrar
+from .mapa import agrupar_por_veiculo, gerar_mapa_pdf, gerar_mapa_xlsx
 
 
 def _resposta_arquivo(conteudo, nome, tipo, request=None, detalhe=""):
@@ -116,6 +117,53 @@ class BPAView(LoginRequiredMixin, View):
             "agendamentos": qs[:300], "total": qs.count(), "resumo": resumo,
             "municipios": Municipio.objects.all(), "destinos": Destino.objects.filter(ativo=True),
             "params": request.GET,
+        }
+        return render(request, self.template_name, ctx)
+
+
+# ---------------------------------------------------------------- Mapa de Viagem
+class MapaViagemView(LoginRequiredMixin, View):
+    """Mapa diário da Garagem: agendamentos do dia agrupados por veículo."""
+
+    template_name = "relatorios/mapa_viagem.html"
+
+    def _dia(self, request):
+        texto = request.GET.get("data", "").strip()
+        try:
+            return datetime.strptime(texto, "%Y-%m-%d").date()
+        except ValueError:
+            return timezone.localdate()
+
+    def get(self, request):
+        dia = self._dia(request)
+        motorista = request.GET.get("motorista", "").strip()
+        qs = (
+            Agendamento.objects.filter(data=dia)
+            .exclude(status=StatusAgendamento.CANCELADO)
+            .select_related("paciente", "destino", "destino__municipio")
+            .order_by("horario")
+        )
+        grupos = agrupar_por_veiculo(qs)
+
+        export = request.GET.get("export")
+        if export == "xlsx":
+            dados = gerar_mapa_xlsx(dia, grupos, motorista)
+            return _resposta_arquivo(
+                dados, f"mapa_viagem_{dia:%Y%m%d}.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                request=request, detalhe=f"Mapa de Viagem {dia:%d/%m/%Y} (Excel)",
+            )
+        if export == "pdf":
+            dados = gerar_mapa_pdf(dia, grupos, motorista)
+            return _resposta_arquivo(
+                dados, f"mapa_viagem_{dia:%Y%m%d}.pdf", "application/pdf",
+                request=request, detalhe=f"Mapa de Viagem {dia:%d/%m/%Y} (PDF)",
+            )
+
+        total = sum(1 for g in grupos for lin in g["linhas"] if not lin["ac"])
+        ctx = {
+            "dia": dia, "motorista": motorista, "grupos": grupos,
+            "total": total, "colunas": None,
         }
         return render(request, self.template_name, ctx)
 
