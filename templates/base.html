@@ -22,7 +22,10 @@
       <div class="spacer"></div>
       <div class="user-box">
         <div><strong>{{ user.get_full_name|default:user.username }}</strong> · {{ user.get_perfil_display }}</div>
-        <a href="{% url 'accounts:logout' %}">Sair</a>
+        <form method="post" action="{% url 'accounts:logout' %}" class="logout-form">
+          {% csrf_token %}
+          <button type="submit" class="logout-link">Sair</button>
+        </form>
       </div>
     </div>
   </header>

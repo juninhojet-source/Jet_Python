@@ -47,3 +47,32 @@ class OutrosPerfisNaoRestritosTest(TestCase):
         u = User.objects.create_user(username="at", password="x", perfil="ATENDENTE")
         self.client.force_login(u)
         self.assertEqual(self.client.get(reverse("pacientes:list")).status_code, 200)
+
+
+class LogoutTest(TestCase):
+    """Logout via POST (Django 5 não aceita GET no LogoutView)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="u", password="Sigtrans@2026", perfil="ATENDENTE"
+        )
+        self.client.force_login(self.user)
+
+    def test_get_nao_e_permitido(self):
+        r = self.client.get(reverse("accounts:logout"))
+        self.assertEqual(r.status_code, 405)
+
+    def test_post_desloga_e_redireciona(self):
+        r = self.client.post(reverse("accounts:logout"))
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r["Location"], reverse("accounts:login"))
+        # Sessão encerrada: dashboard passa a exigir login.
+        self.assertEqual(self.client.get(reverse("core:dashboard")).status_code, 302)
+
+    def test_recepcao_consegue_deslogar(self):
+        recep = User.objects.create_user(
+            username="rec", password="Sigtrans@2026", perfil="RECEPCAO"
+        )
+        self.client.force_login(recep)
+        r = self.client.post(reverse("accounts:logout"))
+        self.assertEqual(r.status_code, 302)
