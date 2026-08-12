@@ -73,7 +73,10 @@ def agrupar_por_veiculo(qs):
     """
     grupos = {}
     for a in qs:
-        chave = (a.tipo_veiculo or "").strip() or SEM_VEICULO
+        if a.veiculo_id:
+            chave = a.veiculo.nome
+        else:
+            chave = (a.tipo_veiculo or "").strip() or SEM_VEICULO
         grupo = grupos.setdefault(chave, {"veiculo": chave, "saida": None, "linhas": []})
 
         # Horário de saída da garagem = embarque mais cedo do grupo.

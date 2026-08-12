@@ -15,6 +15,7 @@ from apps.accounts.mixins import EditorRequiredMixin
 from apps.core.mixins import SalvarAutorMixin
 from apps.destinos.forms import DestinoForm
 from apps.pacientes.forms import PacienteRapidoForm
+from apps.veiculos.forms import VeiculoForm
 
 from .forms import AgendamentoForm, EmbarqueForm
 from .models import Agendamento, StatusAgendamento
@@ -22,12 +23,13 @@ from .pdf import gerar_cartao_embarque
 
 
 class CadastroRapidoMixin:
-    """Disponibiliza os formulários de cadastro rápido (paciente/destino) no template."""
+    """Disponibiliza os formulários de cadastro rápido (paciente/destino/veículo)."""
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx.setdefault("paciente_form", PacienteRapidoForm(auto_id="id_pac_%s"))
         ctx.setdefault("destino_form", DestinoForm(auto_id="id_dest_%s"))
+        ctx.setdefault("veiculo_form", VeiculoForm(auto_id="id_veic_%s"))
         return ctx
 
 

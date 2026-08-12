@@ -52,6 +52,31 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-veiculo" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-veiculo-titulo">
+    <div class="modal-head">
+      <h2 id="modal-veiculo-titulo">Cadastrar veículo</h2>
+      <button type="button" class="modal-fechar" data-fechar aria-label="Fechar">&times;</button>
+    </div>
+    <div class="modal-erros" hidden></div>
+    <div class="modal-body form-grid" data-form="veiculo">
+      {% for field in veiculo_form %}
+        <div class="field{% if field.field.widget.input_type == 'checkbox' %} check{% endif %}" data-campo="{{ field.name }}">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+          <ul class="errorlist" hidden></ul>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-primary" data-salvar
+              data-url="{% url 'veiculos:quick_create' %}" data-alvo="id_veiculo">Salvar veículo</button>
+      <button type="button" class="btn btn-ghost" data-fechar>Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-destino" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-destino-titulo">
     <div class="modal-head">
@@ -184,6 +209,7 @@
   document.addEventListener("DOMContentLoaded", function () {
     botaoAoLado("id_paciente", "＋ Cadastrar paciente", "modal-paciente");
     botaoAoLado("id_destino", "＋ Cadastrar destino", "modal-destino");
+    botaoAoLado("id_veiculo", "＋ Cadastrar veículo", "modal-veiculo");
 
     document.querySelectorAll(".modal-overlay").forEach(function (modal) {
       modal.querySelectorAll("[data-fechar]").forEach(function (b) {

@@ -151,6 +151,20 @@ class MapaViagemTest(TestCase):
         grupos = {g["veiculo"]: g for g in self._grupos()}
         self.assertIn("Av. Alfredo Balena 190", grupos["CARRO 10"]["linhas"][0]["local"])
 
+    def test_veiculo_do_cadastro_tem_precedencia(self):
+        from apps.veiculos.models import Veiculo
+        v = Veiculo.objects.create(nome="AMBULÂNCIA 1")
+        # Mesmo com texto livre diferente, o agrupamento usa o veículo do cadastro.
+        Agendamento.objects.create(
+            paciente=self.pac, destino=self.dst, data=self.dia, horario=time(6, 0),
+            veiculo=v, tipo_veiculo="texto ignorado",
+        )
+        nomes = [g["veiculo"] for g in self._grupos()]
+        self.assertIn("AMBULÂNCIA 1", nomes)
+        self.assertNotIn("texto ignorado", nomes)
+        # Ambulância vem antes de CARRO na ordem natural/alfabética.
+        self.assertEqual(nomes[0], "AMBULÂNCIA 1")
+
     def test_pagina_carrega(self):
         self.client.force_login(self.user)
         r = self.client.get(reverse("relatorios:mapa_viagem"), {"data": self.dia.strftime("%Y-%m-%d")})

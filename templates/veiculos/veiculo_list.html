@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Veículos — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Veículos</h1>
+    <div class="sub">{{ page_obj.paginator.count }} registro(s) · usados na agenda e no Mapa de Viagem</div>
+  </div>
+  <div class="toolbar">
+    <form class="search" method="get">
+      <input type="text" name="q" value="{{ q }}" class="campo" placeholder="Identificação ou placa">
+      <button class="btn btn-ghost" type="submit">Buscar</button>
+    </form>
+    {% if user.pode_editar %}
+    <a href="{% url 'veiculos:create' %}" class="btn btn-primary">+ Novo</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card"><div class="card-body">
+  {% if veiculos %}
+  <div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Identificação</th><th>Tipo</th><th>Placa</th><th>Situação</th><th></th></tr></thead>
+      <tbody>
+        {% for v in veiculos %}
+        <tr>
+          <td><b>{{ v.nome }}</b></td>
+          <td>{{ v.get_tipo_display }}</td>
+          <td class="muted">{{ v.placa|default:"—" }}</td>
+          <td>{% if v.ativo %}<span class="badge on">Ativo</span>{% else %}<span class="badge off">Inativo</span>{% endif %}</td>
+          <td class="right">{% if user.pode_editar %}<a class="btn btn-ghost btn-sm" href="{% url 'veiculos:update' v.pk %}">Editar</a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">Nenhum veículo encontrado{% if q %} para “{{ q }}”{% endif %}.</div>
+  {% endif %}
+</div></div>
+
+{% include "includes/_pagination.html" %}
+{% endblock %}

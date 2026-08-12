@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.pacientes",
     "apps.destinos",
+    "apps.veiculos",
     "apps.agendamentos",
     "apps.senhas",
     "apps.relatorios",

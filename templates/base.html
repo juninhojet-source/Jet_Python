@@ -37,6 +37,7 @@
       <a href="{% url 'agendamentos:agenda' %}" class="{% if request.resolver_match.namespace == 'agendamentos' %}active{% endif %}">Agenda</a>
       <a href="{% url 'pacientes:list' %}" class="{% if request.resolver_match.namespace == 'pacientes' %}active{% endif %}">Pacientes</a>
       <a href="{% url 'destinos:list' %}" class="{% if request.resolver_match.namespace == 'destinos' %}active{% endif %}">Destinos</a>
+      <a href="{% url 'veiculos:list' %}" class="{% if request.resolver_match.namespace == 'veiculos' %}active{% endif %}">Veículos</a>
       <a href="{% url 'senhas:operador' %}" class="{% if request.resolver_match.namespace == 'senhas' %}active{% endif %}">Senhas</a>
       <a href="{% url 'relatorios:index' %}" class="{% if request.resolver_match.namespace == 'relatorios' %}active{% endif %}">Relatórios</a>
       {% if user.is_admin %}

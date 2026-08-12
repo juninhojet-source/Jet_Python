@@ -140,7 +140,7 @@ class MapaViagemView(LoginRequiredMixin, View):
         qs = (
             Agendamento.objects.filter(data=dia)
             .exclude(status=StatusAgendamento.CANCELADO)
-            .select_related("paciente", "destino", "destino__municipio")
+            .select_related("paciente", "destino", "destino__municipio", "veiculo")
             .order_by("horario")
         )
         grupos = agrupar_por_veiculo(qs)

@@ -12,6 +12,7 @@ from apps.core.models import TimeStampedModel
 from apps.core.validators import validar_dia_util, validar_horario_agenda
 from apps.destinos.models import Destino
 from apps.pacientes.models import Paciente
+from apps.veiculos.models import Veiculo
 
 
 class StatusAgendamento(models.TextChoices):
@@ -50,10 +51,15 @@ class Agendamento(TimeStampedModel):
     local_consulta = models.CharField("Local da consulta", max_length=150, blank=True)
     procedimento = models.CharField("Procedimento", max_length=150, blank=True)
 
-    # --- Transporte (preenchimento manual — pode variar na hora) ---
+    # --- Transporte (pode variar na hora da viagem) ---
+    veiculo = models.ForeignKey(
+        Veiculo, verbose_name="Veículo", on_delete=models.PROTECT,
+        related_name="agendamentos", null=True, blank=True,
+        help_text="Selecione o veículo. Pode ser trocado na hora da viagem.",
+    )
     tipo_veiculo = models.CharField(
-        "Tipo de veículo", max_length=60, blank=True,
-        help_text="Preenchimento livre (pode mudar na hora da viagem).",
+        "Complemento do veículo", max_length=60, blank=True,
+        help_text="Opcional. Observação livre sobre o veículo, se necessário.",
     )
     local_embarque = models.CharField(
         "Local de embarque", max_length=150, blank=True,
