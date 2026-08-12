@@ -46,6 +46,7 @@
       {% if user.is_admin %}
       <a href="{% url 'accounts:usuario_list' %}" class="{% if request.resolver_match.namespace == 'accounts' %}active{% endif %}">Usuários</a>
       <a href="{% url 'auditoria:lista' %}" class="{% if request.resolver_match.namespace == 'auditoria' %}active{% endif %}">Auditoria</a>
+      <a href="{% url 'core:configuracoes' %}" class="{% if request.resolver_match.url_name == 'configuracoes' or request.resolver_match.url_name == 'backup' or request.resolver_match.url_name == 'lgpd' %}active{% endif %}">Configurações</a>
       {% endif %}
       {% endif %}
       {% endblock %}

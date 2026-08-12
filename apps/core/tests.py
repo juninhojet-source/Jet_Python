@@ -55,3 +55,47 @@ class MunicipioRapidoTest(TestCase):
         )
         self.assertEqual(resp.status_code, 403)
         self.assertEqual(Municipio.objects.count(), 0)
+
+
+class ConfiguracoesTest(TestCase):
+    """Menu de Configurações, Backup e LGPD (somente administrador)."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username="adm", password="Sigtrans@2026", perfil="ADMIN"
+        )
+        self.atendente = User.objects.create_user(
+            username="at", password="Sigtrans@2026", perfil="ATENDENTE"
+        )
+
+    def test_paginas_admin(self):
+        self.client.force_login(self.admin)
+        for nome in ("core:configuracoes", "core:backup", "core:lgpd"):
+            self.assertEqual(self.client.get(reverse(nome)).status_code, 200, nome)
+
+    def test_nao_admin_bloqueado(self):
+        self.client.force_login(self.atendente)
+        for nome in ("core:configuracoes", "core:backup", "core:lgpd"):
+            self.assertEqual(self.client.get(reverse(nome)).status_code, 403, nome)
+
+    def test_exige_login(self):
+        for nome in ("core:configuracoes", "core:backup", "core:lgpd"):
+            self.assertEqual(self.client.get(reverse(nome)).status_code, 302, nome)
+
+    def test_backup_download(self):
+        self.client.force_login(self.admin)
+        r = self.client.post(reverse("core:backup"))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r["Content-Type"], "application/gzip")
+        self.assertIn("attachment", r["Content-Disposition"])
+        self.assertIn(".json.gz", r["Content-Disposition"])
+        # Conteúdo é um gzip válido e não-vazio.
+        import gzip
+        conteudo = gzip.decompress(r.content).decode("utf-8")
+        self.assertTrue(conteudo.strip().startswith("["))
+
+    def test_backup_registra_auditoria(self):
+        from apps.auditoria.models import Acao, RegistroAuditoria
+        self.client.force_login(self.admin)
+        self.client.post(reverse("core:backup"))
+        self.assertTrue(RegistroAuditoria.objects.filter(acao=Acao.BACKUP).exists())
