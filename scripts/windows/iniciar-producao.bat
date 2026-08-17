@@ -14,8 +14,11 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 if not exist ".env" (
-  echo [ERRO] Arquivo .env nao encontrado. Copie o .env.example para .env
-  echo        e defina SECRET_KEY, DEBUG=False e ALLOWED_HOSTS.
+  echo [AVISO] Arquivo .env nao encontrado. Criando a configuracao de producao...
+  call "%~dp0configurar-env.bat" quiet
+)
+if not exist ".env" (
+  echo [ERRO] Nao foi possivel criar o .env. Veja as mensagens acima.
   popd & pause & exit /b 1
 )
 
