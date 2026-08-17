@@ -157,6 +157,26 @@ Guarde `prefeitura-ca.key` em local seguro (é a chave da CA).
 
 O IIS já vem no Windows Server e faz o binding do certificado pela interface.
 
+#### Forma automática (recomendada)
+
+Depois de instalar os dois módulos da Microsoft (passo 2 abaixo), rode:
+
+```
+scripts\windows\configurar-iis.bat
+```
+
+Ele pede permissão de administrador e faz sozinho: importa o `sigtrans.pfx`,
+cria os bindings 80/443, habilita o proxy do ARR, libera o cabeçalho
+`X-Forwarded-Proto`, grava o `web.config` e libera o firewall. Ao final, é só
+testar `https://sigtrans.baraodecocais.mg.gov.br`.
+
+> O script **não instala** o URL Rewrite nem o ARR (são instaladores próprios da
+> Microsoft). Ele detecta se faltam e mostra o link. Instale-os antes (passo 2).
+
+Se preferir fazer manualmente, siga os passos abaixo.
+
+#### Forma manual
+
 1. **Instale o IIS**: Gerenciador do Servidor → Adicionar Funções → *Servidor Web (IIS)*.
 2. **Baixe e instale** (uma vez), do site da Microsoft:
    - **URL Rewrite 2.1**

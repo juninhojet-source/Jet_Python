@@ -48,7 +48,11 @@ e com certificado:
 
 1. `scripts\windows\criar-certificado.bat` — gera o certificado interno gratuito.
 2. `scripts\windows\iniciar-producao.bat` — sobe o sistema (Waitress) em produção.
-3. Configure o proxy (IIS/nginx) seguindo `docs\MANUAL_PUBLICACAO_DOMINIO_HTTPS.md`.
+3. Instale os módulos **URL Rewrite 2.1** e **ARR 3.0** no IIS (uma vez).
+4. `scripts\windows\configurar-iis.bat` — configura o IIS (proxy + HTTPS)
+   automaticamente. Depois, distribua `C:\certs\prefeitura-ca.crt` nas máquinas.
+
+Detalhes e alternativa com nginx: `docs\MANUAL_PUBLICACAO_DOMINIO_HTTPS.md`.
 
 ## Observações
 
