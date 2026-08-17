@@ -41,10 +41,19 @@ Dê **dois cliques** em `scripts\windows\iniciar.bat`.
 
 Para parar, feche a janela ou pressione **Ctrl+C**.
 
+## Produção: domínio + HTTPS
+
+Para acessar por **https://sigtrans.baraodecocais.mg.gov.br** (sem a porta 8000)
+e com certificado:
+
+1. `scripts\windows\criar-certificado.bat` — gera o certificado interno gratuito.
+2. `scripts\windows\iniciar-producao.bat` — sobe o sistema (Waitress) em produção.
+3. Configure o proxy (IIS/nginx) seguindo `docs\MANUAL_PUBLICACAO_DOMINIO_HTTPS.md`.
+
 ## Observações
 
 - Sem arquivo `.env`, o sistema usa **SQLite** — ótimo para testes, sem instalar
   banco de dados. Para **produção** (PostgreSQL + Waitress + HTTPS), veja
-  `docs/MANUAL_INSTALACAO.md`.
+  `docs/MANUAL_INSTALACAO.md` e `docs/MANUAL_PUBLICACAO_DOMINIO_HTTPS.md`.
 - Backup a qualquer momento: `.venv\Scripts\python.exe manage.py backup`.
 - Atualizar para a versão mais nova: `git pull` e rode `instalar.bat` de novo.

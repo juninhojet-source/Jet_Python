@@ -85,7 +85,30 @@ não propagou — aguarde ou verifique com quem administra o DNS.
 
 Vamos criar **uma CA (autoridade certificadora) da Prefeitura** e, com ela,
 o certificado do site. O OpenSSL já vem com o **Git para Windows** (instalado
-antes) — use o **Git Bash**.
+antes).
+
+### Forma automática (recomendada)
+
+Execute o script pronto — ele localiza o OpenSSL do Git e gera tudo em `C:\certs`:
+
+```
+scripts\windows\criar-certificado.bat
+```
+
+Ele pede uma senha para o arquivo `.pfx` e cria: `prefeitura-ca.crt` (distribuir
+nas máquinas), `sigtrans.pfx` (IIS) e `sigtrans-fullchain.crt` + `sigtrans.key`
+(nginx). Ao reexecutar, **reutiliza a mesma CA** (as máquinas continuam confiando).
+
+Parâmetros opcionais (se precisar mudar):
+```
+powershell -ExecutionPolicy Bypass -File scripts\windows\criar-certificado.ps1 ^
+  -Dominio sigtrans.baraodecocais.mg.gov.br -IP 172.16.64.8 -Saida C:\certs -Dias 3650
+```
+
+Feito isso, pule para o **Passo 3** (seção 5). Se preferir fazer manualmente,
+siga abaixo.
+
+### Forma manual (passo a passo no Git Bash)
 
 Crie uma pasta `C:\certs` e, dentro dela, no Git Bash:
 
