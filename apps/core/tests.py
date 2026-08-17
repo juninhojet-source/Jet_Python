@@ -56,6 +56,17 @@ class MunicipioRapidoTest(TestCase):
         self.assertEqual(resp.status_code, 403)
         self.assertEqual(Municipio.objects.count(), 0)
 
+    def test_nao_permite_municipio_duplicado_por_nome(self):
+        Municipio.objects.create(nome="Itabira", uf="MG", codigo_ibge="3131307")
+        self.client.force_login(self.atendente)
+        # Mesmo nome/UF (variando caixa) com codigo diferente = duplicado.
+        resp = self.client.post(
+            self.url, {"nome": "itabira", "uf": "mg", "codigo_ibge": "3199999"}
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("nome", resp.json()["errors"])
+        self.assertEqual(Municipio.objects.filter(nome__iexact="itabira").count(), 1)
+
 
 class ConfiguracoesTest(TestCase):
     """Menu de Configurações, Backup e LGPD (somente administrador)."""

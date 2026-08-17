@@ -57,3 +57,16 @@ class DestinoRapidoTest(TestCase):
         self.client.force_login(self.consulta)
         resp = self.client.post(reverse("destinos:quick_create"), {"nome": "X"})
         self.assertEqual(resp.status_code, 403)
+
+    def test_nao_permite_destino_duplicado(self):
+        Destino.objects.create(nome="Hospital X", municipio=self.municipio)
+        self.client.force_login(self.atendente)
+        # Mesmo nome (variando caixa/espaco) + mesmo municipio = duplicado.
+        resp = self.client.post(
+            reverse("destinos:quick_create"),
+            {"nome": "  hospital x ", "tipo": TipoDestino.HOSPITAL,
+             "municipio": self.municipio.pk, "ativo": "on"},
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("nome", resp.json()["errors"])
+        self.assertEqual(Destino.objects.filter(nome__iexact="hospital x").count(), 1)

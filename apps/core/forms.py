@@ -28,3 +28,16 @@ class MunicipioForm(forms.ModelForm):
         if len(codigo) != 7:
             raise forms.ValidationError("O código IBGE deve ter 7 dígitos.")
         return codigo
+
+    def clean(self):
+        cleaned = super().clean()
+        nome = cleaned.get("nome")
+        uf = cleaned.get("uf")
+        # Impede município duplicado (mesmo nome + UF), ignorando maiúsculas.
+        if nome and uf:
+            existentes = Municipio.objects.filter(nome__iexact=nome, uf__iexact=uf)
+            if self.instance.pk:
+                existentes = existentes.exclude(pk=self.instance.pk)
+            if existentes.exists():
+                self.add_error("nome", f"O município “{nome}/{uf}” já está cadastrado.")
+        return cleaned

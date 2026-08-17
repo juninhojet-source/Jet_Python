@@ -17,4 +17,11 @@ class VeiculoForm(forms.ModelForm):
                 campo.widget.attrs.setdefault("class", "campo")
 
     def clean_nome(self):
-        return self.cleaned_data["nome"].strip()
+        nome = self.cleaned_data["nome"].strip()
+        # Impede identificação duplicada, ignorando maiúsculas/minúsculas.
+        existentes = Veiculo.objects.filter(nome__iexact=nome)
+        if self.instance.pk:
+            existentes = existentes.exclude(pk=self.instance.pk)
+        if existentes.exists():
+            raise forms.ValidationError(f"Já existe um veículo com a identificação “{nome}”.")
+        return nome

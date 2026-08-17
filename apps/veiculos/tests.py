@@ -74,6 +74,18 @@ class VeiculoRapidoTest(TestCase):
         self.assertFalse(resp.json()["ok"])
         self.assertEqual(Veiculo.objects.count(), 0)
 
+    def test_nao_permite_veiculo_duplicado(self):
+        Veiculo.objects.create(nome="CARRO 99")
+        self.client.force_login(self.atendente)
+        # Mesma identificacao variando caixa = duplicado.
+        resp = self.client.post(
+            reverse("veiculos:quick_create"),
+            {"nome": "carro 99", "tipo": TipoVeiculo.UTILITARIO, "ativo": "on"},
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("nome", resp.json()["errors"])
+        self.assertEqual(Veiculo.objects.filter(nome__iexact="carro 99").count(), 1)
+
 
 class SeedVeiculosTest(TestCase):
     def test_seed_cria_frota_padrao(self):
