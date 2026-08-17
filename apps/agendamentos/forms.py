@@ -26,7 +26,9 @@ class AgendamentoForm(forms.ModelForm):
         self.fields["horario"].input_formats = ["%H:%M"]
         self.fields["hora_embarque"].input_formats = ["%H:%M"]
         self.fields["paciente"].queryset = self.fields["paciente"].queryset.filter(ativo=True)
-        self.fields["destino"].queryset = self.fields["destino"].queryset.filter(ativo=True)
+        # Destino lista todos os cadastrados (ordenados por nome), inclusive os
+        # inativos, para não "sumir" com destinos já cadastrados na agenda.
+        self.fields["destino"].queryset = self.fields["destino"].queryset.order_by("nome")
         self.fields["veiculo"].queryset = self.fields["veiculo"].queryset.filter(ativo=True)
         self.fields["veiculo"].empty_label = "A definir"
         for campo in self.fields.values():

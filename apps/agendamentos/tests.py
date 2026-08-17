@@ -113,3 +113,19 @@ class AgendamentoFluxoTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp["Content-Type"], "application/pdf")
         self.assertTrue(resp.content.startswith(b"%PDF"))
+
+    def test_dropdown_destino_lista_todos_inclusive_inativos(self):
+        from apps.agendamentos.forms import AgendamentoForm
+        from apps.destinos.models import Destino
+
+        mun = self.destino.municipio
+        d_ativo = Destino.objects.create(nome="Clínica Ativa", municipio=mun, ativo=True)
+        d_inativo = Destino.objects.create(nome="Hospital Inativo", municipio=mun, ativo=False)
+        destinos = list(AgendamentoForm().fields["destino"].queryset)
+        # Todos os destinos cadastrados aparecem, inclusive o inativo.
+        self.assertIn(d_ativo, destinos)
+        self.assertIn(d_inativo, destinos)
+        self.assertIn(self.destino, destinos)
+        # Ordenados por nome.
+        nomes = [d.nome for d in destinos]
+        self.assertEqual(nomes, sorted(nomes))
