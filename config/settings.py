@@ -193,6 +193,19 @@ if not DEBUG and not TESTING:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = "DENY"
 
+    # Atrás de proxy reverso (IIS/nginx) que termina o TLS e encaminha para o
+    # Waitress em 127.0.0.1. O proxy DEVE definir o cabeçalho X-Forwarded-Proto
+    # (e sobrescrever qualquer valor vindo do cliente) para o Django reconhecer
+    # o HTTPS corretamente.
+    if env_bool("ATRAS_DE_PROXY", True):
+        SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+        USE_X_FORWARDED_HOST = env_bool("USE_X_FORWARDED_HOST", False)
+
+    # HSTS (desativado por padrão; ative após confirmar o HTTPS estável).
+    SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "0"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", False)
+    SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", False)
+
 # --- REST Framework (base para integrações futuras) --------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
