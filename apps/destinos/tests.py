@@ -58,6 +58,15 @@ class DestinoRapidoTest(TestCase):
         resp = self.client.post(reverse("destinos:quick_create"), {"nome": "X"})
         self.assertEqual(resp.status_code, 403)
 
+    def test_seed_destinos_cria_e_e_idempotente(self):
+        from django.core.management import call_command
+        call_command("seed_destinos")
+        total = Destino.objects.count()
+        self.assertTrue(Destino.objects.filter(nome="HMCC").exists())
+        self.assertTrue(Destino.objects.filter(nome="Hospital da Baleia").exists())
+        call_command("seed_destinos")  # não duplica
+        self.assertEqual(Destino.objects.count(), total)
+
     def test_nao_permite_destino_duplicado(self):
         Destino.objects.create(nome="Hospital X", municipio=self.municipio)
         self.client.force_login(self.atendente)
