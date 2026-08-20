@@ -39,7 +39,10 @@
           <td><a href="{{ ag.get_absolute_url }}">{{ ag.paciente.nome }}</a></td>
           <td>{{ ag.destino }}</td>
           <td>{{ ag.get_status_display }}</td>
-          <td class="right">{% if user.pode_editar %}<a class="btn btn-ghost btn-sm" href="{% url 'agendamentos:update' ag.pk %}">Editar</a>{% endif %}</td>
+          <td class="right">
+            {% if user.pode_editar %}<a class="btn btn-ghost btn-sm" href="{% url 'agendamentos:update' ag.pk %}">Editar</a>{% endif %}
+            {% if user.is_admin %}<a class="btn btn-perigo btn-sm" href="{% url 'agendamentos:delete' ag.pk %}">Excluir</a>{% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

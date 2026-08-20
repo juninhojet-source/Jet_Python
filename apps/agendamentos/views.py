@@ -9,10 +9,12 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views import View
-from django.views.generic import CreateView, DetailView, ListView, UpdateView
+from django.views.generic import (
+    CreateView, DeleteView, DetailView, ListView, UpdateView,
+)
 
-from apps.accounts.mixins import EditorRequiredMixin
-from apps.core.mixins import SalvarAutorMixin
+from apps.accounts.mixins import AdminRequiredMixin, EditorRequiredMixin
+from apps.core.mixins import ExclusaoProtegidaMixin, SalvarAutorMixin
 from apps.destinos.forms import DestinoForm
 from apps.pacientes.forms import PacienteRapidoForm
 from apps.veiculos.forms import VeiculoForm
@@ -125,6 +127,21 @@ class AgendamentoUpdateView(EditorRequiredMixin, CadastroRapidoMixin, SalvarAuto
 
     def form_valid(self, form):
         messages.success(self.request, "Agendamento atualizado com sucesso.")
+        return super().form_valid(form)
+
+
+class AgendamentoDeleteView(AdminRequiredMixin, ExclusaoProtegidaMixin, DeleteView):
+    model = Agendamento
+    template_name = "includes/confirmar_exclusao.html"
+    success_url = reverse_lazy("agendamentos:list")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["cancelar_url"] = self.object.get_absolute_url()
+        return ctx
+
+    def form_valid(self, form):
+        messages.success(self.request, "Agendamento excluído.")
         return super().form_valid(form)
 
 

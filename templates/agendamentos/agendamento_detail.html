@@ -18,6 +18,7 @@
     <a href="{% url 'agendamentos:embarque' ag.pk %}" class="btn btn-ghost">Registrar embarque</a>
     <a href="{% url 'agendamentos:update' ag.pk %}" class="btn btn-ghost">Editar</a>
     {% endif %}
+    {% if user.is_admin %}<a href="{% url 'agendamentos:delete' ag.pk %}" class="btn btn-perigo">Excluir</a>{% endif %}
   </div>
 </div>
 

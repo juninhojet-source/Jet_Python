@@ -114,6 +114,21 @@ class AgendamentoFluxoTest(TestCase):
         self.assertEqual(resp["Content-Type"], "application/pdf")
         self.assertTrue(resp.content.startswith(b"%PDF"))
 
+    def test_exclusao_agendamento_so_admin(self):
+        ag = Agendamento.objects.create(
+            paciente=self.paciente, destino=self.destino,
+            data=proxima_sexta(), horario=time(9, 30),
+        )
+        # Atendente (não admin) não pode excluir.
+        r = self.client.get(reverse("agendamentos:delete", args=[ag.pk]))
+        self.assertEqual(r.status_code, 403)
+        # Admin exclui.
+        admin = User.objects.create_user(username="adm", password="x", perfil="ADMIN")
+        self.client.force_login(admin)
+        r = self.client.post(reverse("agendamentos:delete", args=[ag.pk]))
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(Agendamento.objects.filter(pk=ag.pk).exists())
+
     def test_dropdown_destino_lista_todos_inclusive_inativos(self):
         from apps.agendamentos.forms import AgendamentoForm
         from apps.destinos.models import Destino
