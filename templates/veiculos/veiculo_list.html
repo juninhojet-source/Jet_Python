@@ -30,7 +30,10 @@
           <td>{{ v.get_tipo_display }}</td>
           <td class="muted">{{ v.placa|default:"—" }}</td>
           <td>{% if v.ativo %}<span class="badge on">Ativo</span>{% else %}<span class="badge off">Inativo</span>{% endif %}</td>
-          <td class="right">{% if user.pode_editar %}<a class="btn btn-ghost btn-sm" href="{% url 'veiculos:update' v.pk %}">Editar</a>{% endif %}</td>
+          <td class="right">
+            {% if user.pode_editar %}<a class="btn btn-ghost btn-sm" href="{% url 'veiculos:update' v.pk %}">Editar</a>{% endif %}
+            {% if user.is_admin %}<a class="btn btn-perigo btn-sm" href="{% url 'veiculos:delete' v.pk %}">Excluir</a>{% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

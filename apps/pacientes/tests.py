@@ -136,3 +136,83 @@ class PacienteRapidoTest(TestCase):
         self.client.force_login(self.consulta)
         resp = self.client.post(reverse("pacientes:quick_create"), {"nome": "X"})
         self.assertEqual(resp.status_code, 403)
+
+
+class TelefoneESexoTest(TestCase):
+    """Formatação de telefone, opções de sexo e máscara de CEP."""
+
+    def setUp(self):
+        self.atendente = User.objects.create_user(
+            username="at", password="Sigtrans@2026", perfil="ATENDENTE"
+        )
+        self.client.force_login(self.atendente)
+
+    def test_telefone_formatado_e_so_digitos(self):
+        from apps.pacientes.forms import PacienteForm
+        f = PacienteForm({
+            "nome": "Zé", "cpf": "529.982.247-25", "data_nascimento": "1980-01-01",
+            "sexo": "M", "raca_cor": "01", "nacionalidade": "Brasileira",
+            "telefone_principal": "31989708854", "cep": "35970-000",
+        })
+        self.assertTrue(f.is_valid(), f.errors)
+        self.assertEqual(f.cleaned_data["telefone_principal"], "(31) 98970-8854")
+        self.assertEqual(f.cleaned_data["cep"], "35970000")
+
+    def test_telefone_fixo_10_digitos(self):
+        from apps.core.validators import formatar_telefone
+        self.assertEqual(formatar_telefone("3138377661"), "(31) 3837-7661")
+
+    def test_telefone_invalido_rejeitado(self):
+        from apps.core.validators import formatar_telefone
+        with self.assertRaises(ValidationError):
+            formatar_telefone("123")
+
+    def test_sexo_tem_outro_e_nao_informado(self):
+        from .models import Sexo
+        valores = dict(Sexo.choices)
+        self.assertIn("O", valores)
+        self.assertIn("N", valores)
+
+
+class ExclusaoAdminTest(TestCase):
+    """Exclusão de cadastros restrita ao administrador."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username="adm", password="Sigtrans@2026", perfil="ADMIN"
+        )
+        self.atendente = User.objects.create_user(
+            username="at", password="Sigtrans@2026", perfil="ATENDENTE"
+        )
+        self.pac = Paciente.objects.create(
+            nome="Excluível", cpf="52998224725", data_nascimento=date(1980, 1, 1),
+            sexo="M", raca_cor="01", telefone_principal="31999990000",
+        )
+
+    def test_atendente_nao_pode_excluir(self):
+        self.client.force_login(self.atendente)
+        self.assertEqual(
+            self.client.get(reverse("pacientes:delete", args=[self.pac.pk])).status_code, 403
+        )
+
+    def test_admin_exclui(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(reverse("pacientes:delete", args=[self.pac.pk]))
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(Paciente.objects.filter(pk=self.pac.pk).exists())
+
+    def test_exclusao_bloqueada_se_vinculado(self):
+        from datetime import time, timedelta
+        from apps.core.models import Municipio
+        from apps.destinos.models import Destino
+        from apps.agendamentos.models import Agendamento
+        mun = Municipio.objects.create(codigo_ibge="3106200", nome="Belo Horizonte")
+        dst = Destino.objects.create(nome="Hosp", municipio=mun)
+        dia = date.today() + timedelta(days=(4 - date.today().weekday()) % 7)
+        Agendamento.objects.create(
+            paciente=self.pac, destino=dst, data=dia, horario=time(8, 0)
+        )
+        self.client.force_login(self.admin)
+        resp = self.client.post(reverse("pacientes:delete", args=[self.pac.pk]))
+        self.assertEqual(resp.status_code, 302)  # redireciona com mensagem
+        self.assertTrue(Paciente.objects.filter(pk=self.pac.pk).exists())  # não excluiu

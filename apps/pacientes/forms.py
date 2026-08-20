@@ -1,7 +1,7 @@
 """Formulário de cadastro de paciente com validações e deduplicação."""
 from django import forms
 
-from apps.core.validators import apenas_digitos
+from apps.core.validators import apenas_digitos, formatar_telefone
 
 from .models import Paciente
 
@@ -15,6 +15,8 @@ class PacienteForm(forms.ModelForm):
         max_length=18,
         help_text="15 dígitos. Usado no BPA e para evitar duplicidade.",
     )
+    # Aceita a máscara "NNNNN-NNN"; é normalizado para 8 dígitos no clean.
+    cep = forms.CharField(label="CEP", required=False, max_length=9)
 
     class Meta:
         model = Paciente
@@ -49,6 +51,15 @@ class PacienteForm(forms.ModelForm):
     def clean_cns(self):
         cns = apenas_digitos(self.cleaned_data.get("cns"))
         return cns or None
+
+    def clean_cep(self):
+        return apenas_digitos(self.cleaned_data.get("cep"))[:8]
+
+    def clean_telefone_principal(self):
+        return formatar_telefone(self.cleaned_data.get("telefone_principal"))
+
+    def clean_telefone_secundario(self):
+        return formatar_telefone(self.cleaned_data.get("telefone_secundario"))
 
     def clean(self):
         cleaned = super().clean()

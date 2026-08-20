@@ -1,6 +1,8 @@
 """Formulários de agendamento e do controle de embarque."""
 from django import forms
 
+from apps.core.validators import formatar_telefone
+
 from .models import Agendamento, Embarque, StatusAgendamento
 
 
@@ -33,6 +35,9 @@ class AgendamentoForm(forms.ModelForm):
         self.fields["veiculo"].empty_label = "A definir"
         for campo in self.fields.values():
             campo.widget.attrs.setdefault("class", "campo")
+
+    def clean_contato(self):
+        return formatar_telefone(self.cleaned_data.get("contato"))
 
     def clean(self):
         cleaned = super().clean()

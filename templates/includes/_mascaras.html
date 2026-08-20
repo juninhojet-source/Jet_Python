@@ -1,0 +1,73 @@
+{% comment %}
+Máscaras de digitação (somente números) e busca de endereço por CEP.
+Aplica-se a qualquer campo da página (inclusive dentro de modais):
+  - telefone/contato: (DD) NNNNN-NNNN (celular) ou (DD) NNNN-NNNN (fixo)
+  - CPF: NNN.NNN.NNN-NN   - CNS: 15 dígitos   - CEP: NNNNN-NNN
+O CEP preenche automaticamente logradouro, bairro e município (editáveis).
+{% endcomment %}
+<script>
+(function () {
+  "use strict";
+  function so(v, n) { return (v || "").replace(/\D/g, "").slice(0, n); }
+
+  function fmtTelefone(v) {
+    var d = so(v, 11);
+    if (!d) return "";
+    if (d.length <= 2) return "(" + d;
+    if (d.length <= 6) return "(" + d.slice(0, 2) + ") " + d.slice(2);
+    if (d.length <= 10) return "(" + d.slice(0, 2) + ") " + d.slice(2, 6) + "-" + d.slice(6);
+    return "(" + d.slice(0, 2) + ") " + d.slice(2, 7) + "-" + d.slice(7);
+  }
+  function fmtCpf(v) {
+    var d = so(v, 11), r = d;
+    if (d.length > 3) r = d.slice(0, 3) + "." + d.slice(3);
+    if (d.length > 6) r = d.slice(0, 3) + "." + d.slice(3, 6) + "." + d.slice(6);
+    if (d.length > 9) r = d.slice(0, 3) + "." + d.slice(3, 6) + "." + d.slice(6, 9) + "-" + d.slice(9);
+    return r;
+  }
+  function fmtCep(v) {
+    var d = so(v, 8);
+    return d.length > 5 ? d.slice(0, 5) + "-" + d.slice(5) : d;
+  }
+
+  function aplicar(sel, fmt) {
+    document.querySelectorAll(sel).forEach(function (el) {
+      el.setAttribute("inputmode", "numeric");
+      if (el.value) el.value = fmt(el.value);
+      el.addEventListener("input", function () { el.value = fmt(el.value); });
+    });
+  }
+
+  function buscarCep(el) {
+    var d = so(el.value, 8);
+    if (d.length !== 8) return;
+    fetch("https://viacep.com.br/ws/" + d + "/json/")
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || j.erro) return;
+        var log = document.getElementById("id_logradouro");
+        var bai = document.getElementById("id_bairro");
+        if (log && j.logradouro) log.value = j.logradouro;
+        if (bai && j.bairro) bai.value = j.bairro;
+        var mun = document.querySelector('select[name="municipio"]');
+        if (mun && j.localidade && j.uf) {
+          var alvo = (j.localidade + "/" + j.uf).toLowerCase();
+          Array.prototype.forEach.call(mun.options, function (o) {
+            if (o.textContent.trim().toLowerCase() === alvo) o.selected = true;
+          });
+        }
+      })
+      .catch(function () { /* sem internet: preenchimento manual */ });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    aplicar('input[name*="telefone"], input[name="contato"]', fmtTelefone);
+    aplicar('input[name="cpf"]', fmtCpf);
+    aplicar('input[name="cns"]', function (v) { return so(v, 15); });
+    aplicar('input[name="cep"]', fmtCep);
+    document.querySelectorAll('input[name="cep"]').forEach(function (el) {
+      el.addEventListener("blur", function () { buscarCep(el); });
+    });
+  });
+})();
+</script>

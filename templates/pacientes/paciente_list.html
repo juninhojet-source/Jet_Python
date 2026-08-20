@@ -37,6 +37,7 @@
           <td>{{ p.telefone_principal }}</td>
           <td class="right">
             {% if user.pode_editar %}<a class="btn btn-ghost btn-sm" href="{% url 'pacientes:update' p.pk %}">Editar</a>{% endif %}
+            {% if user.is_admin %}<a class="btn btn-perigo btn-sm" href="{% url 'pacientes:delete' p.pk %}">Excluir</a>{% endif %}
           </td>
         </tr>
         {% endfor %}

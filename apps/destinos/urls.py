@@ -9,4 +9,5 @@ urlpatterns = [
     path("novo/", views.DestinoCreateView.as_view(), name="create"),
     path("rapido/", views.DestinoQuickCreateView.as_view(), name="quick_create"),
     path("<int:pk>/editar/", views.DestinoUpdateView.as_view(), name="update"),
+    path("<int:pk>/excluir/", views.DestinoDeleteView.as_view(), name="delete"),
 ]

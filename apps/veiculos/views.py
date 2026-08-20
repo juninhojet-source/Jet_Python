@@ -5,10 +5,10 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.urls import reverse_lazy
 from django.views import View
-from django.views.generic import CreateView, ListView, UpdateView
+from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
-from apps.accounts.mixins import EditorRequiredMixin
-from apps.core.mixins import SalvarAutorMixin
+from apps.accounts.mixins import AdminRequiredMixin, EditorRequiredMixin
+from apps.core.mixins import ExclusaoProtegidaMixin, SalvarAutorMixin
 
 from .forms import VeiculoForm
 from .models import Veiculo
@@ -52,6 +52,21 @@ class VeiculoUpdateView(EditorRequiredMixin, SalvarAutorMixin, UpdateView):
 
     def form_valid(self, form):
         messages.success(self.request, "Veículo atualizado com sucesso.")
+        return super().form_valid(form)
+
+
+class VeiculoDeleteView(AdminRequiredMixin, ExclusaoProtegidaMixin, DeleteView):
+    model = Veiculo
+    template_name = "includes/confirmar_exclusao.html"
+    success_url = reverse_lazy("veiculos:list")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["cancelar_url"] = reverse_lazy("veiculos:list")
+        return ctx
+
+    def form_valid(self, form):
+        messages.success(self.request, "Veículo excluído.")
         return super().form_valid(form)
 
 

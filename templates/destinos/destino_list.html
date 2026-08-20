@@ -31,7 +31,10 @@
           <td>{{ d.municipio }}</td>
           <td class="muted">{{ d.telefone|default:"—" }}</td>
           <td>{% if d.ativo %}<span class="badge on">Ativo</span>{% else %}<span class="badge off">Inativo</span>{% endif %}</td>
-          <td class="right">{% if user.pode_editar %}<a class="btn btn-ghost btn-sm" href="{% url 'destinos:update' d.pk %}">Editar</a>{% endif %}</td>
+          <td class="right">
+            {% if user.pode_editar %}<a class="btn btn-ghost btn-sm" href="{% url 'destinos:update' d.pk %}">Editar</a>{% endif %}
+            {% if user.is_admin %}<a class="btn btn-perigo btn-sm" href="{% url 'destinos:delete' d.pk %}">Excluir</a>{% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

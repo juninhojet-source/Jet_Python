@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Excluir — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Confirmar exclusão</h1>
+  <a href="{{ cancelar_url }}" class="btn btn-ghost">Cancelar</a>
+</div>
+
+<div class="card"><div class="card-body">
+  <p>Tem certeza que deseja <b>excluir permanentemente</b> este registro?</p>
+  <p style="font-size:16px"><b>{{ object }}</b></p>
+  <p class="muted">Esta ação não pode ser desfeita. Se o registro estiver vinculado a
+     agendamentos, a exclusão será bloqueada — nesse caso, prefira <b>inativar</b>.</p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-actions">
+      <button type="submit" class="btn btn-perigo">Sim, excluir</button>
+      <a href="{{ cancelar_url }}" class="btn btn-ghost">Cancelar</a>
+    </div>
+  </form>
+</div></div>
+{% endblock %}

@@ -36,6 +36,24 @@ def apenas_digitos(valor):
     return re.sub(r"\D", "", valor or "")
 
 
+def formatar_telefone(valor):
+    """Valida e formata telefone brasileiro (fixo com 10 ou celular com 11 dígitos).
+
+    Aceita vazio. Retorna no padrão "(DD) NNNNN-NNNN" (celular) ou
+    "(DD) NNNN-NNNN" (fixo). Levanta ValidationError se não for um número válido.
+    """
+    digitos = apenas_digitos(valor)
+    if not digitos:
+        return ""
+    if len(digitos) == 11:
+        return f"({digitos[:2]}) {digitos[2:7]}-{digitos[7:]}"
+    if len(digitos) == 10:
+        return f"({digitos[:2]}) {digitos[2:6]}-{digitos[6:]}"
+    raise ValidationError(
+        "Telefone deve ter DDD + número: 11 dígitos (celular) ou 10 (fixo)."
+    )
+
+
 def validar_cpf(valor):
     """Valida um CPF pelos dígitos verificadores."""
     cpf = apenas_digitos(valor)

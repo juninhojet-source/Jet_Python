@@ -4,10 +4,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
 from django.urls import reverse_lazy
 from django.views import View
-from django.views.generic import CreateView, ListView, UpdateView
+from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
-from apps.accounts.mixins import EditorRequiredMixin
-from apps.core.mixins import SalvarAutorMixin
+from apps.accounts.mixins import AdminRequiredMixin, EditorRequiredMixin
+from apps.core.mixins import ExclusaoProtegidaMixin, SalvarAutorMixin
 
 from .forms import DestinoForm
 from .models import Destino
@@ -51,6 +51,21 @@ class DestinoUpdateView(EditorRequiredMixin, SalvarAutorMixin, UpdateView):
 
     def form_valid(self, form):
         messages.success(self.request, "Destino atualizado com sucesso.")
+        return super().form_valid(form)
+
+
+class DestinoDeleteView(AdminRequiredMixin, ExclusaoProtegidaMixin, DeleteView):
+    model = Destino
+    template_name = "includes/confirmar_exclusao.html"
+    success_url = reverse_lazy("destinos:list")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["cancelar_url"] = reverse_lazy("destinos:list")
+        return ctx
+
+    def form_valid(self, form):
+        messages.success(self.request, "Destino excluído.")
         return super().form_valid(form)
 
 

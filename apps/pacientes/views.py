@@ -3,13 +3,15 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
 from django.urls import reverse_lazy
-from django.views.generic import CreateView, DetailView, ListView, UpdateView
+from django.views.generic import (
+    CreateView, DeleteView, DetailView, ListView, UpdateView,
+)
 
 from django.http import JsonResponse
 from django.views import View
 
-from apps.accounts.mixins import EditorRequiredMixin
-from apps.core.mixins import SalvarAutorMixin
+from apps.accounts.mixins import AdminRequiredMixin, EditorRequiredMixin
+from apps.core.mixins import ExclusaoProtegidaMixin, SalvarAutorMixin
 from apps.core.validators import apenas_digitos
 
 from .forms import PacienteForm, PacienteRapidoForm
@@ -62,6 +64,21 @@ class PacienteUpdateView(EditorRequiredMixin, SalvarAutorMixin, UpdateView):
 
     def form_valid(self, form):
         messages.success(self.request, "Cadastro atualizado com sucesso.")
+        return super().form_valid(form)
+
+
+class PacienteDeleteView(AdminRequiredMixin, ExclusaoProtegidaMixin, DeleteView):
+    model = Paciente
+    template_name = "includes/confirmar_exclusao.html"
+    success_url = reverse_lazy("pacientes:list")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["cancelar_url"] = self.object.get_absolute_url()
+        return ctx
+
+    def form_valid(self, form):
+        messages.success(self.request, "Paciente excluído.")
         return super().form_valid(form)
 
 

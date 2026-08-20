@@ -12,6 +12,8 @@ from apps.core.validators import validar_cns, validar_cpf
 class Sexo(models.TextChoices):
     MASCULINO = "M", "Masculino"
     FEMININO = "F", "Feminino"
+    OUTRO = "O", "Outro"
+    NAO_INFORMADO = "N", "Não informado"
 
 
 class RacaCor(models.TextChoices):
