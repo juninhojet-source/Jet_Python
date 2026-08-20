@@ -216,3 +216,42 @@ class ExclusaoAdminTest(TestCase):
         resp = self.client.post(reverse("pacientes:delete", args=[self.pac.pk]))
         self.assertEqual(resp.status_code, 302)  # redireciona com mensagem
         self.assertTrue(Paciente.objects.filter(pk=self.pac.pk).exists())  # não excluiu
+
+
+class CpfDuplicadoTest(TestCase):
+    """CPF duplicado: mensagem no servidor e verificação imediata (AJAX)."""
+
+    def setUp(self):
+        self.atendente = User.objects.create_user(
+            username="at", password="Sigtrans@2026", perfil="ATENDENTE"
+        )
+        self.existente = Paciente.objects.create(
+            nome="Maria Existente", cpf="52998224725", data_nascimento=date(1980, 1, 1),
+            sexo="F", raca_cor="01", telefone_principal="(31) 99999-0000",
+        )
+        self.client.force_login(self.atendente)
+
+    def test_cadastro_com_cpf_duplicado_informa_mensagem(self):
+        resp = self.client.post(reverse("pacientes:create"), {
+            "nome": "Outra Pessoa", "cpf": "529.982.247-25",
+            "data_nascimento": "1990-05-10", "sexo": "M", "raca_cor": "01",
+            "nacionalidade": "Brasileira", "telefone_principal": "31988887777",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "CPF já cadastrado")
+        self.assertEqual(Paciente.objects.filter(cpf="52998224725").count(), 1)
+
+    def test_verificar_cpf_endpoint(self):
+        r = self.client.get(reverse("pacientes:verificar_cpf"), {"cpf": "529.982.247-25"})
+        self.assertEqual(r.status_code, 200)
+        j = r.json()
+        self.assertTrue(j["existe"])
+        self.assertEqual(j["nome"], "Maria Existente")
+        # CPF não cadastrado
+        r2 = self.client.get(reverse("pacientes:verificar_cpf"), {"cpf": "111.444.777-35"})
+        self.assertFalse(r2.json()["existe"])
+
+    def test_verificar_cpf_exclui_o_proprio_na_edicao(self):
+        r = self.client.get(reverse("pacientes:verificar_cpf"),
+                             {"cpf": "52998224725", "excluir": str(self.existente.pk)})
+        self.assertFalse(r.json()["existe"])

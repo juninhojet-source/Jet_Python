@@ -82,6 +82,21 @@ class PacienteDeleteView(AdminRequiredMixin, ExclusaoProtegidaMixin, DeleteView)
         return super().form_valid(form)
 
 
+class PacienteVerificarCpfView(LoginRequiredMixin, View):
+    """Verifica se um CPF já está cadastrado (para aviso imediato no formulário)."""
+
+    def get(self, request):
+        cpf = apenas_digitos(request.GET.get("cpf", ""))
+        if len(cpf) != 11:
+            return JsonResponse({"existe": False})
+        qs = Paciente.objects.filter(cpf=cpf)
+        excluir = request.GET.get("excluir", "")
+        if excluir.isdigit():
+            qs = qs.exclude(pk=int(excluir))
+        p = qs.first()
+        return JsonResponse({"existe": bool(p), "nome": p.nome if p else ""})
+
+
 class PacienteQuickCreateView(EditorRequiredMixin, View):
     """Cadastro rápido de paciente (via modal do agendamento). Retorna JSON."""
 

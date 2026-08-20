@@ -44,33 +44,62 @@ O CEP preenche automaticamente logradouro, bairro e município (editáveis).
   }
 
   function ligarValidacaoCpf() {
+    var urlVerif = "{% url 'pacientes:verificar_cpf' %}";
+    var excluir = (location.pathname.match(/\/pacientes\/(\d+)\/editar/) || [])[1] || "";
+
     document.querySelectorAll('input[name="cpf"]').forEach(function (el) {
       var msg = document.createElement("div");
       msg.className = "erro-cliente";
       msg.hidden = true;
-      msg.textContent = "CPF inválido — confira os números digitados.";
       el.insertAdjacentElement("afterend", msg);
 
-      function checar() {
-        var d = so(el.value, 11);
-        var invalido = d.length === 11 && !cpfValido(d);
-        el.classList.toggle("campo-invalido", invalido);
-        msg.hidden = !invalido;
-        return !invalido;
-      }
-      el.addEventListener("blur", checar);
-      el.addEventListener("input", checar);
+      function erro(txt) { el.classList.add("campo-invalido"); msg.textContent = txt; msg.hidden = false; }
+      function limpar() { el.classList.remove("campo-invalido"); msg.hidden = true; el.dataset.dup = ""; }
 
-      // Bloqueia o envio do formulário (página cheia) com CPF inválido.
+      function estrutura() {
+        var d = so(el.value, 11);
+        if (d.length === 11 && !cpfValido(d)) {
+          erro("CPF inválido — confira os números digitados.");
+          return false;
+        }
+        return true;
+      }
+
+      function verificarDuplicado() {
+        var d = so(el.value, 11);
+        if (d.length !== 11 || !cpfValido(d)) return;
+        var url = urlVerif + "?cpf=" + d + (excluir ? "&excluir=" + excluir : "");
+        fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            if (j.existe) {
+              el.dataset.dup = "1";
+              erro("CPF já cadastrado" + (j.nome ? " (" + j.nome + ")" : "") + ".");
+            } else {
+              el.dataset.dup = "";
+              if (estrutura()) limpar();
+            }
+          })
+          .catch(function () { /* sem rede: o servidor valida no envio */ });
+      }
+
+      el.addEventListener("input", function () {
+        el.dataset.dup = "";
+        if (estrutura()) limpar();
+      });
+      el.addEventListener("blur", function () {
+        if (estrutura()) verificarDuplicado();
+      });
+
+      // Bloqueia o envio do formulário (página cheia) com CPF inválido ou duplicado.
       var form = el.closest("form");
       if (form && !form.dataset.cpfGuard) {
         form.dataset.cpfGuard = "1";
         form.addEventListener("submit", function (ev) {
           var d = so(el.value, 11);
-          if (d.length && !cpfValido(d)) {
+          if ((d.length && !cpfValido(d)) || el.dataset.dup === "1") {
             ev.preventDefault();
-            el.classList.add("campo-invalido");
-            msg.hidden = false;
+            estrutura();
             el.focus();
           }
         });

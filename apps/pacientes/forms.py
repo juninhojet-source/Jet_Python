@@ -46,11 +46,25 @@ class PacienteForm(forms.ModelForm):
 
     def clean_cpf(self):
         cpf = apenas_digitos(self.cleaned_data.get("cpf"))
-        return cpf or None
+        if not cpf:
+            return None
+        existe = Paciente.objects.filter(cpf=cpf)
+        if self.instance.pk:
+            existe = existe.exclude(pk=self.instance.pk)
+        if existe.exists():
+            raise forms.ValidationError("CPF já cadastrado.")
+        return cpf
 
     def clean_cns(self):
         cns = apenas_digitos(self.cleaned_data.get("cns"))
-        return cns or None
+        if not cns:
+            return None
+        existe = Paciente.objects.filter(cns=cns)
+        if self.instance.pk:
+            existe = existe.exclude(pk=self.instance.pk)
+        if existe.exists():
+            raise forms.ValidationError("Cartão SUS (CNS) já cadastrado.")
+        return cns
 
     def clean_cep(self):
         return apenas_digitos(self.cleaned_data.get("cep"))[:8]
