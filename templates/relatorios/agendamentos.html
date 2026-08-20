@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Relatório de Agendamentos — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Relatório de Agendamentos</h1>
+    <div class="sub">{{ total }} registro(s){% if resumo %} · filtros aplicados{% endif %}</div>
+  </div>
+  <a href="{% url 'relatorios:index' %}" class="btn btn-ghost">Voltar</a>
+</div>
+
+<div class="card" style="margin-bottom:16px"><div class="card-body">
+  <form method="get" class="rel-filtros">
+    <div class="rel-grid">
+      <div class="field"><label>Dia</label><input type="date" name="dia" value="{{ params.dia }}" class="campo"></div>
+      <div class="field"><label>Mês</label><input type="month" name="mes" value="{{ params.mes }}" class="campo"></div>
+      <div class="field"><label>De</label><input type="date" name="data_inicio" value="{{ params.data_inicio }}" class="campo"></div>
+      <div class="field"><label>Até</label><input type="date" name="data_fim" value="{{ params.data_fim }}" class="campo"></div>
+      <div class="field"><label>Nome do paciente</label><input type="text" name="q" value="{{ params.q }}" class="campo"></div>
+      <div class="field"><label>Município (destino)</label>
+        <select name="municipio" class="campo"><option value="">Todos</option>
+          {% for m in municipios %}<option value="{{ m.id }}" {% if params.municipio == m.id|stringformat:'s' %}selected{% endif %}>{{ m }}</option>{% endfor %}
+        </select></div>
+      <div class="field"><label>Destino</label>
+        <select name="destino" class="campo"><option value="">Todos</option>
+          {% for d in destinos %}<option value="{{ d.id }}" {% if params.destino == d.id|stringformat:'s' %}selected{% endif %}>{{ d.nome }}</option>{% endfor %}
+        </select></div>
+      <div class="field"><label>Procedimento</label><input type="text" name="procedimento" value="{{ params.procedimento }}" class="campo"></div>
+      <div class="field"><label>Status</label>
+        <select name="status" class="campo"><option value="">Todos</option>
+          {% for v, l in status_choices %}<option value="{{ v }}" {% if params.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+        </select></div>
+    </div>
+    <div class="form-actions" style="margin-top:14px">
+      <button type="submit" class="btn btn-primary">Filtrar</button>
+      <a href="?" class="btn btn-ghost">Limpar</a>
+      <span style="flex:1"></span>
+      <button type="submit" name="export" value="pdf" class="btn btn-ghost">⬇ PDF</button>
+      <button type="submit" name="export" value="xlsx" class="btn btn-ghost">⬇ Excel</button>
+    </div>
+  </form>
+</div></div>
+
+<div class="card"><div class="card-body">
+  {% if agendamentos %}
+  <div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Nº</th><th>Data</th><th>Hora</th><th>Paciente</th><th>Destino</th><th>Procedimento</th><th>Status</th><th>Embarque</th></tr></thead>
+      <tbody>
+        {% for a in agendamentos %}
+        <tr>
+          <td class="muted">{{ a.numero }}</td>
+          <td>{{ a.data|date:"d/m/Y" }}</td>
+          <td>{{ a.horario|time:"H:i" }}</td>
+          <td><a href="{{ a.get_absolute_url }}">{{ a.paciente.nome }}</a></td>
+          <td>{{ a.destino }}</td>
+          <td>{{ a.procedimento|default:"—" }}</td>
+          <td>{{ a.get_status_display }}</td>
+          <td>{{ a.get_embarque_display }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if total > 300 %}<p class="muted" style="margin-top:12px">Exibindo os primeiros 300. Use a exportação para o total ({{ total }}).</p>{% endif %}
+  {% else %}
+  <div class="empty">Nenhum agendamento para os filtros informados.</div>
+  {% endif %}
+</div></div>
+{% endblock %}

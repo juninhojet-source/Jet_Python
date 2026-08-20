@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Agendamento {{ ag.numero }} — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Agendamento {{ ag.numero }}</h1>
+    <div class="sub">{{ ag.get_status_display }}{% if ag.confirmado_em %} · confirmado em {{ ag.confirmado_em|date:"d/m/Y H:i" }}{% endif %}</div>
+  </div>
+  <div class="toolbar nowrap">
+    <a href="{% url 'agendamentos:cartao_pdf' ag.pk %}" target="_blank" class="btn btn-primary">Cartão de embarque (PDF)</a>
+    {% if user.pode_editar %}
+    {% if not ag.confirmado_em %}
+    <form method="post" action="{% url 'agendamentos:confirmar' ag.pk %}" style="display:inline">{% csrf_token %}
+      <button class="btn btn-ghost" type="submit">Confirmar viagem</button>
+    </form>
+    {% endif %}
+    <a href="{% url 'agendamentos:embarque' ag.pk %}" class="btn btn-ghost">Registrar embarque</a>
+    <a href="{% url 'agendamentos:update' ag.pk %}" class="btn btn-ghost">Editar</a>
+    {% if ag.status != 'CANCELADO' %}
+    <form method="post" action="{% url 'agendamentos:cancelar' ag.pk %}" style="display:inline"
+          onsubmit="return confirm('Cancelar este agendamento? Ele sai da agenda, mas continua no histórico.');">{% csrf_token %}
+      <button class="btn btn-perigo" type="submit">Cancelar agendamento</button>
+    </form>
+    {% endif %}
+    {% endif %}
+    {% if user.is_admin %}<a href="{% url 'agendamentos:delete' ag.pk %}" class="btn btn-perigo">Excluir</a>{% endif %}
+  </div>
+</div>
+
+<div class="card"><div class="card-body">
+  <div class="section-title">Paciente e agenda</div>
+  <div class="dl">
+    <div class="item"><div class="k">Paciente</div><div class="v"><a href="{{ ag.paciente.get_absolute_url }}">{{ ag.paciente.nome }}</a></div></div>
+    <div class="item"><div class="k">Acompanhante</div><div class="v">{{ ag.acompanhante|default:"—" }}</div></div>
+    <div class="item"><div class="k">Contato</div><div class="v">{{ ag.contato|default:ag.paciente.telefone_principal }}</div></div>
+    <div class="item"><div class="k">Data / Horário</div><div class="v">{{ ag.data|date:"d/m/Y" }} às {{ ag.horario|time:"H:i" }}</div></div>
+  </div>
+
+  <div class="section-title">Destino e consulta</div>
+  <div class="dl">
+    <div class="item"><div class="k">Destino</div><div class="v">{{ ag.destino }}</div></div>
+    <div class="item"><div class="k">Local da consulta</div><div class="v">{{ ag.local_consulta|default:"—" }}</div></div>
+    <div class="item"><div class="k">Procedimento</div><div class="v">{{ ag.procedimento|default:"—" }}</div></div>
+  </div>
+
+  <div class="section-title">Transporte e embarque</div>
+  <div class="dl">
+    <div class="item"><div class="k">Tipo de veículo</div><div class="v">{{ ag.tipo_veiculo|default:"—" }}</div></div>
+    <div class="item"><div class="k">Local de embarque</div><div class="v">{{ ag.local_embarque|default:"—" }}</div></div>
+    <div class="item"><div class="k">Horário de embarque</div><div class="v">{{ ag.hora_embarque|time:"H:i"|default:"—" }}</div></div>
+    <div class="item"><div class="k">Situação do embarque</div><div class="v">{{ ag.get_embarque_display }}
+      {% if ag.hora_embarque_real %} · saiu {{ ag.hora_embarque_real|time:"H:i" }}{% endif %}
+      {% if ag.hora_desembarque_real %} · retornou {{ ag.hora_desembarque_real|time:"H:i" }}{% endif %}</div></div>
+  </div>
+
+  {% if ag.observacoes %}
+  <div class="section-title">Observações</div>
+  <p>{{ ag.observacoes|linebreaksbr }}</p>
+  {% endif %}
+</div></div>
+{% endblock %}

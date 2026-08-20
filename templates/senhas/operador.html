@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Senhas — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Painel de Senhas</h1>
+    <div class="sub">{{ nome }} · {{ sala_label }} {{ sala|stringformat:"02d" }} · <span id="op-aguardando">{{ aguardando }}</span> aguardando</div>
+  </div>
+  <div class="toolbar">
+    <a href="{% url 'senhas:painel_tv' %}" target="_blank" class="btn btn-ghost">Abrir painel de TV ↗</a>
+    <a href="{% url 'senhas:kiosk' %}" target="_blank" class="btn btn-ghost">Kiosque (emitir) ↗</a>
+  </div>
+</div>
+
+<div class="fila-tabs">
+  {% for f in filas_menu %}
+  <a href="?fila={{ f.tipo }}" class="fila-tab {% if f.ativa %}active{% endif %}">
+    {{ sala_label }} {{ f.sala|stringformat:"02d" }} — {{ f.nome }}
+  </a>
+  {% endfor %}
+</div>
+
+<div class="senha-grid">
+  <div class="card"><div class="card-body senha-atual-box">
+    <div class="lbl">Senha atual</div>
+    <div class="senha-num" id="op-senha">{% if atual %}{{ atual.codigo }}{% else %}—{% endif %}</div>
+    <div class="senha-gui" id="op-sala">{% if atual and atual.guiche %}{{ sala_label }} {{ atual.guiche|stringformat:"02d" }}{% else %}&nbsp;{% endif %}</div>
+  </div></div>
+
+  <div class="card"><div class="card-body">
+    <form method="post" class="senha-controls">
+      {% csrf_token %}
+      <input type="hidden" name="fila" value="{{ fila }}">
+      <div class="guiche-row">
+        <label>{{ sala_label }}</label>
+        <span class="sala-fixa">{{ sala|stringformat:"02d" }}</span>
+      </div>
+      <button class="btn btn-primary btn-block" name="acao" value="chamar" type="submit">▶ Chamar próximo</button>
+      <div class="btn-row">
+        <button class="btn btn-ghost" name="acao" value="repetir" type="submit">🔊 Repetir</button>
+        <button class="btn btn-ghost" name="acao" value="voltar" type="submit">‹ Voltar</button>
+        <button class="btn btn-ghost" name="acao" value="avancar" type="submit">Avançar ›</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost btn-block" name="acao" value="finalizar" type="submit">✔ Finalizar atual</button>
+        <button class="btn btn-perigo btn-block" name="acao" value="reiniciar" type="submit"
+                onclick="return confirm('Reiniciar as senhas desta sala? As senhas de hoje serão zeradas e a numeração volta para 01.');">↻ Reiniciar</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<div class="card" style="margin-top:16px"><div class="card-body">
+  <div class="section-title" style="margin-top:0">Últimas chamadas — {{ nome }}</div>
+  <div class="chamadas-row" id="op-ultimas">
+    {% for s in ultimas %}
+    <div class="chamada-chip">
+      <div class="c-num">{{ s.codigo }}</div>
+      <div class="c-gui">{{ sala_label }} {{ s.guiche|stringformat:"02d" }}</div>
+      <div class="c-hora">{{ s.chamada_em|time:"H:i" }}</div>
+    </div>
+    {% empty %}
+    <div class="empty">Nenhuma senha chamada hoje nesta sala.</div>
+    {% endfor %}
+  </div>
+</div></div>
+
+<script>
+  // Sincronização em tempo real: mantém todos os operadores da mesma sala
+  // com a mesma informação, mesmo que a chamada tenha sido feita por outro.
+  (function () {
+    const FILA = "{{ fila|escapejs }}";
+    const ESTADO_URL = "{% url 'senhas:estado' %}";
+    let ultimaSeq = null;
+
+    function pad2(n) { return String(n == null ? "" : n).padStart(2, "0"); }
+
+    async function sync() {
+      try {
+        const r = await fetch(ESTADO_URL, { cache: "no-store" });
+        const d = await r.json();
+        const f = (d.filas || []).find(x => x.tipo === FILA);
+        if (!f) return;
+        // Evita sobrescrever logo após a própria ação (recarga do POST já traz o estado).
+        document.getElementById("op-senha").textContent = f.atual ? f.atual.codigo : "—";
+        document.getElementById("op-sala").innerHTML =
+          f.atual && f.atual.guiche ? (d.sala_label + " " + pad2(f.atual.guiche)) : "&nbsp;";
+        const ag = document.getElementById("op-aguardando");
+        if (ag) ag.textContent = f.aguardando;
+        const cont = document.getElementById("op-ultimas");
+        if (cont) {
+          if (!f.ultimas.length) {
+            cont.innerHTML = '<div class="empty">Nenhuma senha chamada hoje nesta sala.</div>';
+          } else {
+            cont.innerHTML = f.ultimas.map(s =>
+              `<div class="chamada-chip"><div class="c-num">${s.codigo}</div>` +
+              `<div class="c-gui">${d.sala_label} ${pad2(s.guiche)}</div></div>`).join("");
+          }
+        }
+        ultimaSeq = f.sequencia;
+      } catch (e) {}
+    }
+    setInterval(sync, 3500);
+  })();
+</script>
+{% endblock %}

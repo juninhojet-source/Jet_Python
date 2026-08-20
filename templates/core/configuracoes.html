@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Configurações — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Configurações</h1>
+    <div class="sub">Backup dos dados e conformidade com a LGPD</div>
+  </div>
+</div>
+
+<div class="stats">
+  <a class="stat" href="{% url 'core:backup' %}" style="text-decoration:none">
+    <div class="ico blue">💾</div>
+    <div><div class="num" style="font-size:18px">Backup dos dados</div>
+    <div class="lbl">Gerar e baixar uma cópia de segurança do banco de dados</div></div>
+  </a>
+  <a class="stat" href="{% url 'core:lgpd' %}" style="text-decoration:none">
+    <div class="ico gold">🔒</div>
+    <div><div class="num" style="font-size:18px">Segurança e LGPD</div>
+    <div class="lbl">Controles de proteção de dados e direitos do titular</div></div>
+  </a>
+</div>
+
+<div class="card" style="margin-top:16px"><div class="card-body">
+  <h2 style="margin-top:0">Informações do sistema</h2>
+  <table class="data">
+    <tbody>
+      <tr><th style="width:280px">Sistema</th><td>{{ ORGAO.SISTEMA_NOME }} — {{ ORGAO.SISTEMA_DESCRICAO }}</td></tr>
+      <tr><th>Órgão</th><td>{{ ORGAO.PREFEITURA }}</td></tr>
+      <tr><th>Secretaria</th><td>{{ ORGAO.SECRETARIA }}</td></tr>
+      <tr><th>Responsável (TI)</th><td>{{ ORGAO.DEPARTAMENTO }} · {{ ORGAO.RESPONSAVEL }} · {{ ORGAO.RESPONSAVEL_TELEFONE }}</td></tr>
+    </tbody>
+  </table>
+</div></div>
+{% endblock %}
