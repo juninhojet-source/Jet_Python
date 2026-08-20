@@ -318,3 +318,7 @@ body.kiosk { min-height: 100vh; display: flex; align-items: center; justify-cont
 .alternativa { display: flex; align-items: center; justify-content: space-between; gap: 16px;
   flex-wrap: wrap; background: #eef7f0; border: 1px solid #b7dfc6; border-radius: 10px;
   padding: 14px 16px; margin-top: 16px; }
+
+/* ---- Validação imediata no navegador (ex.: CPF) ---- */
+.campo-invalido { border-color: var(--err) !important; box-shadow: 0 0 0 3px rgba(176,42,36,.12); }
+.erro-cliente { color: var(--err); font-size: 12.5px; margin-top: 4px; }
