@@ -308,3 +308,13 @@ body.kiosk { min-height: 100vh; display: flex; align-items: center; justify-cont
 .code-block { background: #0f2a54; color: #eaf1fb; padding: 12px 14px; border-radius: 8px;
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px;
   overflow-x: auto; white-space: pre; }
+
+/* ---- Tela de confirmação de exclusão ---- */
+.alerta-perigo { display: flex; gap: 12px; align-items: flex-start;
+  background: var(--err-bg); border: 1px solid #f0c2bf; border-radius: 10px;
+  padding: 14px 16px; color: #7a201c; }
+.alerta-perigo .alerta-ico { font-size: 22px; line-height: 1; }
+.alerta-perigo .alerta-txt { margin-top: 4px; font-size: 14px; }
+.alternativa { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; background: #eef7f0; border: 1px solid #b7dfc6; border-radius: 10px;
+  padding: 14px 16px; margin-top: 16px; }

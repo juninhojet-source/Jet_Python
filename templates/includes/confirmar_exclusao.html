@@ -4,19 +4,41 @@
 {% block content %}
 <div class="page-head">
   <h1>Confirmar exclusão</h1>
-  <a href="{{ cancelar_url }}" class="btn btn-ghost">Cancelar</a>
+  <a href="{{ cancelar_url }}" class="btn btn-ghost">Voltar</a>
 </div>
 
 <div class="card"><div class="card-body">
-  <p>Tem certeza que deseja <b>excluir permanentemente</b> este registro?</p>
-  <p style="font-size:16px"><b>{{ object }}</b></p>
-  <p class="muted">Esta ação não pode ser desfeita. Se o registro estiver vinculado a
-     agendamentos, a exclusão será bloqueada — nesse caso, prefira <b>inativar</b>.</p>
-  <form method="post">
+  <div class="alerta-perigo">
+    <span class="alerta-ico">⚠️</span>
+    <div>
+      <b>Atenção: esta ação é permanente e não pode ser desfeita.</b>
+      <div class="alerta-txt">{{ aviso|default:"O registro será apagado definitivamente do sistema." }}</div>
+    </div>
+  </div>
+
+  <p style="margin:16px 0 4px">Você está prestes a excluir:</p>
+  <p style="font-size:17px;margin:0 0 4px"><b>{{ object }}</b></p>
+  <p class="muted" style="margin-top:0">Se houver registros vinculados (ex.: agendamentos),
+     a exclusão é bloqueada automaticamente.</p>
+
+  {% if alternativa_url %}
+  <div class="alternativa">
+    <div>
+      <b>Alternativa recomendada</b>
+      <div class="muted">{{ alternativa_ajuda }}</div>
+    </div>
+    <form method="post" action="{{ alternativa_url }}" style="margin:0">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary">{{ alternativa_label }}</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <form method="post" style="margin-top:18px">
     {% csrf_token %}
     <div class="form-actions">
-      <button type="submit" class="btn btn-perigo">Sim, excluir</button>
-      <a href="{{ cancelar_url }}" class="btn btn-ghost">Cancelar</a>
+      <button type="submit" class="btn btn-perigo">🗑 Excluir permanentemente</button>
+      <a href="{{ cancelar_url }}" class="btn btn-ghost">Voltar sem excluir</a>
     </div>
   </form>
 </div></div>

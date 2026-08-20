@@ -130,6 +130,21 @@ class AgendamentoUpdateView(EditorRequiredMixin, CadastroRapidoMixin, SalvarAuto
         return super().form_valid(form)
 
 
+class CancelarAgendamentoView(EditorRequiredMixin, View):
+    """Cancela o agendamento (status = Cancelado), mantendo-o no histórico."""
+
+    def post(self, request, pk):
+        ag = get_object_or_404(Agendamento, pk=pk)
+        if ag.status == StatusAgendamento.CANCELADO:
+            messages.info(request, f"Agendamento {ag.numero} já estava cancelado.")
+        else:
+            ag.status = StatusAgendamento.CANCELADO
+            ag.atualizado_por = request.user
+            ag.save()
+            messages.success(request, f"Agendamento {ag.numero} cancelado (mantido no histórico).")
+        return redirect(ag.get_absolute_url())
+
+
 class AgendamentoDeleteView(AdminRequiredMixin, ExclusaoProtegidaMixin, DeleteView):
     model = Agendamento
     template_name = "includes/confirmar_exclusao.html"
@@ -138,6 +153,16 @@ class AgendamentoDeleteView(AdminRequiredMixin, ExclusaoProtegidaMixin, DeleteVi
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["cancelar_url"] = self.object.get_absolute_url()
+        ctx["aviso"] = (
+            "Excluir apaga o agendamento definitivamente do sistema, inclusive do "
+            "histórico. Na maioria dos casos (desistência, falta, remarcação), o "
+            "recomendado é CANCELAR — o agendamento sai da agenda mas permanece "
+            "registrado para controle e auditoria."
+        )
+        if self.object.status != StatusAgendamento.CANCELADO:
+            ctx["alternativa_url"] = reverse("agendamentos:cancelar", args=[self.object.pk])
+            ctx["alternativa_label"] = "Cancelar agendamento (recomendado)"
+            ctx["alternativa_ajuda"] = "Mantém o registro no histórico."
         return ctx
 
     def form_valid(self, form):

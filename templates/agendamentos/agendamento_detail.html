@@ -17,6 +17,12 @@
     {% endif %}
     <a href="{% url 'agendamentos:embarque' ag.pk %}" class="btn btn-ghost">Registrar embarque</a>
     <a href="{% url 'agendamentos:update' ag.pk %}" class="btn btn-ghost">Editar</a>
+    {% if ag.status != 'CANCELADO' %}
+    <form method="post" action="{% url 'agendamentos:cancelar' ag.pk %}" style="display:inline"
+          onsubmit="return confirm('Cancelar este agendamento? Ele sai da agenda, mas continua no histórico.');">{% csrf_token %}
+      <button class="btn btn-perigo" type="submit">Cancelar agendamento</button>
+    </form>
+    {% endif %}
     {% endif %}
     {% if user.is_admin %}<a href="{% url 'agendamentos:delete' ag.pk %}" class="btn btn-perigo">Excluir</a>{% endif %}
   </div>

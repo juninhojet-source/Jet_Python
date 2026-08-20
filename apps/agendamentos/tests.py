@@ -129,6 +129,18 @@ class AgendamentoFluxoTest(TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertFalse(Agendamento.objects.filter(pk=ag.pk).exists())
 
+    def test_cancelar_agendamento_mantem_no_historico(self):
+        ag = Agendamento.objects.create(
+            paciente=self.paciente, destino=self.destino,
+            data=proxima_sexta(), horario=time(9, 45),
+        )
+        # Editor pode cancelar (não precisa ser admin).
+        r = self.client.post(reverse("agendamentos:cancelar", args=[ag.pk]))
+        self.assertEqual(r.status_code, 302)
+        ag.refresh_from_db()
+        self.assertEqual(ag.status, StatusAgendamento.CANCELADO)
+        self.assertTrue(Agendamento.objects.filter(pk=ag.pk).exists())  # continua no banco
+
     def test_dropdown_destino_lista_todos_inclusive_inativos(self):
         from apps.agendamentos.forms import AgendamentoForm
         from apps.destinos.models import Destino
