@@ -37,7 +37,8 @@ python examples/demo_pontuacao.py     # exemplo verificável do edital (= 141 po
 python manage.py migrate
 python manage.py test
 python manage.py createsuperuser      # cria acesso ao admin
-python manage.py runserver            # http://127.0.0.1:8000/admin/
+python manage.py seed_demo            # (opcional) popula núcleos de exemplo p/ demonstração
+python manage.py runserver            # http://127.0.0.1:8000/
 ```
 
 ## Por que design primeiro
