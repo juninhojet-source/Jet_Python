@@ -10,7 +10,7 @@ a:hover { text-decoration: underline; }
 
 header.topo { background: var(--azul); color: #fff; padding: .6rem 1.2rem;
   display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
-header.topo .brasao { height: 46px; width: auto; background: #fff; border-radius: 6px;
+header.topo .brasao { height: 54px; width: auto; background: #fff; border-radius: 6px;
   padding: 2px; }
 header.topo .marca { display: flex; flex-direction: column; line-height: 1.15; }
 header.topo .marca-linha1 { font-weight: 700; font-size: 1rem; }
