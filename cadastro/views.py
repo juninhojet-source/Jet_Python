@@ -13,10 +13,13 @@ from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from . import requisitos, services
+from contas.acesso import ANALISTA, ATENDENTE, COMISSAO, em_perfil, perfil_requerido
+
+from . import fluxo, requisitos, services
 from .forms import (
+    AvaliacaoForm,
     DocumentoForm,
-    InscricaoAnaliseForm,
+    InscricaoContatoForm,
     MembroForm,
     RendaForm,
     RequerenteInscricaoForm,
@@ -89,6 +92,7 @@ def inscricao_list(request):
 
 
 @login_required
+@perfil_requerido(ATENDENTE, ANALISTA)
 def inscricao_nova(request):
     if request.method == "POST":
         form = RequerenteInscricaoForm(request.POST)
@@ -116,29 +120,87 @@ def inscricao_detalhe(request, pk):
         "complementar": getattr(inscricao, "criterio_complementar", None),
         "requisitos": itens_req,
         "apto": requisitos.apto(itens_req),
+        "transicoes": fluxo.transicoes_disponiveis(inscricao, request.user),
+        "pode_cadastrar": em_perfil(request.user, ATENDENTE, ANALISTA),
+        "pode_avaliar": em_perfil(request.user, ANALISTA, COMISSAO),
     }
     return render(request, "cadastro/inscricao_detalhe.html", ctx)
 
 
 @login_required
+@perfil_requerido(ATENDENTE, ANALISTA)
 def inscricao_editar(request, pk):
+    """Edita dados declarados (contato/endereço) — bloqueado após finalização."""
     inscricao = get_object_or_404(Inscricao, pk=pk)
     if _bloqueio_guard(request, inscricao):
         return redirect("cadastro:inscricao_detalhe", pk=pk)
     if request.method == "POST":
-        form = InscricaoAnaliseForm(request.POST, instance=inscricao)
+        form = InscricaoContatoForm(request.POST, instance=inscricao)
         if form.is_valid():
             form.save()
             messages.success(request, "Dados atualizados.")
             return redirect("cadastro:inscricao_detalhe", pk=pk)
     else:
-        form = InscricaoAnaliseForm(instance=inscricao)
+        form = InscricaoContatoForm(instance=inscricao)
     return render(
-        request, "cadastro/inscricao_form.html", {"form": form, "inscricao": inscricao}
+        request, "cadastro/inscricao_form.html",
+        {"form": form, "inscricao": inscricao, "titulo": "Editar contato/endereço"},
     )
 
 
 @login_required
+@perfil_requerido(ANALISTA, COMISSAO)
+def avaliar(request, pk):
+    """Fatos apurados pela análise (Critérios Legais, requisitos, aluguel).
+
+    Permitido mesmo com a inscrição finalizada: é análise, não alteração dos
+    dados declarados pelo candidato. A gravação é autorizada e auditada.
+    """
+    inscricao = get_object_or_404(Inscricao, pk=pk)
+    if request.method == "POST":
+        form = AvaliacaoForm(request.POST, instance=inscricao)
+        if form.is_valid():
+            avaliada = form.save(commit=False)
+            avaliada._alteracao_autorizada = True
+            avaliada._justificativa_auditoria = "Avaliação da análise"
+            avaliada.save()
+            services.calcular_e_salvar(avaliada)
+            messages.success(request, "Avaliação registrada e pontuação recalculada.")
+            return redirect("cadastro:inscricao_detalhe", pk=pk)
+    else:
+        form = AvaliacaoForm(instance=inscricao)
+    return render(
+        request, "cadastro/inscricao_form.html",
+        {"form": form, "inscricao": inscricao, "titulo": "Avaliação da análise"},
+    )
+
+
+@login_required
+def transicionar(request, pk):
+    """Aplica uma transição de situação (fluxo de homologação)."""
+    inscricao = get_object_or_404(Inscricao, pk=pk)
+    if request.method == "POST":
+        destino = request.POST.get("destino", "")
+        # Regra: só se torna APTO quando todos os requisitos estão atendidos.
+        if destino == Inscricao.Status.APTO and not requisitos.apto(
+            requisitos.avaliar(inscricao)
+        ):
+            messages.error(
+                request,
+                "Não é possível marcar APTO: há requisito não atendido. "
+                "Complete a avaliação ou marque como NÃO APTO.",
+            )
+            return redirect("cadastro:inscricao_detalhe", pk=pk)
+        try:
+            fluxo.aplicar(inscricao, destino, request.user)
+            messages.success(request, f"Situação atualizada: {inscricao.get_status_display()}.")
+        except PermissionDenied as exc:
+            messages.error(request, str(exc))
+    return redirect("cadastro:inscricao_detalhe", pk=pk)
+
+
+@login_required
+@perfil_requerido(ATENDENTE, ANALISTA)
 def membro_novo(request, pk):
     inscricao = get_object_or_404(Inscricao, pk=pk)
     if _bloqueio_guard(request, inscricao):
@@ -157,6 +219,7 @@ def membro_novo(request, pk):
 
 
 @login_required
+@perfil_requerido(ATENDENTE, ANALISTA)
 def renda_nova(request, membro_pk):
     membro = get_object_or_404(MembroNucleo.objects.select_related("inscricao", "pessoa"), pk=membro_pk)
     if _bloqueio_guard(request, membro.inscricao):
@@ -180,8 +243,8 @@ def renda_nova(request, membro_pk):
 def documentos(request, pk):
     inscricao = get_object_or_404(Inscricao, pk=pk)
     if request.method == "POST":
-        if _bloqueio_guard(request, inscricao):
-            return redirect("cadastro:documentos", pk=pk)
+        if not em_perfil(request.user, ATENDENTE, ANALISTA):
+            raise PermissionDenied("Seu perfil não permite registrar documentos.")
         form = DocumentoForm(request.POST, request.FILES, inscricao=inscricao)
         if form.is_valid():
             doc = form.save(commit=False)
@@ -226,6 +289,7 @@ def documento_download(request, pk):
 
 
 @login_required
+@perfil_requerido(ATENDENTE, ANALISTA, COMISSAO)
 def recalcular(request, pk):
     inscricao = get_object_or_404(Inscricao, pk=pk)
     r = services.calcular_e_salvar(inscricao)
@@ -238,6 +302,7 @@ def recalcular(request, pk):
 
 
 @login_required
+@perfil_requerido(ANALISTA, COMISSAO)
 def marcar_inapto(request, pk):
     inscricao = get_object_or_404(Inscricao, pk=pk)
     if request.method == "POST":
@@ -254,6 +319,7 @@ def marcar_inapto(request, pk):
 
 
 @login_required
+@perfil_requerido(ATENDENTE, ANALISTA)
 def finalizar(request, pk):
     inscricao = get_object_or_404(Inscricao, pk=pk)
     if request.method == "POST":
@@ -274,6 +340,8 @@ def finalizar(request, pk):
 @login_required
 def classificacao(request):
     if request.method == "POST":
+        if not em_perfil(request.user, COMISSAO):
+            raise PermissionDenied("Apenas a Comissão pode gerar a classificação.")
         itens = services.classificar_todos()
         empates = sum(1 for c in itens if c.empate_pendente_sorteio)
         messages.success(
@@ -285,7 +353,10 @@ def classificacao(request):
     itens = Classificacao.objects.select_related("inscricao__requerente").filter(
         posicao__isnull=False
     )
-    return render(request, "cadastro/classificacao.html", {"itens": itens})
+    return render(request, "cadastro/classificacao.html", {
+        "itens": itens,
+        "pode_classificar": em_perfil(request.user, COMISSAO),
+    })
 
 
 # --------------------------------------------------------------------------- #

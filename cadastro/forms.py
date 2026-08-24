@@ -65,13 +65,24 @@ class RequerenteInscricaoForm(forms.Form):
         return inscricao
 
 
-class InscricaoAnaliseForm(forms.ModelForm):
-    """Edição de contato/endereço, fatos dos Critérios Legais e aluguel."""
+class InscricaoContatoForm(forms.ModelForm):
+    """Dados declarados de contato/endereço (bloqueados após a finalização)."""
+
+    class Meta:
+        model = Inscricao
+        fields = ["telefone", "email", "endereco", "numero", "complemento", "bairro", "cep"]
+
+
+class AvaliacaoForm(forms.ModelForm):
+    """Fatos apurados pela análise: Critérios Legais, requisitos documentais e aluguel.
+
+    Editável pela análise mesmo após a finalização (procedimento autorizado e
+    registrado), pois não altera os dados declarados pelo candidato.
+    """
 
     class Meta:
         model = Inscricao
         fields = [
-            "telefone", "email", "endereco", "numero", "complemento", "bairro", "cep",
             "data_referencia",
             "habitacao_precaria_ou_risco", "matricula_comprovada",
             "residencia_5anos_comprovada", "nao_proprietario_declarado", "nao_beneficiado_declarado",

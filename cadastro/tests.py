@@ -197,9 +197,18 @@ class RequisitosTest(TestCase):
         self.assertFalse(r5.ok)
 
 
+def _com_perfil(username, *grupos):
+    from django.contrib.auth.models import Group
+
+    u = User.objects.create_user(username, password="x")
+    for g in grupos:
+        u.groups.add(Group.objects.get(name=g))
+    return u
+
+
 class ViewsSmokeTest(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user("srv", password="x")
+        self.user = _com_perfil("srv", "Atendente")
         self.client.force_login(self.user)
 
     def test_paginas_principais_respondem(self):
@@ -275,3 +284,76 @@ class RelatoriosTest(TestCase):
         # Sem PcD no núcleo → filtro pcd deve retornar planilha sem linhas de dados.
         resp = self.client.get(reverse("cadastro:rel_base"), {"pcd": "1"})
         self.assertEqual(resp.status_code, 200)
+
+
+class AcessoFluxoTest(TestCase):
+    def _inscricao_apta(self, cpf="fx1"):
+        req = Pessoa.objects.create(nome="Fx", cpf=cpf, data_nascimento=nasc(40), sexo="M")
+        insc = Inscricao.objects.create(
+            requerente=req, data_referencia=REF, status=Inscricao.Status.RECEBIDA,
+            habitacao_precaria_ou_risco=True, matricula_comprovada=True,
+            residencia_5anos_comprovada=True, nao_proprietario_declarado=True,
+            nao_beneficiado_declarado=True, bloqueada=True,
+        )
+        m = MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal("3000"))
+        f = Pessoa.objects.create(nome="Fi", cpf=cpf + "f", data_nascimento=nasc(5))
+        MembroNucleo.objects.create(inscricao=insc, pessoa=f, parentesco="FILHO")
+        services.calcular_e_salvar(insc)
+        return insc
+
+    def test_consulta_nao_cria_inscricao(self):
+        self.client.force_login(_com_perfil("cons", "Consulta"))
+        resp = self.client.get(reverse("cadastro:inscricao_nova"))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_atendente_nao_gera_classificacao(self):
+        self.client.force_login(_com_perfil("at", "Atendente"))
+        resp = self.client.post(reverse("cadastro:classificacao"))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_analista_inicia_e_valida_analise(self):
+        insc = self._inscricao_apta("fx2")
+        self.client.force_login(_com_perfil("an", "Analista"))
+        self.client.post(reverse("cadastro:transicionar", args=[insc.pk]),
+                         {"destino": Inscricao.Status.EM_ANALISE})
+        insc.refresh_from_db(); self.assertEqual(insc.status, Inscricao.Status.EM_ANALISE)
+        self.client.post(reverse("cadastro:transicionar", args=[insc.pk]),
+                         {"destino": Inscricao.Status.DOC_VALIDADA})
+        insc.refresh_from_db(); self.assertEqual(insc.status, Inscricao.Status.DOC_VALIDADA)
+
+    def test_analista_nao_homologa(self):
+        insc = self._inscricao_apta("fx3")
+        insc.status = Inscricao.Status.APTO
+        insc._alteracao_autorizada = True
+        insc.save()
+        self.client.force_login(_com_perfil("an2", "Analista"))
+        self.client.post(reverse("cadastro:transicionar", args=[insc.pk]),
+                         {"destino": Inscricao.Status.HOMOLOGADO})
+        insc.refresh_from_db()
+        self.assertEqual(insc.status, Inscricao.Status.APTO)  # não mudou
+
+    def test_comissao_homologa(self):
+        insc = self._inscricao_apta("fx4")
+        insc.status = Inscricao.Status.APTO
+        insc._alteracao_autorizada = True
+        insc.save()
+        self.client.force_login(_com_perfil("com", "Comissao"))
+        self.client.post(reverse("cadastro:transicionar", args=[insc.pk]),
+                         {"destino": Inscricao.Status.HOMOLOGADO})
+        insc.refresh_from_db()
+        self.assertEqual(insc.status, Inscricao.Status.HOMOLOGADO)
+
+    def test_apto_bloqueado_se_requisito_pendente(self):
+        # Núcleo sem os flags documentais → não apto → transição para APTO barrada.
+        req = Pessoa.objects.create(nome="Z", cpf="fx5", data_nascimento=nasc(40))
+        insc = Inscricao.objects.create(
+            requerente=req, data_referencia=REF, status=Inscricao.Status.DOC_VALIDADA
+        )
+        m = MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal("3000"))
+        self.client.force_login(_com_perfil("an3", "Analista"))
+        self.client.post(reverse("cadastro:transicionar", args=[insc.pk]),
+                         {"destino": Inscricao.Status.APTO})
+        insc.refresh_from_db()
+        self.assertEqual(insc.status, Inscricao.Status.DOC_VALIDADA)  # barrado

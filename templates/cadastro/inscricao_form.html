@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block titulo %}{% if novo %}Nova inscrição{% else %}Editar inscrição{% endif %} — MCMV{% endblock %}
 {% block content %}
-<h1>{% if novo %}Nova inscrição — Requerente{% else %}Editar — {{ inscricao.numero_inscricao }}{% endif %}</h1>
+<h1>{% if novo %}Nova inscrição — Requerente{% else %}{{ titulo|default:"Editar" }} — {{ inscricao.numero_inscricao }}{% endif %}</h1>
 <div class="card">
   <form method="post" class="pilha">
     {% csrf_token %}

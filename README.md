@@ -4,13 +4,11 @@ Sistema interno para operacionalizar o **Edital de Chamamento nº 001/2026** —
 análise, pontuação e classificação de Núcleos Familiares candidatos a subsídios do
 Programa Minha Casa, Minha Vida (Faixa 02), nos termos da Lei Municipal nº 2.064/2023.
 
-> **Status atual:** Fases 0 (design), 1 (motor), 2 (fundação Django), 3 (telas de
-> operação) e **5 (relatórios e exportação)** concluídas. Sistema web funcional: login,
-> painel com indicadores, cadastro de requerente/núcleo/renda, documentos com download
-> controlado, validação de requisitos, pontuação, finalização/bloqueio, classificação,
-> **exportações Excel com filtros e PDFs (ficha individual e classificação)**.
-> Falta a Fase 4 (fluxo de homologação e permissões finas por perfil) e o endurecimento
-> de produção (Fase 6).
+> **Status atual:** Fases 0–5 concluídas (só falta a Fase 6, endurecimento de produção).
+> Sistema web funcional: login, painel com indicadores, cadastro de requerente/núcleo/renda,
+> documentos com download controlado, validação de requisitos, pontuação, finalização/
+> bloqueio, **fluxo de homologação Atendente→Analista→Comissão com permissões por perfil**,
+> classificação, exportações Excel com filtros e PDFs (ficha individual e classificação).
 
 ## Estrutura
 

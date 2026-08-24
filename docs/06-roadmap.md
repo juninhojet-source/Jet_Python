@@ -49,10 +49,17 @@ Rodar: `python manage.py migrate && python manage.py test` (9 testes Django).
 - [x] Classificação com desempate e empates marcados para sorteio (M8)
 - [x] Testes de views + requisitos (total: 15 testes Django)
 
-## Fase 4 — Análise, pontuação e classificação
-- Integração do motor (Fase 1) com os dados (M7).
-- Homologação (Atendente → Analista → Comissão).
-- Classificação (M8): ordenação + desempate automático + marcação de empates para sorteio.
+## Fase 4 — Fluxo de homologação e permissões por perfil ✅
+- [x] `contas/acesso.py` — `em_perfil()` e decorador `perfil_requerido()` (Administrador/superuser sempre)
+- [x] `cadastro/fluxo.py` — máquina de transições de situação por perfil, registrada na auditoria
+- [x] Homologação **Atendente → Analista → Comissão** com botões contextuais na tela
+- [x] Regra: só vira **APTO** quando todos os requisitos estão atendidos
+- [x] Separação contato (bloqueia após finalização) × avaliação da análise (autorizada e auditada)
+- [x] Ações mutáveis protegidas por perfil (criar/editar/documentos/recalcular/inaptidão/classificar)
+- [x] Comando `python manage.py criar_servidor <login> --perfil <Perfil> --senha <senha>`
+- [x] Testes de acesso e fluxo (total: 25 testes Django)
+
+Nota: a integração do motor (M7) e a classificação/desempate (M8) foram entregues nas Fases 2/3.
 
 ## Fase 5 — Relatórios, exportação e dashboard ✅
 - [x] `cadastro/relatorios.py` — utilitários de Excel (openpyxl) e PDF (reportlab)
