@@ -43,11 +43,25 @@ def dashboard(request):
     for linha in qs.values("status").annotate(n=Count("id")):
         contagem[linha["status"]] = linha["n"]
     linhas = [(rotulo, contagem[valor]) for valor, rotulo in Inscricao.Status.choices]
+    faixas = [
+        ("Sem pontos / não calculado", qs.filter(pontuacao_total__isnull=True).count()
+         + qs.filter(pontuacao_total=0).count()),
+        ("1 a 100", qs.filter(pontuacao_total__gte=1, pontuacao_total__lte=100).count()),
+        ("101 a 160", qs.filter(pontuacao_total__gte=101, pontuacao_total__lte=160).count()),
+        ("161 a 190", qs.filter(pontuacao_total__gte=161, pontuacao_total__lte=190).count()),
+    ]
     ctx = {
         "total": qs.count(),
         "linhas": linhas,
+        "faixas": faixas,
         "com_deficiencia": qs.filter(membros__pessoa__pcd=True).distinct().count(),
         "com_risco": qs.filter(habitacao_precaria_ou_risco=True).count(),
+        "com_mulher_arrimo": qs.filter(
+            membros__arrimo=True, membros__pessoa__sexo="F"
+        ).distinct().count(),
+        "empates": Inscricao.objects.filter(
+            classificacao__empate_pendente_sorteio=True
+        ).count(),
     }
     return render(request, "cadastro/dashboard.html", ctx)
 
@@ -272,3 +286,172 @@ def classificacao(request):
         posicao__isnull=False
     )
     return render(request, "cadastro/classificacao.html", {"itens": itens})
+
+
+# --------------------------------------------------------------------------- #
+# Relatórios e exportação (Fase 5)
+# --------------------------------------------------------------------------- #
+from . import relatorios  # noqa: E402
+from .models import Classificacao  # noqa: E402
+
+
+@login_required
+def relatorios_index(request):
+    return render(request, "cadastro/relatorios.html", {
+        "status_choices": Inscricao.Status.choices,
+    })
+
+
+def _linha_inscricao(i):
+    membros = list(i.membros.all())
+    ref = i.data_referencia or i.data_inscricao.date()
+
+    def idade(p):
+        return ref.year - p.pessoa.data_nascimento.year - (
+            (ref.month, ref.day) < (p.pessoa.data_nascimento.month, p.pessoa.data_nascimento.day)
+        )
+
+    ate12 = sum(1 for m in membros if idade(m) <= 12)
+    idosos = sum(1 for m in membros if idade(m) >= 60)
+    pcd = sum(1 for m in membros if m.pessoa.pcd)
+    pos = getattr(getattr(i, "classificacao", None), "posicao", None)
+    return [
+        i.numero_inscricao, i.requerente.nome, i.requerente.cpf, i.get_status_display(),
+        len(membros), ate12, idosos, pcd,
+        i.renda_bruta_computavel or 0, i.renda_per_capita or 0, i.percentual_aluguel or 0,
+        i.pontos_legais or 0, i.pontos_complementares or 0, i.pontuacao_total or 0,
+        pos or "",
+    ]
+
+
+CAB_BASE = [
+    "Nº", "Requerente", "CPF", "Situação", "Integrantes", "≤12 anos", "Idosos", "PcD",
+    "Renda computável", "Per capita", "% aluguel", "CL", "CC", "Total", "Posição",
+]
+
+
+@login_required
+def rel_base(request):
+    qs = Inscricao.objects.select_related("requerente").prefetch_related("membros__pessoa")
+    status = request.GET.get("status", "").strip()
+    if status:
+        qs = qs.filter(status=status)
+    if request.GET.get("risco"):
+        qs = qs.filter(habitacao_precaria_ou_risco=True)
+    pmin = request.GET.get("pmin", "").strip()
+    pmax = request.GET.get("pmax", "").strip()
+    if pmin:
+        qs = qs.filter(pontuacao_total__gte=int(pmin))
+    if pmax:
+        qs = qs.filter(pontuacao_total__lte=int(pmax))
+
+    linhas = [_linha_inscricao(i) for i in qs]
+    if request.GET.get("pcd"):
+        linhas = [l for l in linhas if l[7]]  # coluna PcD
+    if request.GET.get("criancas"):
+        linhas = [l for l in linhas if l[5]]  # coluna ≤12
+    if request.GET.get("idosos"):
+        linhas = [l for l in linhas if l[6]]  # coluna idosos
+    return relatorios.planilha_response("base_mcmv.xlsx", CAB_BASE, linhas)
+
+
+@login_required
+def rel_classificacao_xlsx(request):
+    itens = Classificacao.objects.select_related("inscricao__requerente").filter(
+        posicao__isnull=False
+    )
+    cab = ["Posição", "Nº", "Requerente", "CPF", "CL", "CC", "Total", "≤12", "Idosos", "Empate/Sorteio"]
+    linhas = [
+        [c.posicao, c.inscricao.numero_inscricao, c.inscricao.requerente.nome,
+         c.inscricao.requerente.cpf, c.inscricao.pontos_legais or 0,
+         c.inscricao.pontos_complementares or 0, c.pontuacao, c.dependentes_ate_12,
+         c.idosos, "Sim" if c.empate_pendente_sorteio else "Não"]
+        for c in itens
+    ]
+    return relatorios.planilha_response("classificacao.xlsx", cab, linhas)
+
+
+@login_required
+def rel_classificacao_pdf(request):
+    itens = Classificacao.objects.select_related("inscricao__requerente").filter(
+        posicao__isnull=False
+    )
+    return relatorios.classificacao_pdf(itens)
+
+
+@login_required
+def rel_ficha_pdf(request, pk):
+    inscricao = get_object_or_404(
+        Inscricao.objects.select_related("requerente").prefetch_related(
+            "membros__pessoa", "criterios_legais"
+        ),
+        pk=pk,
+    )
+    return relatorios.ficha_pdf(inscricao)
+
+
+@login_required
+def rel_pendentes(request):
+    docs = Documento.objects.select_related("inscricao__requerente", "pessoa").filter(
+        obrigatorio=True
+    ).exclude(status=Documento.Status.APROVADO)
+    cab = ["Nº inscrição", "Requerente", "Documento", "Pessoa", "Situação"]
+    linhas = [
+        [d.inscricao.numero_inscricao, d.inscricao.requerente.nome, d.tipo,
+         d.pessoa.nome if d.pessoa else "", d.get_status_display()]
+        for d in docs
+    ]
+    return relatorios.planilha_response("documentacao_pendente.xlsx", cab, linhas)
+
+
+@login_required
+def rel_indeferidos(request):
+    qs = Inscricao.objects.select_related("requerente").filter(
+        status__in=[Inscricao.Status.INAPTO, Inscricao.Status.INDEFERIDO]
+    )
+    cab = ["Nº", "Requerente", "CPF", "Situação", "Motivo"]
+    linhas = [
+        [i.numero_inscricao, i.requerente.nome, i.requerente.cpf, i.get_status_display(),
+         i.motivo_inaptidao]
+        for i in qs
+    ]
+    return relatorios.planilha_response("indeferidos.xlsx", cab, linhas)
+
+
+@login_required
+def rel_aptos(request):
+    qs = Inscricao.objects.select_related("requerente").prefetch_related("membros__pessoa").filter(
+        status__in=services.STATUS_CLASSIFICAVEIS
+    )
+    linhas = [_linha_inscricao(i) for i in qs]
+    return relatorios.planilha_response("aptos.xlsx", CAB_BASE, linhas)
+
+
+@login_required
+def rel_empates(request):
+    itens = Classificacao.objects.select_related("inscricao__requerente").filter(
+        empate_pendente_sorteio=True
+    )
+    cab = ["Posição", "Nº", "Requerente", "Pontos", "≤12", "Idosos"]
+    linhas = [
+        [c.posicao, c.inscricao.numero_inscricao, c.inscricao.requerente.nome,
+         c.pontuacao, c.dependentes_ate_12, c.idosos]
+        for c in itens
+    ]
+    return relatorios.planilha_response("empates_sorteio.xlsx", cab, linhas)
+
+
+@login_required
+def rel_auditoria(request):
+    from auditoria.models import Auditoria
+
+    regs = Auditoria.objects.select_related("usuario")[:5000]
+    cab = ["Data/hora", "Usuário", "IP", "Operação", "Tabela", "Registro", "Campo",
+           "Valor anterior", "Valor novo", "Justificativa"]
+    linhas = [
+        [r.data_hora.strftime("%d/%m/%Y %H:%M"), r.usuario.get_username() if r.usuario else "",
+         r.ip or "", r.get_operacao_display(), r.tabela, r.registro_id, r.campo,
+         r.valor_anterior, r.valor_novo, r.justificativa]
+        for r in regs
+    ]
+    return relatorios.planilha_response("auditoria.xlsx", cab, linhas)

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block titulo %}Relatórios — MCMV{% endblock %}
+{% block content %}
+<h1>Relatórios e exportação</h1>
+
+<h2>Classificação</h2>
+<div class="card">
+  <a class="btn" href="{% url 'cadastro:rel_classificacao_pdf' %}" target="_blank">Classificação (PDF)</a>
+  <a class="btn secundario" href="{% url 'cadastro:rel_classificacao_xlsx' %}">Classificação (Excel)</a>
+  <a class="btn secundario" href="{% url 'cadastro:rel_empates' %}">Empates p/ sorteio (Excel)</a>
+</div>
+
+<h2>Listagens (Excel)</h2>
+<div class="card">
+  <a class="btn secundario" href="{% url 'cadastro:rel_aptos' %}">Aptos</a>
+  <a class="btn secundario" href="{% url 'cadastro:rel_indeferidos' %}">Indeferidos / não aptos (com motivo)</a>
+  <a class="btn secundario" href="{% url 'cadastro:rel_pendentes' %}">Documentação pendente</a>
+  <a class="btn secundario" href="{% url 'cadastro:rel_auditoria' %}">Auditoria</a>
+</div>
+
+<h2>Exportar base de dados (Excel) com filtros</h2>
+<div class="card">
+  <form method="get" action="{% url 'cadastro:rel_base' %}" class="pilha">
+    <div class="grid2">
+      <div>
+        <label>Situação</label>
+        <select name="status">
+          <option value="">Todas</option>
+          {% for valor, rotulo in status_choices %}<option value="{{ valor }}">{{ rotulo }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="grid2">
+        <div><label>Pontuação mínima</label><input type="number" name="pmin"></div>
+        <div><label>Pontuação máxima</label><input type="number" name="pmax"></div>
+      </div>
+    </div>
+    <div class="check"><input type="checkbox" name="risco" value="1"> <label>Somente habitação em risco</label></div>
+    <div class="check"><input type="checkbox" name="pcd" value="1"> <label>Somente com pessoa com deficiência</label></div>
+    <div class="check"><input type="checkbox" name="criancas" value="1"> <label>Somente com crianças ≤ 12</label></div>
+    <div class="check"><input type="checkbox" name="idosos" value="1"> <label>Somente com idosos</label></div>
+    <div style="margin-top:1rem"><button class="btn" type="submit">Exportar Excel</button></div>
+  </form>
+</div>
+
+<p class="trilha">A ficha individual em PDF está disponível na tela de cada inscrição.</p>
+{% endblock %}

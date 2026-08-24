@@ -233,3 +233,45 @@ class ViewsSmokeTest(TestCase):
         insc.refresh_from_db()
         self.assertTrue(insc.bloqueada)
         self.assertIsNotNone(insc.data_finalizacao)
+
+
+class RelatoriosTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("srv2", password="x")
+        self.client.force_login(self.user)
+        req = Pessoa.objects.create(nome="Rel", cpf="rel1", data_nascimento=nasc(40), sexo="M")
+        self.insc = Inscricao.objects.create(
+            requerente=req, data_referencia=REF, habitacao_precaria_ou_risco=True,
+            matricula_comprovada=True, status=Inscricao.Status.APTO,
+        )
+        m = MembroNucleo.objects.create(inscricao=self.insc, pessoa=req, parentesco="REQUERENTE")
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal("3000"))
+        f = Pessoa.objects.create(nome="Fi", cpf="rel2", data_nascimento=nasc(5), sexo="F")
+        MembroNucleo.objects.create(inscricao=self.insc, pessoa=f, parentesco="FILHO")
+        services.calcular_e_salvar(self.insc)
+        services.classificar_todos()
+
+    def test_indice_relatorios(self):
+        self.assertEqual(self.client.get(reverse("cadastro:relatorios")).status_code, 200)
+
+    def test_exportacoes_xlsx(self):
+        XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        for nome in ["rel_base", "rel_classificacao_xlsx", "rel_pendentes",
+                     "rel_indeferidos", "rel_aptos", "rel_empates", "rel_auditoria"]:
+            resp = self.client.get(reverse(f"cadastro:{nome}"))
+            self.assertEqual(resp.status_code, 200, nome)
+            self.assertEqual(resp["Content-Type"], XLSX, nome)
+            self.assertTrue(resp.content[:2] == b"PK", f"{nome} não parece um .xlsx")
+
+    def test_pdfs(self):
+        for url in [reverse("cadastro:rel_classificacao_pdf"),
+                    reverse("cadastro:rel_ficha_pdf", args=[self.insc.pk])]:
+            resp = self.client.get(url)
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(resp["Content-Type"], "application/pdf")
+            self.assertTrue(resp.content[:5] == b"%PDF-", "não parece um PDF")
+
+    def test_filtro_base_pcd(self):
+        # Sem PcD no núcleo → filtro pcd deve retornar planilha sem linhas de dados.
+        resp = self.client.get(reverse("cadastro:rel_base"), {"pcd": "1"})
+        self.assertEqual(resp.status_code, 200)

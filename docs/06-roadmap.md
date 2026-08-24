@@ -54,9 +54,16 @@ Rodar: `python manage.py migrate && python manage.py test` (9 testes Django).
 - Homologação (Atendente → Analista → Comissão).
 - Classificação (M8): ordenação + desempate automático + marcação de empates para sorteio.
 
-## Fase 5 — Relatórios, exportação e dashboard
-- M9 (ficha PDF, classificação PDF/Excel, pendências, indeferidos, aptos, empates, auditoria).
-- M1 (dashboard de indicadores).
+## Fase 5 — Relatórios, exportação e dashboard ✅
+- [x] `cadastro/relatorios.py` — utilitários de Excel (openpyxl) e PDF (reportlab)
+- [x] Ficha individual em **PDF** (por inscrição)
+- [x] Classificação em **PDF** e **Excel**
+- [x] Exportações **Excel**: base com filtros (situação, faixa de pontos, PcD, crianças,
+      idosos, risco), aptos, indeferidos/não aptos (com motivo), documentação pendente,
+      empates para sorteio e auditoria
+- [x] Central de relatórios (`/relatorios/`) e link "Ficha (PDF)" em cada inscrição
+- [x] Dashboard (M1) com KPIs e distribuição por faixa de pontuação
+- [x] Testes gerando .xlsx e .pdf reais (total: 19 testes Django)
 
 ## Fase 6 — Endurecimento e implantação
 - Revisão de segurança/LGPD; HTTPS; backup criptografado.

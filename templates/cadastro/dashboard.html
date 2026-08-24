@@ -7,16 +7,29 @@
   <div class="kpi"><div class="num">{{ total }}</div><div class="rot">Total de inscrições</div></div>
   <div class="kpi"><div class="num">{{ com_risco }}</div><div class="rot">Habitação em risco</div></div>
   <div class="kpi"><div class="num">{{ com_deficiencia }}</div><div class="rot">Com pessoa com deficiência</div></div>
+  <div class="kpi"><div class="num">{{ com_mulher_arrimo }}</div><div class="rot">Mulher como arrimo</div></div>
+  <div class="kpi"><div class="num">{{ empates }}</div><div class="rot">Empates p/ sorteio</div></div>
 </div>
 
-<h2>Por situação</h2>
-<table>
-  <thead><tr><th>Situação</th><th>Quantidade</th></tr></thead>
-  <tbody>
-    {% for rotulo, n in linhas %}
-    <tr><td>{{ rotulo }}</td><td>{{ n }}</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
-<p class="trilha">Dica: use “Inscrições” para buscar e filtrar por situação.</p>
+<div class="grid2">
+  <div>
+    <h2>Por situação</h2>
+    <table>
+      <thead><tr><th>Situação</th><th>Qtd.</th></tr></thead>
+      <tbody>
+        {% for rotulo, n in linhas %}<tr><td>{{ rotulo }}</td><td>{{ n }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div>
+    <h2>Por faixa de pontuação</h2>
+    <table>
+      <thead><tr><th>Faixa</th><th>Qtd.</th></tr></thead>
+      <tbody>
+        {% for rotulo, n in faixas %}<tr><td>{{ rotulo }}</td><td>{{ n }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<p class="trilha">Use “Inscrições” para buscar/filtrar e “Relatórios” para exportar.</p>
 {% endblock %}

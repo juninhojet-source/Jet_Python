@@ -25,6 +25,7 @@
     <a class="btn secundario" href="{% url 'cadastro:membro_novo' inscricao.pk %}">+ Integrante</a>
     {% endif %}
     <a class="btn secundario" href="{% url 'cadastro:documentos' inscricao.pk %}">Documentos</a>
+    <a class="btn secundario" href="{% url 'cadastro:rel_ficha_pdf' inscricao.pk %}" target="_blank">Ficha (PDF)</a>
     <form method="post" action="{% url 'cadastro:recalcular' inscricao.pk %}" style="display:inline">
       {% csrf_token %}<button class="btn" type="submit">Recalcular pontuação</button>
     </form>

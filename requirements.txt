@@ -1,6 +1,8 @@
 # Dependências de runtime
 PyYAML>=6.0        # leitura dos parâmetros do edital (motor de pontuação)
 Django>=5.0        # aplicação web (Fase 2+)
+openpyxl>=3.1      # exportação de planilhas .xlsx (Fase 5)
+reportlab>=4.0     # geração de PDFs (ficha individual, classificação) (Fase 5)
 
 # Produção (PostgreSQL) — descomente ao migrar do SQLite:
 # psycopg[binary]>=3.1
