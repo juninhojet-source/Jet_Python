@@ -10,16 +10,44 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Carrega variáveis de um arquivo .env, se python-dotenv estiver instalado.
+try:  # opcional — em produção as variáveis podem vir do systemd/ambiente
+    from dotenv import load_dotenv
+
+    load_dotenv(BASE_DIR / ".env")
+except ImportError:
+    pass
+
+
+def _env_bool(nome: str, padrao: str = "0") -> bool:
+    return os.environ.get(nome, padrao) == "1"
 
 # --- Segurança ------------------------------------------------------------- #
 # Em produção, defina SECRET_KEY por variável de ambiente. O default abaixo é
 # apenas para desenvolvimento e NÃO deve ir para produção.
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY", "dev-inseguro-troque-em-producao-por-favor"
-)
-DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+_SECRET_DEV = "dev-inseguro-troque-em-producao-por-favor"
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", _SECRET_DEV)
+DEBUG = _env_bool("DJANGO_DEBUG", "1")
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if h.strip()
+]
+CSRF_TRUSTED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
+    if o.strip()
+]
+
+# Em produção, exige SECRET_KEY própria (nunca a de desenvolvimento).
+if not DEBUG and SECRET_KEY == _SECRET_DEV:
+    raise ImproperlyConfigured(
+        "Defina DJANGO_SECRET_KEY em produção (DJANGO_DEBUG=0)."
+    )
 
 # --- Aplicações ------------------------------------------------------------ #
 INSTALLED_APPS = [
@@ -77,6 +105,8 @@ if os.environ.get("POSTGRES_DB"):
             "PASSWORD": os.environ.get("POSTGRES_PASSWORD", ""),
             "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
             "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+            "CONN_MAX_AGE": int(os.environ.get("POSTGRES_CONN_MAX_AGE", "60")),
+            "OPTIONS": {"sslmode": os.environ.get("POSTGRES_SSLMODE", "prefer")},
         }
     }
 else:
@@ -124,13 +154,45 @@ SESSION_COOKIE_AGE = int(os.environ.get("DJANGO_SESSION_AGE", 30 * 60))  # 30 mi
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 CSRF_COOKIE_HTTPONLY = False  # o token precisa ser lido por formulários
 
+# Cabeçalhos de segurança válidos em qualquer ambiente.
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+SECURE_REFERRER_POLICY = "same-origin"
+
 if not DEBUG:
+    # Atrás de proxy/HTTPS (nginx). Ajuste conforme a infraestrutura.
+    if _env_bool("DJANGO_BEHIND_PROXY", "1"):
+        SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", 31536000))
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_PRELOAD = True
+
+# Logging (console + arquivo rotacionável em produção).
+_LOG_DIR = Path(os.environ.get("MCMV_LOG_DIR", BASE_DIR / "logs"))
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {"format": "{asctime} [{levelname}] {name}: {message}", "style": "{"}
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "verbose"},
+    },
+    "root": {"handlers": ["console"], "level": os.environ.get("DJANGO_LOG_LEVEL", "INFO")},
+}
+if not DEBUG:
+    _LOG_DIR.mkdir(parents=True, exist_ok=True)
+    LOGGING["handlers"]["arquivo"] = {
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": str(_LOG_DIR / "mcmv.log"),
+        "maxBytes": 5 * 1024 * 1024,
+        "backupCount": 5,
+        "formatter": "verbose",
+    }
+    LOGGING["root"]["handlers"].append("arquivo")
 
 # Caminho dos parâmetros do edital (usado pelo motor de pontuação).
 PARAMETROS_EDITAL = os.environ.get(

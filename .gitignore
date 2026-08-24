@@ -220,3 +220,7 @@ __marimo__/
 # Projeto MCMV — artefatos locais
 /media_protegida/
 /staticfiles/
+
+# Projeto MCMV — segredos e logs
+.env
+/logs/

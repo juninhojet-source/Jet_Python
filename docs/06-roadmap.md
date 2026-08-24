@@ -72,9 +72,18 @@ Nota: a integração do motor (M7) e a classificação/desempate (M8) foram entr
 - [x] Dashboard (M1) com KPIs e distribuição por faixa de pontuação
 - [x] Testes gerando .xlsx e .pdf reais (total: 19 testes Django)
 
-## Fase 6 — Endurecimento e implantação
-- Revisão de segurança/LGPD; HTTPS; backup criptografado.
-- Migração para PostgreSQL; testes de restauração; homologação com a Comissão.
+## Fase 6 — Endurecimento e implantação ✅
+- [x] `settings` por ambiente (`.env` opcional): `DEBUG`, `SECRET_KEY`, `ALLOWED_HOSTS`,
+      `CSRF_TRUSTED_ORIGINS`, PostgreSQL com `sslmode`/`CONN_MAX_AGE`
+- [x] Guarda que **recusa iniciar** em produção com a `SECRET_KEY` de desenvolvimento
+- [x] Cabeçalhos de segurança (HSTS, cookies Secure, nosniff, X-Frame-Options DENY,
+      Referrer-Policy) e `SECURE_PROXY_SSL_HEADER` atrás de proxy
+- [x] Logging com rotação de arquivo em produção
+- [x] `.env.example` e `docs/07-implantacao.md` (gunicorn + nginx, HTTPS, LGPD/retenção)
+- [x] Backup **criptografado** (GPG) do banco + documentos: `scripts/backup.sh` / `restore.sh`
+- [x] `python manage.py check --deploy` sem alertas
+
+Ver [07-implantacao.md](07-implantacao.md).
 
 ## Princípio transversal
 Toda regra do edital é **parâmetro**, não código. Mudou o edital → muda o YAML e os testes;

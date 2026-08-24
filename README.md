@@ -4,11 +4,12 @@ Sistema interno para operacionalizar o **Edital de Chamamento nº 001/2026** —
 análise, pontuação e classificação de Núcleos Familiares candidatos a subsídios do
 Programa Minha Casa, Minha Vida (Faixa 02), nos termos da Lei Municipal nº 2.064/2023.
 
-> **Status atual:** Fases 0–5 concluídas (só falta a Fase 6, endurecimento de produção).
-> Sistema web funcional: login, painel com indicadores, cadastro de requerente/núcleo/renda,
+> **Status atual:** Fases 0–6 concluídas — o sistema cobre o ciclo completo do edital e
+> está preparado para produção. Login, painel, cadastro de requerente/núcleo/renda,
 > documentos com download controlado, validação de requisitos, pontuação, finalização/
 > bloqueio, **fluxo de homologação Atendente→Analista→Comissão com permissões por perfil**,
-> classificação, exportações Excel com filtros e PDFs (ficha individual e classificação).
+> classificação, exportações Excel/PDF, e endurecimento de produção (env, HTTPS/HSTS,
+> logging, backup criptografado). Ver [`docs/07-implantacao.md`](docs/07-implantacao.md).
 
 ## Estrutura
 
@@ -58,6 +59,7 @@ Se o edital mudar, altera-se o parâmetro — não o motor.
 | [`docs/04-regras-de-negocio.md`](docs/04-regras-de-negocio.md) | Matriz completa de regras do edital (requisitos, pontuação, desempate) |
 | [`docs/05-seguranca-lgpd.md`](docs/05-seguranca-lgpd.md) | Controle de acesso, auditoria, LGPD e guarda de documentos |
 | [`docs/06-roadmap.md`](docs/06-roadmap.md) | Fases de desenvolvimento sugeridas |
+| [`docs/07-implantacao.md`](docs/07-implantacao.md) | Implantação em produção, HTTPS, backup criptografado e LGPD |
 | [`regras/parametros_edital.yaml`](regras/parametros_edital.yaml) | **Parâmetros do edital em formato legível por máquina** (fonte única da verdade para o motor de pontuação) |
 
 ## Stack (definida)
