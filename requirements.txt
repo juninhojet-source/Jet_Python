@@ -1,2 +1,6 @@
-# Dependências de runtime do motor de pontuação (Fase 1)
-PyYAML>=6.0
+# Dependências de runtime
+PyYAML>=6.0        # leitura dos parâmetros do edital (motor de pontuação)
+Django>=5.0        # aplicação web (Fase 2+)
+
+# Produção (PostgreSQL) — descomente ao migrar do SQLite:
+# psycopg[binary]>=3.1

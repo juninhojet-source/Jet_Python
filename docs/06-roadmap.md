@@ -23,10 +23,18 @@ familiar, retorna `CL`, `CC`, `P`, a faixa de cada complementar e as chaves de d
 
 Rodar os testes: `pip install -r requirements-dev.txt && python -m pytest` (56 testes).
 
-## Fase 2 — Fundação Django + modelos
-- Projeto Django, `settings` com SQLite (dev) e PostgreSQL (prod) por variável de ambiente.
-- Models do [03-modelo-de-dados](03-modelo-de-dados.md); migrações; Django Admin básico.
-- Autenticação e perfis; middleware de **auditoria** (append-only).
+## Fase 2 — Fundação Django + modelos ✅
+- [x] Projeto Django (`config/`), `settings` com SQLite (dev) e PostgreSQL (prod) por env
+- [x] Models do [03-modelo-de-dados](03-modelo-de-dados.md) (`cadastro/models.py`) + migrações
+- [x] Django Admin com inlines e ações "recalcular pontuação" / "gerar classificação"
+- [x] Perfis de acesso como Grupos (`contas/`) — Administrador, Atendente, Analista, Comissão, Consulta
+- [x] **Auditoria append-only** (`auditoria/`): middleware de usuário/IP + mixin que
+      registra criação, alteração campo a campo e exclusão
+- [x] **Bloqueio pós-finalização** da inscrição (Anexo II) no `save()`
+- [x] Ponte com o motor da Fase 1 (`cadastro/services.py`): recálculo e classificação
+- [x] Testes de integração (`cadastro/tests.py`) — 9 testes
+
+Rodar: `python manage.py migrate && python manage.py test` (9 testes Django).
 
 ## Fase 3 — Cadastro
 - Telas M2 (requerente), M3 (composição), M4 (renda), M5 (documentos com upload controlado).

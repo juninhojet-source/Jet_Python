@@ -4,17 +4,37 @@ Sistema interno para operacionalizar o **Edital de Chamamento nº 001/2026** —
 análise, pontuação e classificação de Núcleos Familiares candidatos a subsídios do
 Programa Minha Casa, Minha Vida (Faixa 02), nos termos da Lei Municipal nº 2.064/2023.
 
-> **Status atual:** Fase 0 (design) concluída + **Fase 1 (motor de pontuação) concluída**.
-> O repositório contém os documentos de especificação, o modelo de dados, a **matriz de
-> regras parametrizada** do edital e o **motor de pontuação** (`motor/`) coberto por testes.
-> A aplicação Django (Fase 2+) será construída sobre esta fundação.
+> **Status atual:** Fases 0 (design), 1 (motor de pontuação) e **2 (fundação Django)**
+> concluídas. O repositório contém os documentos, a **matriz de regras parametrizada**, o
+> **motor de pontuação** (`motor/`) e a **aplicação Django** (`config/`, `cadastro/`,
+> `auditoria/`, `contas/`) com models, admin, auditoria append-only e integração do motor.
+> As telas de operação (formulários, upload, relatórios) vêm na Fase 3.
 
-## Rodar o motor de pontuação
+## Estrutura
+
+```
+motor/       Motor de pontuação puro (Fase 1) — lê regras/parametros_edital.yaml
+config/      Projeto Django (settings, urls, wsgi)
+cadastro/    App principal: models, admin, services (ponte com o motor)
+auditoria/   Trilha append-only: middleware de usuário/IP + mixin de log
+contas/      Perfis de acesso (Grupos do Django)
+tests/       Testes do motor (pytest)
+```
+
+## Rodar
 
 ```bash
 pip install -r requirements-dev.txt
-python -m pytest                     # 56 testes (todas as bordas de faixa + aceitação)
-python examples/demo_pontuacao.py    # exemplo verificável do edital (= 141 pontos)
+
+# Motor de pontuação (pytest) — 56 testes
+python -m pytest
+python examples/demo_pontuacao.py     # exemplo verificável do edital (= 141 pontos)
+
+# Aplicação Django — 9 testes de integração
+python manage.py migrate
+python manage.py test
+python manage.py createsuperuser      # cria acesso ao admin
+python manage.py runserver            # http://127.0.0.1:8000/admin/
 ```
 
 ## Por que design primeiro

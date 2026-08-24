@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Projeto MCMV — artefatos locais
+/media_protegida/
+/staticfiles/
