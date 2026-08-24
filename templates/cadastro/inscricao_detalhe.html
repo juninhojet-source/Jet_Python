@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block titulo %}{{ inscricao.numero_inscricao }} — MCMV{% endblock %}
+{% block content %}
+<h1>Inscrição {{ inscricao.numero_inscricao }}
+  <span class="badge">{{ inscricao.get_status_display }}</span>
+  {% if inscricao.bloqueada %}<span class="badge" style="background:#fbe3e1;color:#b3261e">🔒 bloqueada</span>{% endif %}
+</h1>
+
+<div class="card">
+  <div class="grid2">
+    <div>
+      <strong>{{ inscricao.requerente.nome }}</strong><br>
+      CPF: {{ inscricao.requerente.cpf }}<br>
+      Nasc.: {{ inscricao.requerente.data_nascimento }}<br>
+      {{ inscricao.telefone }} · {{ inscricao.email }}
+    </div>
+    <div>
+      {{ inscricao.endereco }} {{ inscricao.numero }} {{ inscricao.complemento }}<br>
+      {{ inscricao.bairro }} · {{ inscricao.cep }}
+    </div>
+  </div>
+  <div style="margin-top:1rem">
+    {% if not inscricao.bloqueada %}
+    <a class="btn secundario" href="{% url 'cadastro:inscricao_editar' inscricao.pk %}">Editar dados / critérios</a>
+    <a class="btn secundario" href="{% url 'cadastro:membro_novo' inscricao.pk %}">+ Integrante</a>
+    {% endif %}
+    <a class="btn secundario" href="{% url 'cadastro:documentos' inscricao.pk %}">Documentos</a>
+    <form method="post" action="{% url 'cadastro:recalcular' inscricao.pk %}" style="display:inline">
+      {% csrf_token %}<button class="btn" type="submit">Recalcular pontuação</button>
+    </form>
+    {% if not inscricao.bloqueada %}
+    <form method="post" action="{% url 'cadastro:finalizar' inscricao.pk %}" style="display:inline"
+      onsubmit="return confirm('Finalizar e BLOQUEAR a inscrição? Após isso, alterações só por procedimento administrativo.');">
+      {% csrf_token %}<button class="btn perigo" type="submit">Finalizar e bloquear</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<h2>Validação de requisitos {% if apto %}<span class="ok">— APTO</span>{% else %}<span class="nao">— NÃO APTO</span>{% endif %}</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>Requisito</th><th>Origem</th><th>Situação</th></tr></thead>
+    <tbody>
+      {% for r in requisitos %}
+      <tr>
+        <td>{{ r.codigo }} — {{ r.descricao }}</td>
+        <td>{% if r.automatico %}automático{% else %}análise{% endif %}</td>
+        <td>{% if r.ok %}<span class="ok">🟢 OK</span>{% else %}<span class="nao">🔴 não atendido</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if not apto %}
+  <form method="post" action="{% url 'cadastro:marcar_inapto' inscricao.pk %}" class="pilha" style="margin-top:1rem">
+    {% csrf_token %}
+    <label>Motivo da inaptidão (exige confirmação humana — item 6 / D-5)</label>
+    <input type="text" name="motivo" value="{{ inscricao.motivo_inaptidao }}">
+    <div style="margin-top:.6rem"><button class="btn perigo" type="submit">Marcar como NÃO APTO</button></div>
+  </form>
+  {% endif %}
+</div>
+
+<h2>Composição do núcleo familiar</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>Nome</th><th>Parentesco</th><th>Nasc.</th><th>Arrimo</th><th>Rendas</th><th></th></tr></thead>
+    <tbody>
+      {% for m in membros %}
+      <tr>
+        <td>{{ m.pessoa.nome }}{% if m.pessoa.pcd %} <span class="badge">PcD</span>{% endif %}</td>
+        <td>{{ m.get_parentesco_display }}</td>
+        <td>{{ m.pessoa.data_nascimento }}</td>
+        <td>{% if m.arrimo %}sim{% else %}—{% endif %}</td>
+        <td>
+          {% for r in m.rendas.all %}
+            {{ r.get_tipo_display }}: R$ {{ r.valor }}{% if not r.computavel %} <em>(não comput.)</em>{% endif %}<br>
+          {% empty %}—{% endfor %}
+        </td>
+        <td>{% if not inscricao.bloqueada %}<a class="btn pequeno secundario" href="{% url 'cadastro:renda_nova' m.pk %}">+ renda</a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2>Pontuação</h2>
+<div class="card">
+  <div class="grid2">
+    <div>
+      <strong>Critérios Legais</strong>
+      <table>
+        {% for c in criterios_legais %}
+        <tr><td>{{ c.get_inciso_display }}</td>
+          <td>{% if c.atendido %}<span class="ok">✓</span>{% else %}·{% endif %}</td>
+          <td style="text-align:right">{{ c.pontos }} pts</td></tr>
+        {% empty %}<tr><td>Ainda não calculado.</td></tr>{% endfor %}
+      </table>
+    </div>
+    <div>
+      <strong>Critérios Complementares</strong>
+      {% if complementar %}
+      <table>
+        <tr><td>Renda per capita: R$ {{ complementar.renda_per_capita }}</td><td style="text-align:right">{{ complementar.pontos_renda }} pts</td></tr>
+        <tr><td>Aluguel: {{ complementar.percentual|default:"—" }}%</td><td style="text-align:right">{{ complementar.pontos_aluguel }} pts</td></tr>
+      </table>
+      {% else %}<p class="trilha">Ainda não calculado.</p>{% endif %}
+    </div>
+  </div>
+  <hr style="border:none;border-top:1px solid #d6dce3;margin:1rem 0">
+  <div>
+    CL = {{ inscricao.pontos_legais|default:"—" }} · CC = {{ inscricao.pontos_complementares|default:"—" }}
+    &nbsp;→&nbsp; <span class="pontos-total">{{ inscricao.pontuacao_total|default:"—" }}</span> pontos
+    <span class="trilha">(máx. 190)</span>
+  </div>
+</div>
+{% endblock %}

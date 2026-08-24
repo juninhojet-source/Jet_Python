@@ -104,6 +104,7 @@ USE_TZ = True
 # --- Arquivos estáticos e de mídia ----------------------------------------- #
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Documentos (dados pessoais/sensíveis) NÃO ficam sob STATIC/URL pública.
 # São guardados em MEDIA_ROOT (fora da raiz web) e servidos por view autenticada.
@@ -111,6 +112,11 @@ MEDIA_ROOT = Path(os.environ.get("MCMV_MEDIA_ROOT", BASE_DIR / "media_protegida"
 MEDIA_URL = "/documentos/"  # roteado por view com checagem de permissão (Fase 3)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Autenticação
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "cadastro:dashboard"
+LOGOUT_REDIRECT_URL = "login"
 
 # --- Sessão e segurança web ------------------------------------------------ #
 SESSION_COOKIE_HTTPONLY = True

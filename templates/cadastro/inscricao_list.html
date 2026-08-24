@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block titulo %}Inscrições — MCMV{% endblock %}
+{% block content %}
+<h1>Inscrições</h1>
+
+<form method="get" class="card" style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:end">
+  <div style="flex:1;min-width:220px">
+    <label style="font-weight:600;font-size:.9rem">Buscar (nº, nome ou CPF)</label>
+    <input type="text" name="q" value="{{ q }}" style="width:100%;padding:.5rem;border:1px solid #d6dce3;border-radius:6px">
+  </div>
+  <div>
+    <label style="font-weight:600;font-size:.9rem">Situação</label><br>
+    <select name="status" style="padding:.5rem;border:1px solid #d6dce3;border-radius:6px">
+      <option value="">Todas</option>
+      {% for valor, rotulo in status_choices %}
+      <option value="{{ valor }}" {% if valor == status %}selected{% endif %}>{{ rotulo }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn" type="submit">Filtrar</button>
+  <a class="btn secundario" href="{% url 'cadastro:inscricao_nova' %}">+ Nova inscrição</a>
+</form>
+
+<table>
+  <thead><tr><th>Nº</th><th>Requerente</th><th>CPF</th><th>Situação</th><th>Pontos</th><th></th></tr></thead>
+  <tbody>
+    {% for i in inscricoes %}
+    <tr>
+      <td>{{ i.numero_inscricao }}</td>
+      <td>{{ i.requerente.nome }}</td>
+      <td>{{ i.requerente.cpf }}</td>
+      <td><span class="badge">{{ i.get_status_display }}</span></td>
+      <td>{{ i.pontuacao_total|default:"—" }}</td>
+      <td><a class="btn pequeno" href="{% url 'cadastro:inscricao_detalhe' i.pk %}">Abrir</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6">Nenhuma inscrição encontrada.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

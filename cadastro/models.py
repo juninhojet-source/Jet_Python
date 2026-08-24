@@ -86,6 +86,14 @@ class Inscricao(ModeloAuditavel):
     habitacao_precaria_ou_risco = models.BooleanField(default=False)  # CL_I
     matricula_comprovada = models.BooleanField(default=False)  # parte do CL_II
 
+    # Requisitos eliminatórios documentais (itens 3.1/6.1), confirmados pela análise.
+    residencia_5anos_comprovada = models.BooleanField("reside há ≥ 5 anos (comprovado)", default=False)
+    nao_proprietario_declarado = models.BooleanField("não é proprietário de imóvel", default=False)
+    nao_beneficiado_declarado = models.BooleanField("nunca beneficiado por prog. habitacional", default=False)
+
+    # Registro de inaptidão (item 6): exige confirmação humana (decisão D-5).
+    motivo_inaptidao = models.TextField(blank=True)
+
     # Aluguel (média dos 3 meses — item 8.8). Valores mensais em MembroNucleo? Não:
     # é do núcleo. Guardamos os meses como campos simples + flag de cedido.
     aluguel_mes_1 = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)

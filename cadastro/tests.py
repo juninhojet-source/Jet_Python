@@ -8,13 +8,15 @@ Rodar: ``python manage.py test``
 from datetime import date
 from decimal import Decimal
 
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from auditoria.models import Auditoria
 
-from . import services
+from . import requisitos, services
 from .models import Inscricao, MembroNucleo, Pessoa, Renda
 
 REF = date(2026, 9, 15)
@@ -159,3 +161,75 @@ class ClassificacaoTest(TestCase):
         a.refresh_from_db(); b.refresh_from_db()
         self.assertTrue(a.classificacao.empate_pendente_sorteio)
         self.assertTrue(b.classificacao.empate_pendente_sorteio)
+
+
+class RequisitosTest(TestCase):
+    def _inscricao(self, idade=40, renda="3000", brasileiro=True):
+        req = Pessoa.objects.create(
+            nome="R", cpf="req", data_nascimento=nasc(idade), sexo="M", brasileiro=brasileiro
+        )
+        insc = Inscricao.objects.create(requerente=req, data_referencia=REF)
+        m = MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal(renda))
+        return insc
+
+    def test_apto_com_flags_documentais(self):
+        insc = self._inscricao()
+        insc.residencia_5anos_comprovada = True
+        insc.nao_proprietario_declarado = True
+        insc.nao_beneficiado_declarado = True
+        insc._alteracao_autorizada = True
+        insc.save()
+        itens = requisitos.avaliar(insc)
+        self.assertTrue(requisitos.apto(itens))
+
+    def test_inapto_menor_de_idade(self):
+        insc = self._inscricao(idade=17)
+        itens = requisitos.avaliar(insc)
+        self.assertFalse(requisitos.apto(itens))
+        r1 = next(i for i in itens if i.codigo == "R1")
+        self.assertFalse(r1.ok)
+
+    def test_inapto_renda_acima_do_teto(self):
+        insc = self._inscricao(renda="9000")
+        itens = requisitos.avaliar(insc)
+        r5 = next(i for i in itens if i.codigo == "R5")
+        self.assertFalse(r5.ok)
+
+
+class ViewsSmokeTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("srv", password="x")
+        self.client.force_login(self.user)
+
+    def test_paginas_principais_respondem(self):
+        for nome in ["cadastro:dashboard", "cadastro:inscricao_list",
+                     "cadastro:inscricao_nova", "cadastro:classificacao"]:
+            self.assertEqual(self.client.get(reverse(nome)).status_code, 200)
+
+    def test_login_obrigatorio(self):
+        self.client.logout()
+        resp = self.client.get(reverse("cadastro:dashboard"))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/entrar/", resp.url)
+
+    def test_criar_inscricao_e_finalizar(self):
+        resp = self.client.post(
+            reverse("cadastro:inscricao_nova"),
+            {
+                "nome": "Fulano", "cpf": "12345", "data_nascimento": "1986-01-01",
+                "sexo": "M", "brasileiro": "on",
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        insc = Inscricao.objects.get(requerente__cpf="12345")
+
+        # detalhe responde
+        self.assertEqual(
+            self.client.get(reverse("cadastro:inscricao_detalhe", args=[insc.pk])).status_code, 200
+        )
+        # finalizar bloqueia
+        self.client.post(reverse("cadastro:finalizar", args=[insc.pk]))
+        insc.refresh_from_db()
+        self.assertTrue(insc.bloqueada)
+        self.assertIsNotNone(insc.data_finalizacao)

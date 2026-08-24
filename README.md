@@ -4,20 +4,22 @@ Sistema interno para operacionalizar o **Edital de Chamamento nº 001/2026** —
 análise, pontuação e classificação de Núcleos Familiares candidatos a subsídios do
 Programa Minha Casa, Minha Vida (Faixa 02), nos termos da Lei Municipal nº 2.064/2023.
 
-> **Status atual:** Fases 0 (design), 1 (motor de pontuação) e **2 (fundação Django)**
-> concluídas. O repositório contém os documentos, a **matriz de regras parametrizada**, o
-> **motor de pontuação** (`motor/`) e a **aplicação Django** (`config/`, `cadastro/`,
-> `auditoria/`, `contas/`) com models, admin, auditoria append-only e integração do motor.
-> As telas de operação (formulários, upload, relatórios) vêm na Fase 3.
+> **Status atual:** Fases 0 (design), 1 (motor), 2 (fundação Django) e **3 (telas de
+> operação)** concluídas. Há um sistema web funcional: login, painel, cadastro de
+> requerente/núcleo/renda, documentos com download controlado, validação de requisitos,
+> painel de pontuação, finalização/bloqueio e classificação. Relatórios e exportação
+> (PDF/Excel) e o dashboard completo vêm na Fase 5.
 
 ## Estrutura
 
 ```
 motor/       Motor de pontuação puro (Fase 1) — lê regras/parametros_edital.yaml
 config/      Projeto Django (settings, urls, wsgi)
-cadastro/    App principal: models, admin, services (ponte com o motor)
+cadastro/    App principal: models, admin, views, forms, services, requisitos
 auditoria/   Trilha append-only: middleware de usuário/IP + mixin de log
 contas/      Perfis de acesso (Grupos do Django)
+templates/   Telas (base + login + telas do cadastro)
+static/      CSS próprio (sem dependência de CDN)
 tests/       Testes do motor (pytest)
 ```
 

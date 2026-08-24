@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block titulo %}Classificação — MCMV{% endblock %}
+{% block content %}
+<h1>Classificação geral</h1>
+<form method="post" style="margin-bottom:1rem">
+  {% csrf_token %}
+  <button class="btn" type="submit">Gerar/atualizar classificação</button>
+  <span class="trilha">Ordena por pontuação → filhos ≤12 → idosos; marca empates para sorteio (item 8.10).</span>
+</form>
+
+<table>
+  <thead><tr><th>Pos.</th><th>Inscrição</th><th>Requerente</th><th>Pontos</th><th>Filhos ≤12</th><th>Idosos</th><th>Empate</th></tr></thead>
+  <tbody>
+    {% for c in itens %}
+    <tr>
+      <td>{{ c.posicao }}</td>
+      <td>{{ c.inscricao.numero_inscricao }}</td>
+      <td>{{ c.inscricao.requerente.nome }}</td>
+      <td>{{ c.pontuacao }}</td>
+      <td>{{ c.dependentes_ate_12 }}</td>
+      <td>{{ c.idosos }}</td>
+      <td>{% if c.empate_pendente_sorteio %}<span class="pend">⚖ sorteio</span>{% else %}—{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7">Nenhuma inscrição classificada. Clique em “Gerar classificação”.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

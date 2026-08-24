@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block titulo %}Nova renda — MCMV{% endblock %}
+{% block content %}
+<h1>Registrar renda — {{ membro.pessoa.nome }}</h1>
+<p class="trilha">Marque como <strong>não computável</strong> BPC, Bolsa Família, Seguro-Desemprego e
+benefícios temporários (item 3.1.4.1 do edital).</p>
+<div class="card">
+  <form method="post" class="pilha">
+    {% csrf_token %}
+    {% include "cadastro/_campos.html" %}
+    <div style="margin-top:1.2rem">
+      <button class="btn" type="submit">Salvar</button>
+      <a class="btn secundario" href="{% url 'cadastro:inscricao_detalhe' membro.inscricao_id %}">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

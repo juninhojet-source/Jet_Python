@@ -1,0 +1,35 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}MCMV — Cadastro Habitacional{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+<header class="topo">
+  <span class="marca">MCMV · Barão de Cocais</span>
+  {% if user.is_authenticated %}
+  <nav>
+    <a href="{% url 'cadastro:dashboard' %}">Painel</a>
+    <a href="{% url 'cadastro:inscricao_list' %}">Inscrições</a>
+    <a href="{% url 'cadastro:inscricao_nova' %}">Nova inscrição</a>
+    <a href="{% url 'cadastro:classificacao' %}">Classificação</a>
+    <a href="/admin/">Admin</a>
+  </nav>
+  <span class="direita">
+    {{ user.get_username }} · <a href="{% url 'logout' %}">sair</a>
+  </span>
+  {% endif %}
+</header>
+<main>
+  {% if messages %}
+  <ul class="mensagens">
+    {% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

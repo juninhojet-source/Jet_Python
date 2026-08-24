@@ -36,10 +36,18 @@ Rodar os testes: `pip install -r requirements-dev.txt && python -m pytest` (56 t
 
 Rodar: `python manage.py migrate && python manage.py test` (9 testes Django).
 
-## Fase 3 — Cadastro
-- Telas M2 (requerente), M3 (composição), M4 (renda), M5 (documentos com upload controlado).
-- Cálculos derivados exibidos; validações de requisito (M6) com sinalização "não apto".
-- Fluxo de situações + **bloqueio pós-finalização**.
+## Fase 3 — Cadastro ✅
+- [x] Login e layout base (templates + CSS próprio, sem CDN) — `templates/`, `static/`
+- [x] Painel de indicadores (M1) — `dashboard`
+- [x] Lista com busca e filtro por situação — `inscricao_list`
+- [x] Cadastro do requerente + inscrição (M2) — `inscricao_nova`/`inscricao_editar`
+- [x] Composição familiar (M3) e renda por integrante (M4) — `membro_novo`/`renda_nova`
+- [x] Documentos (M5) com upload e **download controlado por view autenticada** (acesso logado)
+- [x] Validação de requisitos (M6) com 🟢/🔴 e **marcação "não apto" com confirmação** (`requisitos.py`)
+- [x] Painel de pontuação e ação "recalcular" (M7)
+- [x] **Finalização + bloqueio** da inscrição (Anexo II)
+- [x] Classificação com desempate e empates marcados para sorteio (M8)
+- [x] Testes de views + requisitos (total: 15 testes Django)
 
 ## Fase 4 — Análise, pontuação e classificação
 - Integração do motor (Fase 1) com os dados (M7).

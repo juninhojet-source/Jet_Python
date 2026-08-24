@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block titulo %}Entrar — MCMV{% endblock %}
+{% block content %}
+<div class="card" style="max-width:420px;margin:2rem auto;">
+  <h1>Entrar</h1>
+  {% if form.errors %}<ul class="mensagens"><li class="error">Usuário ou senha inválidos.</li></ul>{% endif %}
+  <form method="post" class="pilha">
+    {% csrf_token %}
+    <label>Usuário</label>{{ form.username }}
+    <label>Senha</label>{{ form.password }}
+    <div style="margin-top:1rem"><button class="btn" type="submit">Entrar</button></div>
+  </form>
+</div>
+{% endblock %}

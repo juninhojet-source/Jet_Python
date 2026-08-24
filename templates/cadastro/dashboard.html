@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block titulo %}Painel — MCMV{% endblock %}
+{% block content %}
+<h1>Painel — Cadastro Habitacional 2026</h1>
+
+<div class="kpi-linha">
+  <div class="kpi"><div class="num">{{ total }}</div><div class="rot">Total de inscrições</div></div>
+  <div class="kpi"><div class="num">{{ com_risco }}</div><div class="rot">Habitação em risco</div></div>
+  <div class="kpi"><div class="num">{{ com_deficiencia }}</div><div class="rot">Com pessoa com deficiência</div></div>
+</div>
+
+<h2>Por situação</h2>
+<table>
+  <thead><tr><th>Situação</th><th>Quantidade</th></tr></thead>
+  <tbody>
+    {% for rotulo, n in linhas %}
+    <tr><td>{{ rotulo }}</td><td>{{ n }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="trilha">Dica: use “Inscrições” para buscar e filtrar por situação.</p>
+{% endblock %}
