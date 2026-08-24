@@ -6,10 +6,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titulo %}MCMV — Cadastro Habitacional{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="icon" href="{% static 'img/brasao.png' %}">
 </head>
 <body>
 <header class="topo">
-  <span class="marca">MCMV · Barão de Cocais</span>
+  <img class="brasao" src="{% static 'img/brasao.png' %}" alt="Brasão de Barão de Cocais"
+       onerror="this.style.display='none'">
+  <div class="marca">
+    <span class="marca-linha1">Prefeitura Municipal de Barão de Cocais</span>
+    <span class="marca-linha2">MCMV · Cadastro Habitacional</span>
+  </div>
   {% if user.is_authenticated %}
   <nav>
     <a href="{% url 'cadastro:dashboard' %}">Painel</a>
@@ -32,5 +38,12 @@
   {% endif %}
   {% block content %}{% endblock %}
 </main>
+<footer class="rodape">
+  <div>
+    <strong>Departamento de Informática e Tecnologia</strong> — Prefeitura Municipal de Barão de Cocais/MG<br>
+    Responsável: Aristides Ferreira Junior · Contato: (31) 3837-7661
+  </div>
+  <div class="rodape-sistema">Sistema MCMV — Cadastro Habitacional (Edital 001/2026)</div>
+</footer>
 </body>
 </html>
