@@ -11,11 +11,17 @@ Fases sugeridas. A ordem prioriza a parte **legalmente sensível** (motor de pon
 - [x] Requisitos de segurança/LGPD
 - [ ] **Validação das decisões pendentes D-1..D-6 com a Comissão de Inscrição**
 
-## Fase 1 — Motor de pontuação (núcleo)
-Módulo Python puro, sem Django, que lê `parametros_edital.yaml` e, dado um núcleo familiar,
-retorna `CL`, `CC`, `P`, a faixa de cada complementar e as chaves de desempate.
-- Testes unitários em **todas as bordas** de faixa (per capita e aluguel).
-- Teste de aceitação do exemplo da seção F de [04-regras](04-regras-de-negocio.md) (= 141 pts).
+## Fase 1 — Motor de pontuação (núcleo) ✅
+Módulo Python puro (`motor/`), sem Django, que lê `parametros_edital.yaml` e, dado um núcleo
+familiar, retorna `CL`, `CC`, `P`, a faixa de cada complementar e as chaves de desempate.
+- [x] `motor/modelos.py` — `NucleoFamiliar`, `Membro`, `Renda`, `Aluguel`, `ResultadoPontuacao`
+- [x] `motor/parametros.py` — carrega o YAML com `Decimal` (sem erro de ponto flutuante)
+- [x] `motor/pontuacao.py` — `calcular_pontuacao()` + `chave_ordenacao()` (desempate)
+- [x] Testes unitários em **todas as bordas** de faixa — `tests/test_faixas.py`
+- [x] Testes do motor + desempate + aceitação (= 141 pts) — `tests/test_pontuacao.py`
+- [x] Exemplo executável — `examples/demo_pontuacao.py`
+
+Rodar os testes: `pip install -r requirements-dev.txt && python -m pytest` (56 testes).
 
 ## Fase 2 — Fundação Django + modelos
 - Projeto Django, `settings` com SQLite (dev) e PostgreSQL (prod) por variável de ambiente.

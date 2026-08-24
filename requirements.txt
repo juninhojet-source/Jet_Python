@@ -1,0 +1,2 @@
+# Dependências de runtime do motor de pontuação (Fase 1)
+PyYAML>=6.0

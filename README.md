@@ -4,9 +4,18 @@ Sistema interno para operacionalizar o **Edital de Chamamento nº 001/2026** —
 análise, pontuação e classificação de Núcleos Familiares candidatos a subsídios do
 Programa Minha Casa, Minha Vida (Faixa 02), nos termos da Lei Municipal nº 2.064/2023.
 
-> **Status atual:** fase de *design*. Este repositório contém, por ora, os documentos
-> de especificação, o modelo de dados e a **matriz de regras parametrizada** do edital.
-> O código da aplicação (Django) será construído sobre esta fundação.
+> **Status atual:** Fase 0 (design) concluída + **Fase 1 (motor de pontuação) concluída**.
+> O repositório contém os documentos de especificação, o modelo de dados, a **matriz de
+> regras parametrizada** do edital e o **motor de pontuação** (`motor/`) coberto por testes.
+> A aplicação Django (Fase 2+) será construída sobre esta fundação.
+
+## Rodar o motor de pontuação
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest                     # 56 testes (todas as bordas de faixa + aceitação)
+python examples/demo_pontuacao.py    # exemplo verificável do edital (= 141 pontos)
+```
 
 ## Por que design primeiro
 
