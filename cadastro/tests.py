@@ -357,3 +357,23 @@ class AcessoFluxoTest(TestCase):
                          {"destino": Inscricao.Status.APTO})
         insc.refresh_from_db()
         self.assertEqual(insc.status, Inscricao.Status.DOC_VALIDADA)  # barrado
+
+
+class InjecaoPlanilhaTest(TestCase):
+    def test_neutraliza_formula(self):
+        from io import BytesIO
+        from openpyxl import load_workbook
+        from cadastro.relatorios import planilha_response
+
+        resp = planilha_response(
+            "t.xlsx", ["Nome"], [["=HYPERLINK(\"http://x\")"], ["+1"], ["João"]]
+        )
+        wb = load_workbook(BytesIO(resp.content))
+        ws = wb.active
+        # Linha 1 é cabeçalho; dados começam na linha 2.
+        self.assertEqual(ws.cell(row=2, column=1).value, "'=HYPERLINK(\"http://x\")")
+        self.assertEqual(ws.cell(row=3, column=1).value, "'+1")
+        self.assertEqual(ws.cell(row=4, column=1).value, "João")
+        # Nenhuma célula de dado é do tipo fórmula.
+        for r in (2, 3, 4):
+            self.assertNotEqual(ws.cell(row=r, column=1).data_type, "f")

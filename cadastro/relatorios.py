@@ -27,6 +27,20 @@ from reportlab.platypus import (
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 _AZUL = colors.HexColor("#1f4e79")
 
+# Caracteres que o Excel/LibreOffice interpretam como início de fórmula.
+_GATILHOS_FORMULA = ("=", "+", "-", "@", "\t", "\r", "\n")
+
+
+def _neutralizar(valor):
+    """Evita injeção de fórmula (CSV injection) em células de texto.
+
+    Dados de terceiros (ex.: nome do requerente) podem começar com '=' e virar
+    fórmula ativa na planilha. Prefixa um apóstrofo para forçar texto.
+    """
+    if isinstance(valor, str) and valor.startswith(_GATILHOS_FORMULA):
+        return "'" + valor
+    return valor
+
 
 def planilha_response(filename: str, cabecalhos: list[str], linhas) -> HttpResponse:
     wb = Workbook()
@@ -37,7 +51,7 @@ def planilha_response(filename: str, cabecalhos: list[str], linhas) -> HttpRespo
         celula.font = Font(bold=True, color="FFFFFF")
         celula.fill = PatternFill("solid", fgColor="1F4E79")
     for linha in linhas:
-        ws.append(list(linha))
+        ws.append([_neutralizar(v) for v in linha])
     for i, _ in enumerate(cabecalhos, start=1):
         ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = 22
     ws.freeze_panes = "A2"
