@@ -1,0 +1,155 @@
+# 08 — Implantação em Windows Server 2012 R2 (teste prático)
+
+Guia para subir o sistema em **Windows Server 2012 R2 Standard** para o teste
+prático na rede interna. Usa **Waitress** (servidor WSGI para Windows — o
+`gunicorn` não roda em Windows) e **WhiteNoise** (serve os estáticos sem
+precisar de IIS). Banco em **SQLite** para começar; PostgreSQL é opcional.
+
+> Resumo: instalar Python → `.env` → `instalar.bat` → `iniciar.bat` → acessar
+> `http://IP-DO-SERVIDOR:8000/`. Depois, opcionalmente, rodar como **serviço**
+> com NSSM e/ou colocar **HTTPS** via IIS.
+
+## 1. Instalar o Python
+
+- Baixe o **Python 3.12 (Windows installer, 64-bit)** em python.org.
+  - ⚠️ Em 2012 R2, **não** use Python 3.13+ (exige Windows 10/Server 2016+).
+    3.12 e 3.11 são compatíveis com 2012 R2.
+- Na instalação, marque **"Add python.exe to PATH"** e instale para todos os usuários.
+- **Gotcha do 2012 R2:** se o Python não abrir (erro de DLL `api-ms-win-crt-*`),
+  instale o **"Update for Universal C Runtime" (KB2999226)** do Windows Update /
+  catálogo da Microsoft e reinicie.
+- Confirme no **Prompt de Comando**: `py -3.12 --version`.
+
+## 2. Obter o projeto
+
+Copie o projeto para, por exemplo, `C:\mcmv\Jet_Python` (via `git clone` da branch,
+ou descompactando um ZIP do repositório). Os comandos abaixo assumem essa pasta.
+
+## 3. Configurar o `.env`
+
+Copie o modelo e edite:
+
+```bat
+cd C:\mcmv\Jet_Python
+copy .env.windows.example .env
+notepad .env
+```
+
+Ajuste no mínimo:
+- `DJANGO_SECRET_KEY` — gere depois de instalar (passo 4) com
+  `python -c "from django.core.management.utils import get_random_secret_key as g; print(g())"`
+- `DJANGO_ALLOWED_HOSTS` — inclua o **IP e/ou nome do servidor** (ex.: `192.168.0.10,servidor-habitacao`).
+- `DJANGO_CSRF_TRUSTED_ORIGINS` — as URLs usadas no navegador (ex.: `http://192.168.0.10:8000`).
+- Deixe `DJANGO_SSL_REDIRECT=0` e `DJANGO_BEHIND_PROXY=0` enquanto o teste for por **HTTP**.
+- `MCMV_MEDIA_ROOT` e `MCMV_LOG_DIR` — pastas fora da web (ex.: `C:\mcmv\media`, `C:\mcmv\logs`).
+
+## 4. Instalar dependências e preparar o banco
+
+Rode (como Administrador) o script de instalação:
+
+```bat
+cd C:\mcmv\Jet_Python
+scripts\windows\instalar.bat
+```
+
+Ele cria o virtualenv `.venv`, instala `requirements-windows.txt` (Django, Waitress,
+WhiteNoise, openpyxl, reportlab…), aplica as migrações, coleta os estáticos e pede a
+criação do **usuário administrador**.
+
+> Se o `pip` falhar por rede/TLS em 2012 R2, garanta o **TLS 1.2** habilitado no
+> sistema (o Python recente já usa TLS próprio, então normalmente funciona).
+
+Crie os servidores com seus perfis e (opcional) dados de demonstração:
+
+```bat
+.venv\Scripts\activate.bat
+python manage.py criar_servidor maria --perfil Analista --senha "SenhaForte#1"
+python manage.py seed_demo          REM (opcional) núcleos de exemplo
+```
+
+## 5. Rodar e acessar
+
+```bat
+scripts\windows\iniciar.bat
+```
+
+No próprio servidor: `http://localhost:8000/`. De outra máquina na rede:
+`http://IP-DO-SERVIDOR:8000/`.
+
+**Liberar a porta no Firewall do Windows** (uma vez, como Administrador):
+
+```bat
+netsh advfirewall firewall add rule name="MCMV 8000" dir=in action=allow protocol=TCP localport=8000
+```
+
+## 6. Rodar como Serviço do Windows (NSSM) — recomendado
+
+Para o sistema subir sozinho com o servidor e reiniciar em caso de falha:
+
+1. Baixe o **NSSM** (nssm.cc) e copie `nssm.exe` para `C:\mcmv`.
+2. Instale o serviço:
+
+   ```bat
+   C:\mcmv\nssm.exe install MCMV "C:\mcmv\Jet_Python\.venv\Scripts\python.exe" "C:\mcmv\Jet_Python\run_waitress.py"
+   C:\mcmv\nssm.exe set MCMV AppDirectory "C:\mcmv\Jet_Python"
+   C:\mcmv\nssm.exe set MCMV Start SERVICE_AUTO_START
+   C:\mcmv\nssm.exe set MCMV AppStdout "C:\mcmv\logs\servico.log"
+   C:\mcmv\nssm.exe set MCMV AppStderr "C:\mcmv\logs\servico.log"
+   net start MCMV
+   ```
+
+   O serviço lê o `.env` da pasta do projeto (via `AppDirectory`), então as
+   configurações continuam vindo do `.env`.
+3. Parar/iniciar: `net stop MCMV` / `net start MCMV`.
+
+## 7. HTTPS (opcional, recomendado antes de dados reais)
+
+Para o teste em rede interna, HTTP basta. Ao publicar com dados reais, coloque
+**HTTPS**. A forma mais comum no Windows é o **IIS como proxy reverso**:
+
+1. Instale o IIS com os módulos **URL Rewrite** e **Application Request Routing (ARR)**.
+2. Crie um site com um **certificado** (o da Prefeitura ou um interno).
+3. Configure uma regra de reescrita encaminhando para `http://127.0.0.1:8000/`,
+   repassando o cabeçalho `X-Forwarded-Proto: https`.
+4. No `.env`, passe a usar: `DJANGO_SSL_REDIRECT=1`, `DJANGO_BEHIND_PROXY=1`,
+   e ajuste `DJANGO_ALLOWED_HOSTS`/`DJANGO_CSRF_TRUSTED_ORIGINS` para `https://...`.
+5. Faça o Waitress escutar só localmente: `MCMV_HOST=127.0.0.1` no `.env`.
+
+## 8. Banco de dados
+
+- **Teste prático:** SQLite (padrão) — nada a instalar; o arquivo é `db.sqlite3`.
+- **Produção:** PostgreSQL para Windows. Instale, crie o banco/usuário, rode
+  `pip install "psycopg[binary]"` no venv e defina as variáveis `POSTGRES_*` no `.env`.
+
+## 9. Backup (Windows)
+
+- **SQLite:** pare o serviço (`net stop MCMV`), copie `db.sqlite3` e a pasta
+  `MCMV_MEDIA_ROOT` para um destino seguro, reinicie (`net start MCMV`). Agende com o
+  **Agendador de Tarefas**.
+- **PostgreSQL:** use `pg_dump` (agende no Agendador de Tarefas) + cópia da pasta de mídia.
+- Guarde os backups fora do servidor e **teste a restauração**.
+
+## 10. Atualizar o sistema
+
+```bat
+cd C:\mcmv\Jet_Python
+net stop MCMV
+git pull
+.venv\Scripts\activate.bat
+pip install -r requirements-windows.txt
+python manage.py migrate
+python manage.py collectstatic --noinput
+net start MCMV
+```
+
+## 11. Problemas comuns
+
+| Sintoma | Causa / solução |
+|---|---|
+| `DisallowedHost` ao abrir | Falta o IP/nome em `DJANGO_ALLOWED_HOSTS` |
+| **403** ao enviar formulário | Adicione a URL em `DJANGO_CSRF_TRUSTED_ORIGINS` |
+| Página sem estilo (CSS 404) | Rode `python manage.py collectstatic --noinput` |
+| Redireciona para `https://` e não abre | No teste HTTP, defina `DJANGO_SSL_REDIRECT=0` |
+| Python não inicia (erro de DLL) | Instale o **UCRT (KB2999226)** e reinicie |
+| Porta 8000 ocupada | Altere `MCMV_PORT` no `.env` e libere no Firewall |
+| `check --deploy` acusa cookies inseguros | Esperado em HTTP; some ao ativar HTTPS (`DJANGO_SSL_REDIRECT=1`) |

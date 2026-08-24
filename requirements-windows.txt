@@ -1,0 +1,7 @@
+# Dependências para rodar em Windows Server (ex.: 2012 R2) sem IIS/nginx.
+-r requirements.txt
+waitress>=3.0      # servidor WSGI para Windows (gunicorn não roda em Windows)
+whitenoise>=6.0    # serve os arquivos estáticos pela própria aplicação
+
+# PostgreSQL no Windows (opcional; para o teste inicial pode-se usar SQLite):
+# psycopg[binary]>=3.1

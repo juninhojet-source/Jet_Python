@@ -136,6 +136,22 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
+# WhiteNoise: serve os estáticos pela própria aplicação (útil no Windows/Waitress,
+# sem depender de IIS/nginx). Ativado só em produção e se o pacote estiver instalado.
+if not DEBUG:
+    try:
+        import whitenoise  # noqa: F401
+
+        MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+        STORAGES = {
+            "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+            "staticfiles": {
+                "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            },
+        }
+    except ImportError:
+        pass
+
 # Documentos (dados pessoais/sensíveis) NÃO ficam sob STATIC/URL pública.
 # São guardados em MEDIA_ROOT (fora da raiz web) e servidos por view autenticada.
 MEDIA_ROOT = Path(os.environ.get("MCMV_MEDIA_ROOT", BASE_DIR / "media_protegida"))
@@ -160,15 +176,19 @@ X_FRAME_OPTIONS = "DENY"
 SECURE_REFERRER_POLICY = "same-origin"
 
 if not DEBUG:
-    # Atrás de proxy/HTTPS (nginx). Ajuste conforme a infraestrutura.
+    # Atrás de proxy/HTTPS (nginx/IIS). Ajuste conforme a infraestrutura.
     if _env_bool("DJANGO_BEHIND_PROXY", "1"):
         SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", 31536000))
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
+    # HTTPS por padrão. Para um teste em rede interna via HTTP (sem certificado),
+    # defina DJANGO_SSL_REDIRECT=0 — desliga o redirect, os cookies "Secure" e o HSTS.
+    _ssl = _env_bool("DJANGO_SSL_REDIRECT", "1")
+    SECURE_SSL_REDIRECT = _ssl
+    SESSION_COOKIE_SECURE = _ssl
+    CSRF_COOKIE_SECURE = _ssl
+    if _ssl:
+        SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", 31536000))
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+        SECURE_HSTS_PRELOAD = True
 
 # Logging (console + arquivo rotacionável em produção).
 _LOG_DIR = Path(os.environ.get("MCMV_LOG_DIR", BASE_DIR / "logs"))

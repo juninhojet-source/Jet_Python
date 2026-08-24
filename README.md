@@ -60,7 +60,8 @@ Se o edital mudar, altera-se o parâmetro — não o motor.
 | [`docs/04-regras-de-negocio.md`](docs/04-regras-de-negocio.md) | Matriz completa de regras do edital (requisitos, pontuação, desempate) |
 | [`docs/05-seguranca-lgpd.md`](docs/05-seguranca-lgpd.md) | Controle de acesso, auditoria, LGPD e guarda de documentos |
 | [`docs/06-roadmap.md`](docs/06-roadmap.md) | Fases de desenvolvimento sugeridas |
-| [`docs/07-implantacao.md`](docs/07-implantacao.md) | Implantação em produção, HTTPS, backup criptografado e LGPD |
+| [`docs/07-implantacao.md`](docs/07-implantacao.md) | Implantação em produção (Linux), HTTPS, backup criptografado e LGPD |
+| [`docs/08-implantacao-windows.md`](docs/08-implantacao-windows.md) | Implantação em **Windows Server 2012 R2** (Waitress + WhiteNoise + NSSM) — teste prático |
 | [`regras/parametros_edital.yaml`](regras/parametros_edital.yaml) | **Parâmetros do edital em formato legível por máquina** (fonte única da verdade para o motor de pontuação) |
 
 ## Stack (definida)
