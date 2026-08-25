@@ -146,7 +146,7 @@ net start MCMV
 
 | Sintoma | Causa / solução |
 |---|---|
-| `DisallowedHost` ao abrir | Falta o IP/nome em `DJANGO_ALLOWED_HOSTS` |
+| `DisallowedHost` ao abrir | Falta o host em `DJANGO_ALLOWED_HOSTS`. Inclua `127.0.0.1,localhost` **e** o IP/nome do servidor. Reinicie o Waitress após editar o `.env` |
 | **403** ao enviar formulário | Adicione a URL em `DJANGO_CSRF_TRUSTED_ORIGINS` |
 | Página sem estilo (CSS 404) | Rode `python manage.py collectstatic --noinput` |
 | Redireciona para `https://` e não abre | No teste HTTP, defina `DJANGO_SSL_REDIRECT=0` |
