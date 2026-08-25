@@ -104,6 +104,13 @@ if ($Ip) {
         Write-Host "  (binding por IP ja existia ou nao pode ser criado: $($_.Exception.Message))" -ForegroundColor DarkYellow
     }
 }
+# Para o "Default Web Site" para ele não responder na porta 80 no lugar do MCMV.
+$dws = Get-Website -Name "Default Web Site" -ErrorAction SilentlyContinue
+if ($dws) {
+    Stop-Website -Name "Default Web Site" -ErrorAction SilentlyContinue
+    Set-ItemProperty "IIS:\Sites\Default Web Site" -Name serverAutoStart -Value $false -ErrorAction SilentlyContinue
+    Write-Host "  'Default Web Site' parado (evita conflito na porta $Porta)."
+}
 Start-Website -Name $SiteName
 
 Write-Host "== 5/6 Liberando a porta $Porta no firewall ==" -ForegroundColor Cyan
