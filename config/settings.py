@@ -37,6 +37,12 @@ ALLOWED_HOSTS = [
     for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
     if h.strip()
 ]
+# Garante o acesso local (no próprio servidor) mesmo que o operador esqueça de
+# listar estes hosts — evita o erro DisallowedHost em http://127.0.0.1:8000.
+for _local_host in ("127.0.0.1", "localhost"):
+    if _local_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_local_host)
+
 CSRF_TRUSTED_ORIGINS = [
     o.strip()
     for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
