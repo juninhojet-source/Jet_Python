@@ -14,7 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from contas.acesso import ANALISTA, ATENDENTE, COMISSAO, em_perfil, perfil_requerido
+from contas.acesso import ADMIN, ANALISTA, ATENDENTE, COMISSAO, em_perfil, perfil_requerido
 
 from . import fluxo, requisitos, services, wizard
 from .forms import (
@@ -90,6 +90,7 @@ def inscricao_list(request):
         "q": q,
         "status": status,
         "status_choices": Inscricao.Status.choices,
+        "pode_excluir": em_perfil(request.user, ADMIN),
     }
     return render(request, "cadastro/inscricao_list.html", ctx)
 
@@ -226,6 +227,20 @@ def wizard_cadastro(request, pk, etapa):
 
 
 @login_required
+@perfil_requerido(ADMIN)
+def inscricao_excluir(request, pk):
+    """Exclui uma inscrição (e seus dados vinculados). Apenas Administrador."""
+    inscricao = get_object_or_404(Inscricao, pk=pk)
+    if request.method == "POST":
+        numero = inscricao.numero_inscricao
+        inscricao._justificativa_auditoria = request.POST.get("motivo", "Exclusão administrativa")
+        inscricao.delete()
+        messages.success(request, f"Inscrição {numero} excluída.")
+        return redirect("cadastro:inscricao_list")
+    return redirect("cadastro:inscricao_detalhe", pk=pk)
+
+
+@login_required
 def inscricao_detalhe(request, pk):
     inscricao = get_object_or_404(
         Inscricao.objects.select_related("requerente"), pk=pk
@@ -243,6 +258,7 @@ def inscricao_detalhe(request, pk):
         "transicoes": fluxo.transicoes_disponiveis(inscricao, request.user),
         "pode_cadastrar": em_perfil(request.user, ATENDENTE, ANALISTA),
         "pode_avaliar": em_perfil(request.user, ANALISTA, COMISSAO),
+        "pode_excluir": em_perfil(request.user, ADMIN),
     }
     return render(request, "cadastro/inscricao_detalhe.html", ctx)
 

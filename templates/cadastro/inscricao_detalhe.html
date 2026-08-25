@@ -30,6 +30,13 @@
     {% endif %}
     <a class="btn secundario" href="{% url 'cadastro:documentos' inscricao.pk %}">Documentos</a>
     <a class="btn secundario" href="{% url 'cadastro:rel_ficha_pdf' inscricao.pk %}" target="_blank">Ficha (PDF)</a>
+    {% if pode_excluir %}
+    <form method="post" action="{% url 'cadastro:inscricao_excluir' inscricao.pk %}" style="display:inline"
+      onsubmit="return confirm('Excluir a inscrição {{ inscricao.numero_inscricao }}? Esta ação não pode ser desfeita.');">
+      {% csrf_token %}
+      <button class="btn perigo" type="submit">Excluir cadastro</button>
+    </form>
+    {% endif %}
     {% if pode_avaliar %}
     <form method="post" action="{% url 'cadastro:recalcular' inscricao.pk %}" style="display:inline">
       {% csrf_token %}<button class="btn" type="submit">Recalcular pontuação</button>

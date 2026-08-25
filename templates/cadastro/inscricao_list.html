@@ -31,7 +31,16 @@
       <td>{{ i.requerente.cpf }}</td>
       <td><span class="badge">{{ i.get_status_display }}</span></td>
       <td>{{ i.pontuacao_total|default:"—" }}</td>
-      <td><a class="btn pequeno" href="{% url 'cadastro:inscricao_detalhe' i.pk %}">Abrir</a></td>
+      <td>
+        <a class="btn pequeno" href="{% url 'cadastro:inscricao_detalhe' i.pk %}">Abrir</a>
+        {% if pode_excluir %}
+        <form method="post" action="{% url 'cadastro:inscricao_excluir' i.pk %}" style="display:inline"
+          onsubmit="return confirm('Excluir a inscrição {{ i.numero_inscricao }} de {{ i.requerente.nome|escapejs }}? Esta ação não pode ser desfeita.');">
+          {% csrf_token %}
+          <button class="btn pequeno perigo" type="submit">Excluir</button>
+        </form>
+        {% endif %}
+      </td>
     </tr>
     {% empty %}
     <tr><td colspan="6">Nenhuma inscrição encontrada.</td></tr>

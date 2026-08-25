@@ -427,3 +427,43 @@ class WizardTest(TestCase):
     def test_etapa_invalida_404(self):
         resp = self.client.get(reverse("cadastro:wizard", args=[self.insc.pk, "inexistente"]))
         self.assertEqual(resp.status_code, 404)
+
+
+class ExclusaoTest(TestCase):
+    def _inscricao(self, cpf="ex1"):
+        req = Pessoa.objects.create(nome="Excluir", cpf=cpf, data_nascimento=nasc(40))
+        insc = Inscricao.objects.create(requerente=req)
+        MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        return insc
+
+    def test_admin_exclui(self):
+        from django.contrib.auth.models import Group
+        insc = self._inscricao("ex_admin")
+        u = User.objects.create_user("adm", password="x")
+        u.groups.add(Group.objects.get(name="Administrador"))
+        self.client.force_login(u)
+        resp = self.client.post(reverse("cadastro:inscricao_excluir", args=[insc.pk]))
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(Inscricao.objects.filter(pk=insc.pk).exists())
+
+    def test_atendente_nao_exclui(self):
+        insc = self._inscricao("ex_at")
+        self.client.force_login(_com_perfil("at_del", "Atendente"))
+        resp = self.client.post(reverse("cadastro:inscricao_excluir", args=[insc.pk]))
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(Inscricao.objects.filter(pk=insc.pk).exists())
+
+    def test_botao_excluir_so_para_admin_na_lista(self):
+        from django.contrib.auth.models import Group
+        insc = self._inscricao("ex_lista")
+        url_excluir = reverse("cadastro:inscricao_excluir", args=[insc.pk])
+        # Atendente não vê o formulário de exclusão
+        self.client.force_login(_com_perfil("at_lista", "Atendente"))
+        html = self.client.get(reverse("cadastro:inscricao_list")).content.decode()
+        self.assertNotIn(url_excluir, html)
+        # Admin vê o formulário de exclusão
+        u = User.objects.create_user("adm2", password="x")
+        u.groups.add(Group.objects.get(name="Administrador"))
+        self.client.force_login(u)
+        html = self.client.get(reverse("cadastro:inscricao_list")).content.decode()
+        self.assertIn(url_excluir, html)
