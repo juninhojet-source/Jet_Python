@@ -216,6 +216,12 @@ class ViewsSmokeTest(TestCase):
                      "cadastro:inscricao_nova", "cadastro:classificacao"]:
             self.assertEqual(self.client.get(reverse(nome)).status_code, 200)
 
+    def test_logout_via_post(self):
+        # O logout do Django aceita apenas POST; o botão "sair" usa formulário POST.
+        resp = self.client.post(reverse("logout"))
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.client.get(reverse("cadastro:dashboard")).status_code, 302)
+
     def test_login_obrigatorio(self):
         self.client.logout()
         resp = self.client.get(reverse("cadastro:dashboard"))

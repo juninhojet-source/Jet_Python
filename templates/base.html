@@ -26,7 +26,11 @@
     <a href="/admin/">Admin</a>
   </nav>
   <span class="direita">
-    {{ user.get_username }} · <a href="{% url 'logout' %}">sair</a>
+    {{ user.get_username }} ·
+    <form action="{% url 'logout' %}" method="post" class="form-sair">
+      {% csrf_token %}
+      <button type="submit" class="link-sair">sair</button>
+    </form>
   </span>
   {% endif %}
 </header>

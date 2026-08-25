@@ -17,7 +17,12 @@ header.topo .marca-linha1 { font-weight: 700; font-size: 1rem; }
 header.topo .marca-linha2 { font-size: .8rem; color: #cfe0f2; }
 header.topo nav { display: flex; gap: 1.1rem; flex-wrap: wrap; margin-left: 1rem; }
 header.topo nav a { color: #dbe7f5; }
-header.topo .direita { margin-left: auto; font-size: .9rem; color: #cfe0f2; }
+header.topo .direita { margin-left: auto; font-size: .9rem; color: #cfe0f2;
+  display: inline-flex; align-items: center; gap: .35rem; }
+.form-sair { display: inline; margin: 0; }
+.link-sair { background: none; border: none; padding: 0; cursor: pointer;
+  color: #dbe7f5; font: inherit; text-decoration: underline; }
+.link-sair:hover { color: #fff; }
 
 main { max-width: 1080px; margin: 1.4rem auto; padding: 0 1.2rem; min-height: 60vh; }
 
