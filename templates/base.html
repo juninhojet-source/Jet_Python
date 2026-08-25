@@ -7,6 +7,25 @@
   <title>{% block titulo %}MCMV — Cadastro Habitacional{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   <link rel="icon" href="{% static 'img/logo-prefeitura.jpg' %}">
+  <script>
+    // Aplica o tema salvo antes de renderizar (evita "piscar").
+    (function () {
+      try {
+        var t = localStorage.getItem("mcmv-tema");
+        if (t) document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    })();
+    function alternarTema() {
+      try {
+        var r = document.documentElement;
+        var novo = r.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        r.setAttribute("data-theme", novo);
+        localStorage.setItem("mcmv-tema", novo);
+        var b = document.getElementById("btn-tema");
+        if (b) b.textContent = novo === "dark" ? "☀ Claro" : "🌙 Escuro";
+      } catch (e) {}
+    }
+  </script>
 </head>
 <body>
 <header class="topo">
@@ -16,6 +35,8 @@
     <span class="marca-linha1">Prefeitura Municipal de Barão de Cocais</span>
     <span class="marca-linha2">MCMV · Cadastro Habitacional</span>
   </div>
+  <button id="btn-tema" type="button" class="btn-tema" onclick="alternarTema()"
+          style="margin-left:auto" title="Alternar tema claro/escuro">🌙 Escuro</button>
   {% if user.is_authenticated %}
   <nav>
     <a href="{% url 'cadastro:dashboard' %}">Painel</a>
@@ -42,6 +63,15 @@
   {% endif %}
   {% block content %}{% endblock %}
 </main>
+<script>
+  // Ajusta o rótulo do botão conforme o tema atual.
+  (function () {
+    var b = document.getElementById("btn-tema");
+    if (b && document.documentElement.getAttribute("data-theme") === "dark") {
+      b.textContent = "☀ Claro";
+    }
+  })();
+</script>
 <footer class="rodape">
   <div>
     <strong>Departamento de Informática e Tecnologia</strong> — Prefeitura Municipal de Barão de Cocais/MG<br>
