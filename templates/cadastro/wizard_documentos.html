@@ -1,0 +1,31 @@
+{% extends "cadastro/wizard_base.html" %}
+{% block etapa %}
+<div class="card">
+  <h2>4. Documentos</h2>
+  <table>
+    <thead><tr><th>Tipo</th><th>Pessoa</th><th>Obrig.</th><th>Situação</th><th>Arquivo</th></tr></thead>
+    <tbody>
+      {% for d in documentos %}
+      <tr>
+        <td>{{ d.tipo }}</td>
+        <td>{{ d.pessoa.nome|default:"—" }}</td>
+        <td>{% if d.obrigatorio %}Sim{% else %}Não{% endif %}</td>
+        <td><span class="badge">{{ d.get_status_display }}</span></td>
+        <td>{% if d.arquivo %}<a href="{% url 'cadastro:documento_download' d.pk %}">baixar</a>{% else %}—{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5">Nenhum documento anexado ainda.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Registrar documento</h2>
+  <form method="post" class="pilha" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="grid2">{% include "cadastro/_campos.html" %}</div>
+    <div style="margin-top:1rem"><button class="btn" type="submit">Salvar documento</button></div>
+  </form>
+</div>
+{% endblock %}

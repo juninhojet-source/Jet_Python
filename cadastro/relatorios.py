@@ -156,6 +156,18 @@ def ficha_pdf(inscricao) -> HttpResponse:
         f"→ &nbsp; P = {inscricao.pontuacao_total or 0} pontos</b> (máx. 190)",
         estilos["Heading3"],
     ))
+
+    # Pendências de cadastro (campos esperados em branco).
+    from .wizard import pendencias as _pendencias
+
+    pend = _pendencias(inscricao)
+    e.append(Paragraph("Pendências de cadastro", h))
+    if pend:
+        for item in pend:
+            e.append(Paragraph(f"• {item}", normal))
+    else:
+        e.append(Paragraph("Nenhuma pendência — cadastro completo.", normal))
+
     return _pdf_response(f"ficha_{inscricao.numero_inscricao}.pdf", e)
 
 

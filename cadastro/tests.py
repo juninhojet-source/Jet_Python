@@ -383,3 +383,47 @@ class InjecaoPlanilhaTest(TestCase):
         # Nenhuma célula de dado é do tipo fórmula.
         for r in (2, 3, 4):
             self.assertNotEqual(ws.cell(row=r, column=1).data_type, "f")
+
+
+class WizardTest(TestCase):
+    def setUp(self):
+        self.user = _com_perfil("at_wiz", "Atendente")
+        self.client.force_login(self.user)
+        resp = self.client.post(reverse("cadastro:inscricao_nova"), {
+            "nome": "Assistente Teste", "cpf": "90900",
+            "data_nascimento": "1986-01-01", "sexo": "M", "brasileiro": "on",
+        })
+        self.insc = Inscricao.objects.get(requerente__cpf="90900")
+
+    def test_nova_entra_no_wizard(self):
+        resp = self.client.post(reverse("cadastro:inscricao_nova"), {
+            "nome": "Outro", "cpf": "90901",
+            "data_nascimento": "1986-01-01", "sexo": "F", "brasileiro": "on",
+        })
+        self.assertIn("/cadastro/requerente/", resp.url)
+
+    def test_todas_etapas_respondem(self):
+        for etapa in ["requerente", "nucleo", "renda", "documentos", "avaliacao", "revisao"]:
+            url = reverse("cadastro:wizard", args=[self.insc.pk, etapa])
+            self.assertEqual(self.client.get(url).status_code, 200, etapa)
+
+    def test_salvar_e_avancar(self):
+        url = reverse("cadastro:wizard", args=[self.insc.pk, "requerente"])
+        resp = self.client.post(url, {
+            "nome": "Assistente Teste", "cpf": "90900", "data_nascimento": "1986-01-01",
+            "sexo": "M", "estado_civil": "SOLTEIRO", "brasileiro": "on", "acao": "avancar",
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/cadastro/nucleo/", resp.url)
+
+    def test_revisao_lista_pendencias(self):
+        from cadastro.wizard import pendencias
+        pend = pendencias(self.insc)
+        # Recém-criada: deve haver pendências (contato, núcleo, documentos...).
+        self.assertTrue(pend)
+        resp = self.client.get(reverse("cadastro:wizard", args=[self.insc.pk, "revisao"]))
+        self.assertContains(resp, "Pendências")
+
+    def test_etapa_invalida_404(self):
+        resp = self.client.get(reverse("cadastro:wizard", args=[self.insc.pk, "inexistente"]))
+        self.assertEqual(resp.status_code, 404)

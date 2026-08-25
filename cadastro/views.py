@@ -11,17 +11,20 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from contas.acesso import ANALISTA, ATENDENTE, COMISSAO, em_perfil, perfil_requerido
 
-from . import fluxo, requisitos, services
+from . import fluxo, requisitos, services, wizard
 from .forms import (
     AvaliacaoForm,
     DocumentoForm,
     InscricaoContatoForm,
     MembroForm,
+    PessoaForm,
     RendaForm,
+    RendaWizardForm,
     RequerenteInscricaoForm,
 )
 from .models import Documento, Inscricao, MembroNucleo
@@ -99,10 +102,127 @@ def inscricao_nova(request):
         if form.is_valid():
             inscricao = form.salvar()
             messages.success(request, f"Inscrição {inscricao.numero_inscricao} criada.")
-            return redirect("cadastro:inscricao_detalhe", pk=inscricao.pk)
+            # Entra no assistente de cadastro (etapa 1).
+            return redirect("cadastro:wizard", pk=inscricao.pk, etapa="requerente")
     else:
         form = RequerenteInscricaoForm()
     return render(request, "cadastro/inscricao_form.html", {"form": form, "novo": True})
+
+
+@login_required
+@perfil_requerido(ATENDENTE, ANALISTA)
+def wizard_cadastro(request, pk, etapa):
+    """Assistente de cadastro por etapas, com voltar/avançar e pendências."""
+    inscricao = get_object_or_404(Inscricao, pk=pk)
+    if etapa not in wizard.SLUGS:
+        raise Http404("Etapa inválida.")
+    if inscricao.bloqueada:
+        messages.warning(request, "Inscrição finalizada e bloqueada — cadastro somente leitura.")
+        return redirect("cadastro:inscricao_detalhe", pk=pk)
+
+    anterior = wizard.anterior(etapa)
+    proxima = wizard.proxima(etapa)
+
+    def url_etapa(slug):
+        return None if slug is None else reverse("cadastro:wizard", args=[pk, slug])
+
+    def avancar_ou_ficar():
+        destino = proxima if request.POST.get("acao") == "avancar" and proxima else etapa
+        return redirect("cadastro:wizard", pk=pk, etapa=destino)
+
+    ctx = {
+        "inscricao": inscricao,
+        "etapa": etapa,
+        "passos": wizard.passos(etapa),
+        "url_anterior": url_etapa(anterior),
+        "url_proxima": url_etapa(proxima),
+    }
+
+    if etapa == "requerente":
+        if request.method == "POST":
+            fp = PessoaForm(request.POST, instance=inscricao.requerente)
+            fc = InscricaoContatoForm(request.POST, instance=inscricao)
+            if fp.is_valid() and fc.is_valid():
+                fp.save()
+                fc.save()
+                messages.success(request, "Dados do requerente salvos.")
+                return avancar_ou_ficar()
+        else:
+            fp = PessoaForm(instance=inscricao.requerente)
+            fc = InscricaoContatoForm(instance=inscricao)
+        ctx.update(form_pessoa=fp, form_contato=fc)
+        return render(request, "cadastro/wizard_requerente.html", ctx)
+
+    if etapa == "nucleo":
+        if request.method == "POST":
+            form = MembroForm(request.POST, inscricao=inscricao)
+            if form.is_valid():
+                form.salvar()
+                messages.success(request, "Integrante adicionado.")
+                return redirect("cadastro:wizard", pk=pk, etapa="nucleo")
+        else:
+            form = MembroForm(inscricao=inscricao)
+        ctx.update(form=form, membros=inscricao.membros.select_related("pessoa"))
+        return render(request, "cadastro/wizard_nucleo.html", ctx)
+
+    if etapa == "renda":
+        if request.method == "POST":
+            form = RendaWizardForm(request.POST, inscricao=inscricao)
+            if form.is_valid():
+                form.salvar()
+                messages.success(request, "Renda registrada.")
+                return redirect("cadastro:wizard", pk=pk, etapa="renda")
+        else:
+            form = RendaWizardForm(inscricao=inscricao)
+        ctx.update(
+            form=form,
+            membros=inscricao.membros.select_related("pessoa").prefetch_related("rendas"),
+        )
+        return render(request, "cadastro/wizard_renda.html", ctx)
+
+    if etapa == "documentos":
+        if request.method == "POST":
+            form = DocumentoForm(request.POST, request.FILES, inscricao=inscricao)
+            if form.is_valid():
+                doc = form.save(commit=False)
+                doc.inscricao = inscricao
+                if doc.status != Documento.Status.PENDENTE:
+                    doc.conferido_por = request.user
+                    doc.data_conferencia = timezone.now()
+                doc.save()
+                messages.success(request, "Documento registrado.")
+                return redirect("cadastro:wizard", pk=pk, etapa="documentos")
+        else:
+            form = DocumentoForm(inscricao=inscricao)
+        ctx.update(form=form, documentos=inscricao.documentos.select_related("pessoa"))
+        return render(request, "cadastro/wizard_documentos.html", ctx)
+
+    if etapa == "avaliacao":
+        if request.method == "POST":
+            form = AvaliacaoForm(request.POST, instance=inscricao)
+            if form.is_valid():
+                obj = form.save(commit=False)
+                obj._alteracao_autorizada = True
+                obj._justificativa_auditoria = "Cadastro (assistente) - avaliação"
+                obj.save()
+                services.calcular_e_salvar(obj)
+                messages.success(request, "Avaliação salva e pontuação recalculada.")
+                return avancar_ou_ficar()
+        else:
+            form = AvaliacaoForm(instance=inscricao)
+        ctx.update(form=form)
+        return render(request, "cadastro/wizard_avaliacao.html", ctx)
+
+    # revisao
+    services.calcular_e_salvar(inscricao)
+    inscricao.refresh_from_db()
+    itens_req = requisitos.avaliar(inscricao)
+    ctx.update(
+        pendencias=wizard.pendencias(inscricao),
+        requisitos=itens_req,
+        apto=requisitos.apto(itens_req),
+    )
+    return render(request, "cadastro/wizard_revisao.html", ctx)
 
 
 @login_required

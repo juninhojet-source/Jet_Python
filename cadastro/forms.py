@@ -143,6 +143,29 @@ class RendaForm(forms.ModelForm):
         fields = ["tipo", "valor", "computavel", "competencia"]
 
 
+class RendaWizardForm(forms.ModelForm):
+    """Renda com seleção do integrante (usada no assistente de cadastro)."""
+
+    membro = forms.ModelChoiceField(queryset=MembroNucleo.objects.none(), label="Integrante")
+
+    class Meta:
+        model = Renda
+        fields = ["membro", "tipo", "valor", "computavel", "competencia"]
+
+    def __init__(self, *args, inscricao=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if inscricao is not None:
+            self.fields["membro"].queryset = MembroNucleo.objects.filter(
+                inscricao=inscricao
+            ).select_related("pessoa")
+
+    def salvar(self) -> Renda:
+        renda = self.save(commit=False)
+        renda.membro = self.cleaned_data["membro"]
+        renda.save()
+        return renda
+
+
 class DocumentoForm(forms.ModelForm):
     class Meta:
         model = Documento

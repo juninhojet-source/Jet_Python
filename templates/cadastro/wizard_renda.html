@@ -1,0 +1,32 @@
+{% extends "cadastro/wizard_base.html" %}
+{% block etapa %}
+<div class="card">
+  <h2>3. Renda por integrante</h2>
+  <p class="trilha">Marque como <strong>não computável</strong> BPC, Bolsa Família,
+  Seguro-Desemprego e benefícios temporários (item 3.1.4.1 do edital).</p>
+  <table>
+    <thead><tr><th>Integrante</th><th>Rendas</th></tr></thead>
+    <tbody>
+      {% for m in membros %}
+      <tr>
+        <td>{{ m.pessoa.nome }}</td>
+        <td>
+          {% for r in m.rendas.all %}
+            {{ r.get_tipo_display }}: R$ {{ r.valor }}{% if not r.computavel %} <em>(não comput.)</em>{% endif %}<br>
+          {% empty %}<span class="pend">sem renda registrada</span>{% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Registrar renda</h2>
+  <form method="post" class="pilha">
+    {% csrf_token %}
+    <div class="grid2">{% include "cadastro/_campos.html" %}</div>
+    <div style="margin-top:1rem"><button class="btn" type="submit">Adicionar renda</button></div>
+  </form>
+</div>
+{% endblock %}

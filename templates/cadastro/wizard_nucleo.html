@@ -1,0 +1,30 @@
+{% extends "cadastro/wizard_base.html" %}
+{% block etapa %}
+<div class="card">
+  <h2>2. Composição do Núcleo Familiar</h2>
+  <table>
+    <thead><tr><th>Nome</th><th>Parentesco</th><th>Nascimento</th><th>Arrimo</th></tr></thead>
+    <tbody>
+      {% for m in membros %}
+      <tr>
+        <td>{{ m.pessoa.nome }}{% if m.pessoa.pcd %} <span class="badge">PcD</span>{% endif %}</td>
+        <td>{{ m.get_parentesco_display }}</td>
+        <td>{{ m.pessoa.data_nascimento }}</td>
+        <td>{% if m.arrimo %}sim{% else %}—{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4">Apenas o requerente. Adicione os demais integrantes abaixo.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Adicionar integrante</h2>
+  <form method="post" class="pilha">
+    {% csrf_token %}
+    <div class="grid2">{% include "cadastro/_campos.html" %}</div>
+    <div style="margin-top:1rem"><button class="btn" type="submit">Adicionar integrante</button></div>
+  </form>
+</div>
+{% endblock %}

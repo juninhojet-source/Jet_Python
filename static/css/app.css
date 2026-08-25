@@ -77,5 +77,20 @@ form.pilha .check input { width: auto; }
 .kpi .num { font-size: 1.8rem; font-weight: 700; color: var(--azul); }
 .kpi .rot { font-size: .82rem; color: #5a6672; }
 
+/* Assistente de cadastro (wizard) */
+.stepper { list-style: none; display: flex; flex-wrap: wrap; gap: .4rem; padding: 0;
+  margin: 0 0 1.2rem; }
+.stepper li { flex: 1; min-width: 120px; }
+.stepper li a { display: block; padding: .5rem .6rem; border: 1px solid var(--borda);
+  border-radius: 6px; background: #fff; color: #5a6672; font-size: .85rem; text-align: center; }
+.stepper li a:hover { text-decoration: none; border-color: var(--azul-claro); }
+.stepper li .num { display: inline-block; min-width: 1.4rem; height: 1.4rem; line-height: 1.4rem;
+  border-radius: 50%; background: #eef2f6; color: var(--azul); font-weight: 700; margin-right: .3rem; }
+.stepper li.atual a { background: var(--azul); color: #fff; border-color: var(--azul); }
+.stepper li.atual .num { background: #fff; color: var(--azul); }
+.stepper li.concluida a { border-color: var(--verde); color: var(--verde); }
+.stepper li.concluida .num { background: var(--verde); color: #fff; }
+.wizard-nav { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: 1rem; }
+
 .pontos-total { font-size: 2rem; font-weight: 800; color: var(--azul); }
 .trilha { color: #5a6672; font-size: .85rem; }

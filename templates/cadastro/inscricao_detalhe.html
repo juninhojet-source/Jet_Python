@@ -21,6 +21,7 @@
   </div>
   <div style="margin-top:1rem">
     {% if pode_cadastrar and not inscricao.bloqueada %}
+    <a class="btn" href="{% url 'cadastro:wizard' inscricao.pk 'requerente' %}">Assistente de cadastro</a>
     <a class="btn secundario" href="{% url 'cadastro:inscricao_editar' inscricao.pk %}">Editar contato</a>
     <a class="btn secundario" href="{% url 'cadastro:membro_novo' inscricao.pk %}">+ Integrante</a>
     {% endif %}
