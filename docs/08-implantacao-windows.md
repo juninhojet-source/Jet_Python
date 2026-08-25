@@ -115,6 +115,32 @@ Para o teste em rede interna, HTTP basta. Ao publicar com dados reais, coloque
    e ajuste `DJANGO_ALLOWED_HOSTS`/`DJANGO_CSRF_TRUSTED_ORIGINS` para `https://...`.
 5. Faça o Waitress escutar só localmente: `MCMV_HOST=127.0.0.1` no `.env`.
 
+## 7.1. Publicar no IIS por hostname (proxy reverso) — script pronto
+
+Para acessar por `http://mcmv.baraodecocais.mg.gov.br` (após o DNS apontar o
+hostname para o IP do servidor, ex.: `172.16.64.9`), há um script que configura
+o IIS como proxy reverso para o Waitress:
+
+```bat
+REM 1) O Waitress deve rodar em 127.0.0.1:8000 (serviço MCMV/NSSM ou iniciar.bat)
+REM 2) Execute o PowerShell COMO ADMINISTRADOR:
+cd C:\mcmv\Jet_Python\deploy\windows\iis
+powershell -ExecutionPolicy Bypass -File .\configurar-iis.ps1 -ProjetoDir C:\mcmv\Jet_Python
+```
+
+O script: instala os recursos do IIS, verifica os módulos **URL Rewrite** e
+**ARR** (se faltarem, informa os links; com internet, use `-BaixarModulos` para
+instalar automaticamente), habilita o proxy do ARR, cria o site com o
+*host header* `mcmv.baraodecocais.mg.gov.br` na porta 80, libera a porta no
+firewall e ajusta o `.env` (ALLOWED_HOSTS/CSRF/BEHIND_PROXY, e Waitress em
+127.0.0.1:8000). Depois, **reinicie o Waitress** e acesse o hostname.
+
+Parâmetros úteis: `-Hostname`, `-Porta`, `-Backend`, `-BaixarModulos`.
+
+**HTTPS (recomendado antes de dados reais):** emita/instale o certificado no
+site do IIS (binding 443), altere no `web.config` o `X-Forwarded-Proto` para
+`https` e no `.env` `DJANGO_SSL_REDIRECT=1`; reinicie o Waitress.
+
 ## 8. Banco de dados
 
 - **Teste prático:** SQLite (padrão) — nada a instalar; o arquivo é `db.sqlite3`.
