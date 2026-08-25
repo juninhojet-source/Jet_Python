@@ -570,3 +570,47 @@ class CpfValidacaoTest(TestCase):
         self.assertTrue(cpf_valido("070.659.036-80"))
         self.assertFalse(cpf_valido("111.111.111-11"))
         self.assertFalse(cpf_valido("123"))
+
+
+class UnicidadeNucleoTest(TestCase):
+    def setUp(self):
+        self.client.force_login(_com_perfil("at_un", "Atendente"))
+        self.req = Pessoa.objects.create(nome="Requerente A", cpf=gera_cpf("529982247"), data_nascimento=nasc(40))
+        self.insc = Inscricao.objects.create(requerente=self.req)
+        MembroNucleo.objects.create(inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE")
+        self.membro = Pessoa.objects.create(nome="Membro B", cpf=gera_cpf("111444777"), data_nascimento=nasc(30))
+        MembroNucleo.objects.create(inscricao=self.insc, pessoa=self.membro, parentesco="FILHO")
+
+    def test_membro_nao_pode_criar_nova_inscricao(self):
+        resp = self.client.post(reverse("cadastro:inscricao_nova"), {
+            "nome": "Membro B", "cpf": self.membro.cpf,
+            "data_nascimento": "1996-01-01", "sexo": "F", "brasileiro": "on",
+        })
+        self.assertEqual(resp.status_code, 200)  # bloqueado, reexibe form
+        self.assertContains(resp, self.insc.numero_inscricao)
+        self.assertContains(resp, "Requerente A")
+
+    def test_membro_de_outro_nucleo_bloqueado(self):
+        rc = Pessoa.objects.create(nome="Req C", cpf=gera_cpf("390533447"), data_nascimento=nasc(40))
+        outra = Inscricao.objects.create(requerente=rc)
+        MembroNucleo.objects.create(inscricao=outra, pessoa=rc, parentesco="REQUERENTE")
+        resp = self.client.post(reverse("cadastro:membro_novo", args=[outra.pk]), {
+            "nome": "Membro B", "cpf": self.membro.cpf,
+            "data_nascimento": "1996-01-01", "sexo": "F", "parentesco": "OUTRO",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "apenas um núcleo")
+
+
+class DocumentoSemAnexoTest(TestCase):
+    def setUp(self):
+        self.client.force_login(_com_perfil("at_doc", "Atendente"))
+        self.req = Pessoa.objects.create(nome="Doc", cpf=gera_cpf("246813579"), data_nascimento=nasc(40))
+        self.insc = Inscricao.objects.create(requerente=self.req)
+        MembroNucleo.objects.create(inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE")
+
+    def test_salva_documento_sem_arquivo(self):
+        url = reverse("cadastro:wizard", args=[self.insc.pk, "documentos"])
+        resp = self.client.post(url, {"tipo": "RG", "status": "RECEBIDO", "observacao": ""})
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(self.insc.documentos.filter(tipo="RG").exists())

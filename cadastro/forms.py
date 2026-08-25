@@ -55,10 +55,17 @@ class RequerenteInscricaoForm(forms.Form):
         cpf = so_digitos(self.cleaned_data["cpf"])
         if not cpf_valido(cpf):
             raise forms.ValidationError("CPF inválido.")
-        if Pessoa.objects.filter(cpf=cpf).exists():
-            raise forms.ValidationError(
-                "Já existe pessoa cadastrada com este CPF. Uma inscrição por núcleo (itens 3.2/3.3.4)."
-            )
+        pessoa = Pessoa.objects.filter(cpf=cpf).first()
+        if pessoa:
+            part = pessoa.participacoes.select_related("inscricao__requerente").first()
+            if part:
+                i = part.inscricao
+                raise forms.ValidationError(
+                    f"CPF já vinculado à inscrição {i.numero_inscricao} "
+                    f"(requerente: {i.requerente.nome}). É permitida uma única inscrição "
+                    f"por núcleo familiar (itens 3.2/3.3.4)."
+                )
+            raise forms.ValidationError("Já existe pessoa cadastrada com este CPF.")
         return cpf
 
     def salvar(self) -> Inscricao:
@@ -133,11 +140,16 @@ class MembroForm(forms.Form):
         cpf = so_digitos(self.cleaned_data["cpf"])
         if not cpf_valido(cpf):
             raise forms.ValidationError("CPF inválido.")
-        qs = Pessoa.objects.filter(cpf=cpf)
-        if qs.exists():
-            pessoa = qs.first()
-            if self.inscricao and pessoa.participacoes.filter(inscricao=self.inscricao).exists():
-                raise forms.ValidationError("Esta pessoa já é membro deste núcleo.")
+        pessoa = Pessoa.objects.filter(cpf=cpf).first()
+        if pessoa:
+            for part in pessoa.participacoes.select_related("inscricao__requerente"):
+                i = part.inscricao
+                if self.inscricao and i.pk == self.inscricao.pk:
+                    raise forms.ValidationError("Esta pessoa já é membro deste núcleo.")
+                raise forms.ValidationError(
+                    f"CPF já vinculado à inscrição {i.numero_inscricao} "
+                    f"(requerente: {i.requerente.nome}). Cada pessoa pode integrar apenas um núcleo."
+                )
         return cpf
 
     def salvar(self) -> MembroNucleo:
@@ -192,6 +204,10 @@ class DocumentoForm(forms.ModelForm):
 
     def __init__(self, *args, inscricao=None, **kwargs):
         super().__init__(*args, **kwargs)
+        # O anexo é opcional — pode-se apenas registrar o documento apresentado.
+        self.fields["arquivo"].required = False
+        self.fields["arquivo"].label = "Anexo (opcional)"
+        self.fields["pessoa"].required = False
         if inscricao is not None:
             # Restringe as pessoas às do núcleo.
             self.fields["pessoa"].queryset = Pessoa.objects.filter(

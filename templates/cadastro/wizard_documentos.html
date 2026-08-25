@@ -22,9 +22,11 @@
 
 <div class="card">
   <h2>Registrar documento</h2>
+  <p class="trilha">O <strong>anexo é opcional</strong> — você pode apenas registrar o
+  documento apresentado e sua situação.</p>
   <form method="post" class="pilha" enctype="multipart/form-data">
     {% csrf_token %}
-    <div class="grid2">{% include "cadastro/_campos.html" %}</div>
+    {% include "cadastro/_campos.html" %}
     <div style="margin-top:1rem"><button class="btn" type="submit">Salvar documento</button></div>
   </form>
 </div>
