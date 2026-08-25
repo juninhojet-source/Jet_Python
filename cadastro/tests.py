@@ -26,6 +26,15 @@ def nasc(idade):
     return date(REF.year - idade, REF.month, REF.day)
 
 
+def gera_cpf(base9: str) -> str:
+    """Gera um CPF válido (com dígitos verificadores) a partir de 9 dígitos."""
+    cpf = base9
+    for _ in range(2):
+        soma = sum(int(cpf[i]) * ((len(cpf) + 1) - i) for i in range(len(cpf)))
+        cpf += str(((soma * 10) % 11) % 10)
+    return cpf
+
+
 class PontuacaoIntegracaoTest(TestCase):
     def _criar_inscricao_exemplo(self):
         req = Pessoa.objects.create(nome="João", cpf="111", data_nascimento=nasc(40), sexo="M")
@@ -229,15 +238,16 @@ class ViewsSmokeTest(TestCase):
         self.assertIn("/entrar/", resp.url)
 
     def test_criar_inscricao_e_finalizar(self):
+        cpf = gera_cpf("111444777")
         resp = self.client.post(
             reverse("cadastro:inscricao_nova"),
             {
-                "nome": "Fulano", "cpf": "12345", "data_nascimento": "1986-01-01",
+                "nome": "Fulano", "cpf": cpf, "data_nascimento": "1986-01-01",
                 "sexo": "M", "brasileiro": "on",
             },
         )
         self.assertEqual(resp.status_code, 302)
-        insc = Inscricao.objects.get(requerente__cpf="12345")
+        insc = Inscricao.objects.get(requerente__cpf=cpf)
 
         # detalhe responde
         self.assertEqual(
@@ -389,18 +399,25 @@ class WizardTest(TestCase):
     def setUp(self):
         self.user = _com_perfil("at_wiz", "Atendente")
         self.client.force_login(self.user)
+        self.cpf = gera_cpf("222333444")
         resp = self.client.post(reverse("cadastro:inscricao_nova"), {
-            "nome": "Assistente Teste", "cpf": "90900",
+            "nome": "Assistente Teste", "cpf": self.cpf,
             "data_nascimento": "1986-01-01", "sexo": "M", "brasileiro": "on",
         })
-        self.insc = Inscricao.objects.get(requerente__cpf="90900")
+        self.insc = Inscricao.objects.get(requerente__cpf=self.cpf)
 
     def test_nova_entra_no_wizard(self):
         resp = self.client.post(reverse("cadastro:inscricao_nova"), {
-            "nome": "Outro", "cpf": "90901",
+            "nome": "Outro", "cpf": gera_cpf("333444555"),
             "data_nascimento": "1986-01-01", "sexo": "F", "brasileiro": "on",
         })
         self.assertIn("/cadastro/requerente/", resp.url)
+
+    def test_data_nascimento_aparece_no_assistente(self):
+        # A data informada na criação deve vir preenchida (value ISO) no assistente.
+        url = reverse("cadastro:wizard", args=[self.insc.pk, "requerente"])
+        html = self.client.get(url).content.decode()
+        self.assertIn('value="1986-01-01"', html)
 
     def test_todas_etapas_respondem(self):
         for etapa in ["requerente", "nucleo", "renda", "documentos", "avaliacao", "revisao"]:
@@ -410,7 +427,7 @@ class WizardTest(TestCase):
     def test_salvar_e_avancar(self):
         url = reverse("cadastro:wizard", args=[self.insc.pk, "requerente"])
         resp = self.client.post(url, {
-            "nome": "Assistente Teste", "cpf": "90900", "data_nascimento": "1986-01-01",
+            "nome": "Assistente Teste", "cpf": self.cpf, "data_nascimento": "1986-01-01",
             "sexo": "M", "estado_civil": "SOLTEIRO", "brasileiro": "on", "acao": "avancar",
         })
         self.assertEqual(resp.status_code, 302)
@@ -522,3 +539,34 @@ class ReciboTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp["Content-Type"], "application/pdf")
         self.assertTrue(resp.content[:5] == b"%PDF-")
+
+
+class CpfValidacaoTest(TestCase):
+    def setUp(self):
+        self.client.force_login(_com_perfil("at_cpf", "Atendente"))
+
+    def test_cpf_invalido_rejeitado(self):
+        resp = self.client.post(reverse("cadastro:inscricao_nova"), {
+            "nome": "Teste", "cpf": "12345678900",  # dígitos verificadores errados
+            "data_nascimento": "1986-01-01", "sexo": "M", "brasileiro": "on",
+        })
+        self.assertEqual(resp.status_code, 200)  # reexibe o form
+        self.assertContains(resp, "CPF inválido")
+        self.assertFalse(Inscricao.objects.filter(requerente__cpf="12345678900").exists())
+
+    def test_cpf_valido_aceito_e_normalizado(self):
+        cpf = gera_cpf("529982247")  # gera dígitos válidos
+        formatado = f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
+        resp = self.client.post(reverse("cadastro:inscricao_nova"), {
+            "nome": "Teste", "cpf": formatado,  # com pontuação
+            "data_nascimento": "1986-01-01", "sexo": "M", "brasileiro": "on",
+        })
+        self.assertEqual(resp.status_code, 302)
+        # Deve ter sido salvo só com dígitos.
+        self.assertTrue(Inscricao.objects.filter(requerente__cpf=cpf).exists())
+
+    def test_algoritmo_cpf(self):
+        from cadastro.validadores import cpf_valido
+        self.assertTrue(cpf_valido("070.659.036-80"))
+        self.assertFalse(cpf_valido("111.111.111-11"))
+        self.assertFalse(cpf_valido("123"))

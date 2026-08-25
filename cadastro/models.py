@@ -76,6 +76,8 @@ class Inscricao(ModeloAuditavel):
     numero = models.CharField(max_length=20, blank=True)
     complemento = models.CharField(max_length=100, blank=True)
     bairro = models.CharField(max_length=100, blank=True)
+    cidade = models.CharField(max_length=100, blank=True)
+    uf = models.CharField("UF", max_length=2, blank=True)
     cep = models.CharField(max_length=9, blank=True)
 
     # Data de referência para cálculo de idades (decisão D-1). Se vazia, usa a

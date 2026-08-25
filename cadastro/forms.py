@@ -5,15 +5,24 @@ from __future__ import annotations
 from django import forms
 
 from .models import Documento, Inscricao, MembroNucleo, Pessoa, Renda
+from .validadores import cpf_valido, so_digitos
 
-_CTRL = {"class": "campo"}
+# DateInput compatível com <input type="date"> (valor em ISO YYYY-MM-DD),
+# para que a data já preenchida apareça ao editar.
+_DATA = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
 
 
 class PessoaForm(forms.ModelForm):
     class Meta:
         model = Pessoa
         fields = ["nome", "cpf", "data_nascimento", "sexo", "estado_civil", "brasileiro", "pcd"]
-        widgets = {"data_nascimento": forms.DateInput(attrs={"type": "date", **_CTRL})}
+        widgets = {"data_nascimento": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")}
+
+    def clean_cpf(self):
+        cpf = so_digitos(self.cleaned_data["cpf"])
+        if not cpf_valido(cpf):
+            raise forms.ValidationError("CPF inválido.")
+        return cpf
 
 
 class RequerenteInscricaoForm(forms.Form):
@@ -22,7 +31,8 @@ class RequerenteInscricaoForm(forms.Form):
     nome = forms.CharField(label="Nome completo", max_length=200)
     cpf = forms.CharField(label="CPF", max_length=14)
     data_nascimento = forms.DateField(
-        label="Data de nascimento", widget=forms.DateInput(attrs={"type": "date"})
+        label="Data de nascimento",
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
     )
     sexo = forms.ChoiceField(label="Sexo", choices=Pessoa.Sexo.choices)
     estado_civil = forms.ChoiceField(
@@ -37,10 +47,14 @@ class RequerenteInscricaoForm(forms.Form):
     numero = forms.CharField(label="Número", max_length=20, required=False)
     complemento = forms.CharField(label="Complemento", max_length=100, required=False)
     bairro = forms.CharField(label="Bairro", max_length=100, required=False)
+    cidade = forms.CharField(label="Cidade", max_length=100, required=False)
+    uf = forms.CharField(label="UF", max_length=2, required=False)
     cep = forms.CharField(label="CEP", max_length=9, required=False)
 
     def clean_cpf(self):
-        cpf = self.cleaned_data["cpf"].strip()
+        cpf = so_digitos(self.cleaned_data["cpf"])
+        if not cpf_valido(cpf):
+            raise forms.ValidationError("CPF inválido.")
         if Pessoa.objects.filter(cpf=cpf).exists():
             raise forms.ValidationError(
                 "Já existe pessoa cadastrada com este CPF. Uma inscrição por núcleo (itens 3.2/3.3.4)."
@@ -56,7 +70,8 @@ class RequerenteInscricaoForm(forms.Form):
         inscricao = Inscricao.objects.create(
             requerente=pessoa,
             telefone=d["telefone"], email=d["email"], endereco=d["endereco"],
-            numero=d["numero"], complemento=d["complemento"], bairro=d["bairro"], cep=d["cep"],
+            numero=d["numero"], complemento=d["complemento"], bairro=d["bairro"],
+            cidade=d["cidade"], uf=d["uf"], cep=d["cep"],
         )
         # O requerente também é o primeiro membro do núcleo.
         MembroNucleo.objects.create(
@@ -70,7 +85,8 @@ class InscricaoContatoForm(forms.ModelForm):
 
     class Meta:
         model = Inscricao
-        fields = ["telefone", "email", "endereco", "numero", "complemento", "bairro", "cep"]
+        fields = ["telefone", "email", "endereco", "numero", "complemento", "bairro",
+                  "cidade", "uf", "cep"]
 
 
 class AvaliacaoForm(forms.ModelForm):
@@ -97,7 +113,8 @@ class MembroForm(forms.Form):
     nome = forms.CharField(label="Nome completo", max_length=200)
     cpf = forms.CharField(label="CPF", max_length=14)
     data_nascimento = forms.DateField(
-        label="Data de nascimento", widget=forms.DateInput(attrs={"type": "date"})
+        label="Data de nascimento",
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
     )
     sexo = forms.ChoiceField(label="Sexo", choices=Pessoa.Sexo.choices)
     pcd = forms.BooleanField(label="Pessoa com deficiência", required=False)
@@ -113,7 +130,9 @@ class MembroForm(forms.Form):
         super().__init__(*args, **kwargs)
 
     def clean_cpf(self):
-        cpf = self.cleaned_data["cpf"].strip()
+        cpf = so_digitos(self.cleaned_data["cpf"])
+        if not cpf_valido(cpf):
+            raise forms.ValidationError("CPF inválido.")
         qs = Pessoa.objects.filter(cpf=cpf)
         if qs.exists():
             pessoa = qs.first()
