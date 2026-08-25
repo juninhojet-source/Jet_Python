@@ -152,7 +152,8 @@ if not DEBUG:
         STORAGES = {
             "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
             "staticfiles": {
-                "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+                # Manifesto tolerante: um estático faltante não derruba a página (500).
+                "BACKEND": "config.storage.StaticStorage"
             },
         }
     except ImportError:
