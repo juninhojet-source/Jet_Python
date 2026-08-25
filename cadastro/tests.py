@@ -446,6 +446,37 @@ class ExclusaoTest(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertFalse(Inscricao.objects.filter(pk=insc.pk).exists())
 
+    def test_exclusao_libera_cpf(self):
+        # Após excluir, a pessoa órfã é removida e o CPF fica livre para novo cadastro.
+        from django.contrib.auth.models import Group
+        insc = self._inscricao("07065903680")
+        u = User.objects.create_user("adm3", password="x")
+        u.groups.add(Group.objects.get(name="Administrador"))
+        self.client.force_login(u)
+        self.client.post(reverse("cadastro:inscricao_excluir", args=[insc.pk]))
+        self.assertFalse(Pessoa.objects.filter(cpf="07065903680").exists())
+        # Recriar com o mesmo CPF deve funcionar (sem erro de duplicidade).
+        resp = self.client.post(reverse("cadastro:inscricao_nova"), {
+            "nome": "Novo Cadastro", "cpf": "07065903680",
+            "data_nascimento": "1984-08-08", "sexo": "M", "brasileiro": "on",
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(Pessoa.objects.filter(cpf="07065903680").exists())
+
+    def test_pessoa_compartilhada_nao_e_removida(self):
+        # Pessoa que também é membro de OUTRO núcleo não deve ser apagada.
+        from django.contrib.auth.models import Group
+        compartilhada = Pessoa.objects.create(nome="Comum", cpf="comum1", data_nascimento=nasc(30))
+        insc1 = self._inscricao("dono1")
+        MembroNucleo.objects.create(inscricao=insc1, pessoa=compartilhada, parentesco="OUTRO")
+        outra = self._inscricao("dono2")
+        MembroNucleo.objects.create(inscricao=outra, pessoa=compartilhada, parentesco="OUTRO")
+        u = User.objects.create_user("adm4", password="x")
+        u.groups.add(Group.objects.get(name="Administrador"))
+        self.client.force_login(u)
+        self.client.post(reverse("cadastro:inscricao_excluir", args=[insc1.pk]))
+        self.assertTrue(Pessoa.objects.filter(cpf="comum1").exists())  # ainda em 'outra'
+
     def test_atendente_nao_exclui(self):
         insc = self._inscricao("ex_at")
         self.client.force_login(_com_perfil("at_del", "Atendente"))

@@ -8,6 +8,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import Count, Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -232,9 +233,23 @@ def inscricao_excluir(request, pk):
     """Exclui uma inscrição (e seus dados vinculados). Apenas Administrador."""
     inscricao = get_object_or_404(Inscricao, pk=pk)
     if request.method == "POST":
+        from .models import Pessoa
+
         numero = inscricao.numero_inscricao
-        inscricao._justificativa_auditoria = request.POST.get("motivo", "Exclusão administrativa")
-        inscricao.delete()
+        # Pessoas envolvidas (requerente + integrantes) antes de excluir.
+        pessoas_ids = {inscricao.requerente_id}
+        pessoas_ids.update(inscricao.membros.values_list("pessoa_id", flat=True))
+
+        with transaction.atomic():
+            inscricao._justificativa_auditoria = request.POST.get("motivo", "Exclusão administrativa")
+            inscricao.delete()
+            # Remove pessoas que ficaram sem vínculo com qualquer núcleo/inscrição,
+            # liberando o CPF para nova inscrição.
+            for pid in pessoas_ids:
+                p = Pessoa.objects.filter(pk=pid).first()
+                if p and not p.participacoes.exists() and not p.inscricoes_como_requerente.exists():
+                    p.delete()
+
         messages.success(request, f"Inscrição {numero} excluída.")
         return redirect("cadastro:inscricao_list")
     return redirect("cadastro:inscricao_detalhe", pk=pk)
