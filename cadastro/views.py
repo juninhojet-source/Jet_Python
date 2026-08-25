@@ -479,12 +479,19 @@ def finalizar(request, pk):
             return redirect("cadastro:inscricao_detalhe", pk=pk)
         services.calcular_e_salvar(inscricao)  # snapshot final
         inscricao.refresh_from_db()
+        agora = timezone.now()
         inscricao.status = Inscricao.Status.RECEBIDA
-        inscricao.data_finalizacao = timezone.now()
+        inscricao.data_finalizacao = agora
         inscricao.bloqueada = True
+        if not inscricao.protocolo:
+            inscricao.protocolo = f"MCMV-{agora:%Y}-{inscricao.numero_inscricao}"
         inscricao._alteracao_autorizada = True
         inscricao.save()
-        messages.success(request, "Inscrição finalizada e bloqueada.")
+        messages.success(
+            request,
+            f"Inscrição finalizada. Protocolo {inscricao.protocolo}. "
+            "Imprima o recibo para entregar ao requerente.",
+        )
     return redirect("cadastro:inscricao_detalhe", pk=pk)
 
 
@@ -610,6 +617,18 @@ def rel_ficha_pdf(request, pk):
         pk=pk,
     )
     return relatorios.ficha_pdf(inscricao)
+
+
+@login_required
+def rel_recibo_pdf(request, pk):
+    """Comprovante de inscrição (recibo) — disponível após a finalização."""
+    inscricao = get_object_or_404(
+        Inscricao.objects.select_related("requerente"), pk=pk
+    )
+    if not inscricao.protocolo:
+        messages.info(request, "O recibo fica disponível após finalizar a inscrição.")
+        return redirect("cadastro:inscricao_detalhe", pk=pk)
+    return relatorios.recibo_pdf(inscricao)
 
 
 @login_required

@@ -33,4 +33,5 @@ urlpatterns = [
     path("relatorios/empates.xlsx", views.rel_empates, name="rel_empates"),
     path("relatorios/auditoria.xlsx", views.rel_auditoria, name="rel_auditoria"),
     path("inscricoes/<int:pk>/ficha.pdf", views.rel_ficha_pdf, name="rel_ficha_pdf"),
+    path("inscricoes/<int:pk>/recibo.pdf", views.rel_recibo_pdf, name="rel_recibo_pdf"),
 ]

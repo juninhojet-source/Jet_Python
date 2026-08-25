@@ -498,3 +498,27 @@ class ExclusaoTest(TestCase):
         self.client.force_login(u)
         html = self.client.get(reverse("cadastro:inscricao_list")).content.decode()
         self.assertIn(url_excluir, html)
+
+
+class ReciboTest(TestCase):
+    def setUp(self):
+        self.user = _com_perfil("at_rec", "Atendente")
+        self.client.force_login(self.user)
+        self.req = Pessoa.objects.create(nome="Recibo", cpf="55501", data_nascimento=nasc(40))
+        self.insc = Inscricao.objects.create(requerente=self.req)
+        MembroNucleo.objects.create(inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE")
+
+    def test_recibo_indisponivel_antes_de_finalizar(self):
+        resp = self.client.get(reverse("cadastro:rel_recibo_pdf", args=[self.insc.pk]))
+        self.assertEqual(resp.status_code, 302)  # redireciona com aviso
+
+    def test_finalizar_gera_protocolo_e_recibo(self):
+        self.client.post(reverse("cadastro:finalizar", args=[self.insc.pk]))
+        self.insc.refresh_from_db()
+        self.assertTrue(self.insc.protocolo)
+        self.assertTrue(self.insc.protocolo.startswith("MCMV-"))
+        self.assertIn(self.insc.numero_inscricao, self.insc.protocolo)
+        resp = self.client.get(reverse("cadastro:rel_recibo_pdf", args=[self.insc.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "application/pdf")
+        self.assertTrue(resp.content[:5] == b"%PDF-")

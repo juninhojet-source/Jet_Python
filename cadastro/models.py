@@ -112,6 +112,8 @@ class Inscricao(ModeloAuditavel):
 
     data_finalizacao = models.DateTimeField(null=True, blank=True)
     bloqueada = models.BooleanField(default=False)
+    # Protocolo do comprovante de inscrição (gerado na finalização).
+    protocolo = models.CharField(max_length=40, blank=True, db_index=True)
 
     class Meta:
         verbose_name = "inscrição"

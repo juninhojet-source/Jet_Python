@@ -30,10 +30,15 @@
   <p>Ao finalizar, a inscrição é <strong>bloqueada</strong> (Anexo II): alterações só por
   procedimento administrativo autorizado.</p>
   <a class="btn secundario" href="{% url 'cadastro:rel_ficha_pdf' inscricao.pk %}" target="_blank">Ver ficha (PDF)</a>
+  {% if inscricao.protocolo %}
+  <a class="btn" href="{% url 'cadastro:rel_recibo_pdf' inscricao.pk %}" target="_blank">🖨 Imprimir recibo</a>
+  <p class="trilha">Protocolo: <strong>{{ inscricao.protocolo }}</strong> — inscrição já finalizada.</p>
+  {% else %}
   <form method="post" action="{% url 'cadastro:finalizar' inscricao.pk %}" style="display:inline"
-    onsubmit="return confirm('Finalizar e BLOQUEAR a inscrição?');">
+    onsubmit="return confirm('Finalizar e BLOQUEAR a inscrição? Será gerado o protocolo e o recibo.');">
     {% csrf_token %}
-    <button class="btn perigo" type="submit">Finalizar e bloquear inscrição</button>
+    <button class="btn perigo" type="submit">Finalizar e gerar protocolo/recibo</button>
   </form>
+  {% endif %}
 </div>
 {% endblock %}
