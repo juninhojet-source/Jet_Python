@@ -19,6 +19,7 @@
 #>
 param(
     [string]$Hostname   = "mcmv.baraodecocais.mg.gov.br",
+    [string]$Ip         = "172.16.64.9",
     [string]$Backend    = "http://127.0.0.1:8000",
     [string]$SiteName   = "MCMV",
     [string]$SitePath   = "C:\mcmv\iis-site",
@@ -95,6 +96,14 @@ New-Item -ItemType Directory -Force -Path $SitePath | Out-Null
 Copy-Item (Join-Path $PSScriptRoot "web.config") (Join-Path $SitePath "web.config") -Force
 if (Get-Website -Name $SiteName -ErrorAction SilentlyContinue) { Remove-Website -Name $SiteName }
 New-Website -Name $SiteName -PhysicalPath $SitePath -Port $Porta -HostHeader $Hostname -Force | Out-Null
+# Binding adicional por IP (permite acessar por http://IP antes do DNS apontar).
+if ($Ip) {
+    try {
+        New-WebBinding -Name $SiteName -Protocol http -Port $Porta -IPAddress $Ip -HostHeader "" -ErrorAction Stop
+    } catch {
+        Write-Host "  (binding por IP ja existia ou nao pode ser criado: $($_.Exception.Message))" -ForegroundColor DarkYellow
+    }
+}
 Start-Website -Name $SiteName
 
 Write-Host "== 5/6 Liberando a porta $Porta no firewall ==" -ForegroundColor Cyan
