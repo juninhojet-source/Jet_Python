@@ -2,6 +2,7 @@
 -r requirements.txt
 waitress>=3.0      # servidor WSGI para Windows (gunicorn não roda em Windows)
 whitenoise>=6.0    # serve os arquivos estáticos pela própria aplicação
+cryptography>=41   # gerar certificado TLS decente (scripts/windows/gerar_certificado.py)
 
 # PostgreSQL no Windows (opcional; para o teste inicial pode-se usar SQLite):
 # psycopg[binary]>=3.1

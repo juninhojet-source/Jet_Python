@@ -170,6 +170,22 @@ Acesse `https://mcmv.baraodecocais.mg.gov.br` (ou `https://172.16.64.9`).
   em `C:\mcmv\mcmv-cert.cer`. Instale-o nas máquinas clientes em **Autoridades de
   Certificação Raiz Confiáveis** (ou distribua por **GPO** no domínio) para o
   aviso "Não seguro" desaparecer.
+- ⚠️ **O certificado do `New-SelfSignedCertificate` do 2012 R2 é SHA-1 e não
+  serve para acesso por IP** — o Chrome recusa (segue "Não seguro" mesmo
+  instalado). Gere um certificado decente (SHA-256, com DNS **e** IP no SAN):
+
+  ```bat
+  .venv\Scripts\activate.bat
+  python scripts\windows\gerar_certificado.py --hostname mcmv.baraodecocais.mg.gov.br --ip 172.16.64.9 --senha mcmv123 --saida C:\mcmv
+  REM vincula o novo certificado no IIS:
+  powershell -ExecutionPolicy Bypass -File deploy\windows\iis\configurar-https.ps1 -ProjetoDir C:\mcmv\Jet_Python -Pfx C:\mcmv\mcmv.pfx -SenhaPfx mcmv123
+  net stop MCMV & net start MCMV
+  ```
+
+  Depois instale `C:\mcmv\mcmv-cert.cer` nas **Autoridades de Certificação Raiz
+  Confiáveis** dos clientes (ou por GPO). Aí o cadeado aparece — por nome e por IP.
+- **HSTS:** o `configurar-https.ps1` só liga HSTS com a opção `-HSTS` (use apenas
+  com certificado oficial e confiável; com autoassinado, deixe desligado).
 - **Rollback (voltar para HTTP em `:8000`):** no `.env`, `DJANGO_SSL_REDIRECT=0`,
   `MCMV_HOST=0.0.0.0`, e reinicie o Waitress.
 

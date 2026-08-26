@@ -37,7 +37,8 @@ param(
     [string]$Pfx        = "",
     [string]$SenhaPfx   = "",
     [string]$CerSaida   = "C:\mcmv\mcmv-cert.cer",
-    [switch]$BaixarModulos
+    [switch]$BaixarModulos,
+    [switch]$HSTS
 )
 
 $ErrorActionPreference = "Stop"
@@ -162,9 +163,10 @@ netsh advfirewall firewall add rule name="MCMV IIS 443" dir=in action=allow prot
 Write-Host "== 8/8 Ajustando o .env do Django (HTTPS) ==" -ForegroundColor Cyan
 if ($ProjetoDir -and (Test-Path (Join-Path $ProjetoDir ".env"))) {
     $envPath = Join-Path $ProjetoDir ".env"
-    # HSTS: ligado so com certificado oficial. Autoassinado -> 0 (desligado),
-    # para nao "prender" o navegador em HTTPS caso o cert autoassinado expire.
-    $hsts = if ($Pfx) { "31536000" } else { "0" }
+    # HSTS: opt-in (-HSTS). Desligado por padrao para nao "prender" o navegador
+    # em HTTPS caso o certificado (autoassinado/interno) expire ou mude. Ligue-o
+    # (-HSTS) apenas com certificado oficial e confiavel.
+    $hsts = if ($HSTS) { "31536000" } else { "0" }
     $desejado = [ordered]@{
         "DJANGO_BEHIND_PROXY"         = "1"
         "DJANGO_SSL_REDIRECT"         = "1"
