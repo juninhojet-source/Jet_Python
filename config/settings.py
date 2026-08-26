@@ -18,7 +18,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 try:  # opcional — em produção as variáveis podem vir do systemd/ambiente
     from dotenv import load_dotenv
 
-    load_dotenv(BASE_DIR / ".env")
+    # encoding utf-8-sig remove um eventual BOM no início do arquivo (o Bloco de
+    # Notas e o PowerShell 5.1 costumam gravar com BOM), evitando que a primeira
+    # variável do .env seja lida com o caractere BOM colado no nome.
+    load_dotenv(BASE_DIR / ".env", encoding="utf-8-sig")
 except ImportError:
     pass
 

@@ -176,8 +176,10 @@ if ($ProjetoDir -and (Test-Path (Join-Path $ProjetoDir ".env"))) {
         if ($linhas -match "^\s*$k=") { $linhas = $linhas -replace "^\s*$k=.*", $v }
         else { $linhas += $v }
     }
-    Set-Content -Path $envPath -Value $linhas -Encoding UTF8
-    Write-Host "  .env atualizado em $envPath" -ForegroundColor Green
+    # Grava SEM BOM: no PowerShell 5.1, "Set-Content -Encoding UTF8" adiciona um
+    # BOM que corrompe a 1a variavel do .env (o python-dotenv nao o remove).
+    [System.IO.File]::WriteAllLines($envPath, [string[]]$linhas, (New-Object System.Text.UTF8Encoding($false)))
+    Write-Host "  .env atualizado em $envPath (sem BOM)" -ForegroundColor Green
 } else {
     Write-Host "  Informe -ProjetoDir para atualizar o .env, ou ajuste manualmente:" -ForegroundColor Yellow
     Write-Host "    DJANGO_BEHIND_PROXY=1"

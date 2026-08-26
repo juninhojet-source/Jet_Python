@@ -136,8 +136,10 @@ if ($ProjetoDir -and (Test-Path (Join-Path $ProjetoDir ".env"))) {
             $linhas += $v
         }
     }
-    Set-Content -Path $envPath -Value $linhas -Encoding UTF8
-    Write-Host "  .env atualizado em $envPath" -ForegroundColor Green
+    # Grava SEM BOM: no PowerShell 5.1, "Set-Content -Encoding UTF8" adiciona um
+    # BOM que corrompe a 1a variavel do .env (o python-dotenv nao o remove).
+    [System.IO.File]::WriteAllLines($envPath, [string[]]$linhas, (New-Object System.Text.UTF8Encoding($false)))
+    Write-Host "  .env atualizado em $envPath (sem BOM)" -ForegroundColor Green
     Write-Host "  Reinicie o Waitress (servico MCMV ou iniciar.bat) para aplicar." -ForegroundColor Yellow
 } else {
     Write-Host "  Informe -ProjetoDir para atualizar o .env automaticamente, ou ajuste manualmente:" -ForegroundColor Yellow
