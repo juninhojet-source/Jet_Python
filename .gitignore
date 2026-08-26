@@ -224,3 +224,7 @@ __marimo__/
 # Projeto MCMV — segredos e logs
 .env
 /logs/
+
+# Pasta protegida e backups (nunca versionar dados reais)
+/backups/
+db.sqlite3.pre-restauracao

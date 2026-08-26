@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block titulo %}Política de Privacidade e LGPD — MCMV{% endblock %}
+
+{% block content %}
+<article class="documento-legal">
+  <h1>Política de Privacidade e Proteção de Dados (LGPD)</h1>
+  <p class="subtitulo">
+    Sistema MCMV — Cadastro Habitacional · Edital de Chamamento nº 001/2026
+    (Programa Minha Casa Minha Vida — Faixa 02)<br>
+    Prefeitura Municipal de Barão de Cocais/MG · Departamento de Informática e Tecnologia
+  </p>
+
+  <h2>1. Apresentação</h2>
+  <p>
+    A Prefeitura Municipal de Barão de Cocais — MG, por meio do Departamento de
+    Informática e Tecnologia e da Comissão responsável pelo Edital nº 001/2026,
+    opera o <strong>Sistema MCMV — Cadastro Habitacional</strong>, destinado ao
+    cadastro, pontuação, classificação e seleção de candidatos ao Programa Minha
+    Casa Minha Vida (Faixa 02).
+  </p>
+  <p>
+    Este documento explica, de forma clara, quais dados pessoais o sistema trata,
+    com qual finalidade, por quanto tempo e como o titular pode exercer seus
+    direitos, em observância à <strong>Lei nº 13.709/2018 (LGPD)</strong>.
+  </p>
+
+  <h2>2. Base legal do tratamento</h2>
+  <ul>
+    <li>Art. 7º, II — cumprimento de obrigação legal ou regulatória;</li>
+    <li>Art. 7º, III — execução de políticas públicas previstas em lei/edital;</li>
+    <li>Art. 23 — tratamento por pessoa jurídica de direito público para o
+      atendimento de sua finalidade pública;</li>
+    <li>Art. 11, II — quando houver dado sensível (ex.: informação de deficiência
+      para fins de critério de pontuação), tratado para execução de política
+      pública e cumprimento de obrigação legal.</li>
+  </ul>
+  <p>Marco complementar: Lei nº 11.977/2009 (PMCMV) e o Edital nº 001/2026 e seus anexos.</p>
+
+  <h2>3. Dados coletados</h2>
+  <ul>
+    <li><strong>Do requerente e do núcleo familiar:</strong> nome, CPF, RG,
+      data de nascimento, sexo, estado civil, telefone, e-mail, endereço,
+      composição familiar e parentesco.</li>
+    <li><strong>Socioeconômicos:</strong> renda declarada e comprovada, valores
+      de aluguel, situação habitacional (moradia precária/risco), condição de
+      não proprietário e de não ter sido beneficiado por programa habitacional.</li>
+    <li><strong>Dado sensível:</strong> indicação de pessoa com deficiência no
+      núcleo (usado apenas como critério de pontuação previsto no edital).</li>
+    <li><strong>Documentos:</strong> arquivos anexados para comprovação, guardados
+      em área protegida e acessíveis somente a usuários autorizados.</li>
+    <li><strong>De servidores:</strong> usuário, nome, perfil de acesso e registros
+      de auditoria (logs).</li>
+    <li><strong>Técnicos automáticos:</strong> usuário, IP e data/hora das ações,
+      para a trilha de auditoria.</li>
+  </ul>
+  <p>
+    <strong>Não coletamos</strong> dados bancários, biometria, geolocalização,
+    redes sociais ou cookies de rastreamento/publicidade.
+  </p>
+
+  <h2>4. Finalidades</h2>
+  <ul>
+    <li>Cadastro e identificação dos requerentes e do núcleo familiar;</li>
+    <li>Cálculo da pontuação (critérios legais e complementares do edital);</li>
+    <li>Classificação, desempate e emissão de listas do processo seletivo;</li>
+    <li>Emissão de protocolo e comprovante de inscrição;</li>
+    <li>Auditoria interna, segurança da informação e prestação de contas.</li>
+  </ul>
+
+  <h2>5. Compartilhamento</h2>
+  <p>Os dados podem ser compartilhados apenas com:</p>
+  <ul>
+    <li>Caixa Econômica Federal e Ministério das Cidades (operacionalização do PMCMV);</li>
+    <li>Órgãos de controle (TCE-MG, CGM, Ministério Público) em auditorias/requisições legais.</li>
+  </ul>
+  <p>
+    A Prefeitura <strong>não vende, aluga ou cede</strong> dados pessoais a
+    empresas privadas ou para fins comerciais.
+  </p>
+
+  <h2>6. Segurança — infraestrutura</h2>
+  <ul>
+    <li>Hospedagem em <strong>servidor municipal próprio</strong>, dentro da estrutura
+      física da Prefeitura, em <strong>local seguro, climatizado e de acesso restrito</strong>,
+      disponível somente ao responsável pela Tecnologia da Informação;</li>
+    <li>Rede protegida por <strong>firewall corporativo Fortinet (FortiGate)</strong>,
+      com filtragem de tráfego e prevenção de intrusão;</li>
+    <li><strong>Active Directory (AD)</strong> e domínio corporativo para gestão
+      centralizada de identidades;</li>
+    <li>Acesso administrativo restrito ao Departamento de Informática e Tecnologia,
+      mediante credenciais nominais e registro de log.</li>
+  </ul>
+
+  <h2>7. Segurança — aplicação</h2>
+  <ul>
+    <li>Acesso somente a <strong>pessoas autorizadas</strong>, com autenticação
+      individual e <strong>perfis de usuário</strong> segmentados (Administrador,
+      Atendente, Analista, Comissão, Consulta);</li>
+    <li><strong>Log de acesso e trilha de auditoria</strong> de todas as ações
+      (quem, quando e o quê), em registro somente-adição;</li>
+    <li>Política de senha forte e expiração de sessão por inatividade;</li>
+    <li>Tráfego criptografado por <strong>HTTPS/TLS</strong>;</li>
+    <li>Documentos pessoais guardados fora da área pública, servidos apenas a
+      usuários autenticados e autorizados;</li>
+    <li><strong>Backup automático diário</strong>, com retenção e procedimento de
+      restauração testado.</li>
+  </ul>
+
+  <h2>8. Retenção</h2>
+  <ul>
+    <li>Cadastros e documentos do processo seletivo: durante o processo + pelo
+      prazo legal de guarda para prestação de contas do programa;</li>
+    <li>Logs de auditoria: enquanto necessários à fiscalização;</li>
+    <li>Backups: conforme a política de retenção configurada (padrão 30 dias);</li>
+    <li>Servidores desligados: conta inativada imediatamente.</li>
+  </ul>
+  <p>Encerrados os prazos, os dados são anonimizados ou eliminados.</p>
+
+  <h2>9. Direitos do titular (LGPD, art. 18)</h2>
+  <ul>
+    <li>Confirmação da existência de tratamento e acesso aos dados;</li>
+    <li>Correção de dados incompletos, inexatos ou desatualizados;</li>
+    <li>Anonimização, bloqueio ou eliminação de dados desnecessários;</li>
+    <li>Informação sobre o compartilhamento;</li>
+    <li>Revogação de consentimento, quando aplicável;</li>
+    <li>Petição em relação aos seus dados perante a ANPD.</li>
+  </ul>
+  <p>Prazo de resposta: 15 dias (art. 19 da LGPD).</p>
+
+  <h2>10. Encarregado (DPO) e contato</h2>
+  <p>
+    Departamento de Informática e Tecnologia — Prefeitura Municipal de Barão de Cocais/MG<br>
+    Responsável: Aristides Ferreira Junior · Telefone: (31) 3837-7661
+  </p>
+  <p>
+    O cidadão também pode acionar a Autoridade Nacional de Proteção de Dados (ANPD):
+    <a href="https://www.gov.br/anpd" rel="noopener">https://www.gov.br/anpd</a>.
+  </p>
+
+  <h2>11. Alterações</h2>
+  <p>
+    Esta política pode ser revisada periodicamente; a versão vigente fica sempre
+    disponível nesta página.<br>
+    <strong>Versão 1.0</strong> — última atualização em 26/08/2026.
+  </p>
+
+  <p class="voltar"><a href="{% url 'login' %}">← Voltar ao acesso</a></p>
+</article>
+{% endblock %}

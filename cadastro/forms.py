@@ -93,7 +93,11 @@ class InscricaoContatoForm(forms.ModelForm):
     class Meta:
         model = Inscricao
         fields = ["telefone", "email", "endereco", "numero", "complemento", "bairro",
-                  "cidade", "uf", "cep"]
+                  "cidade", "uf", "cep", "ciencia_lgpd"]
+        labels = {
+            "ciencia_lgpd": "O requerente declara estar ciente do tratamento dos "
+            "dados pessoais conforme a Política de Privacidade (LGPD).",
+        }
 
 
 class AvaliacaoForm(forms.ModelForm):

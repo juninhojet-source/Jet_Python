@@ -614,3 +614,44 @@ class DocumentoSemAnexoTest(TestCase):
         resp = self.client.post(url, {"tipo": "RG", "status": "RECEBIDO", "observacao": ""})
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(self.insc.documentos.filter(tipo="RG").exists())
+
+
+class LGPDTests(TestCase):
+    def test_pagina_privacidade_publica(self):
+        # Acessível sem login (página pública).
+        resp = self.client.get(reverse("privacidade"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Política de Privacidade")
+        self.assertContains(resp, "LGPD")
+
+    def test_ciencia_lgpd_carimba_data(self):
+        req = Pessoa.objects.create(nome="Ciente", cpf="770", data_nascimento=nasc(35), sexo="M")
+        insc = Inscricao.objects.create(requerente=req, data_referencia=REF)
+        self.assertIsNone(insc.ciencia_lgpd_em)
+        insc.ciencia_lgpd = True
+        insc.save()
+        insc.refresh_from_db()
+        self.assertIsNotNone(insc.ciencia_lgpd_em)
+        # Revogar limpa a data.
+        insc.ciencia_lgpd = False
+        insc.save()
+        insc.refresh_from_db()
+        self.assertIsNone(insc.ciencia_lgpd_em)
+
+
+class BackupTests(TestCase):
+    def test_backup_gera_zip_com_banco_e_manifesto(self):
+        import tempfile
+        import zipfile
+        from pathlib import Path
+
+        from django.core.management import call_command
+
+        with tempfile.TemporaryDirectory() as destino:
+            call_command("backup", destino=destino, reter=0)
+            zips = list(Path(destino).glob("mcmv-backup-*.zip"))
+            self.assertEqual(len(zips), 1)
+            with zipfile.ZipFile(zips[0]) as z:
+                nomes = z.namelist()
+                self.assertIn("db.sqlite3", nomes)
+                self.assertIn("manifesto.json", nomes)

@@ -117,6 +117,13 @@ class Inscricao(ModeloAuditavel):
     # Protocolo do comprovante de inscrição (gerado na finalização).
     protocolo = models.CharField(max_length=40, blank=True, db_index=True)
 
+    # LGPD: registro da ciência/consentimento do requerente quanto ao
+    # tratamento dos dados pessoais (data preenchida automaticamente).
+    ciencia_lgpd = models.BooleanField(
+        "declaração de ciência (LGPD)", default=False
+    )
+    ciencia_lgpd_em = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         verbose_name = "inscrição"
         verbose_name_plural = "inscrições"
@@ -126,6 +133,13 @@ class Inscricao(ModeloAuditavel):
         return f"{self.numero_inscricao or 's/nº'} — {self.requerente.nome}"
 
     def save(self, *args, **kwargs):
+        # LGPD: carimba a data da ciência quando o requerente a declara.
+        if self.ciencia_lgpd and self.ciencia_lgpd_em is None:
+            from django.utils import timezone
+
+            self.ciencia_lgpd_em = timezone.now()
+        elif not self.ciencia_lgpd:
+            self.ciencia_lgpd_em = None
         # Bloqueio pós-finalização (Anexo II): alterações só com autorização
         # administrativa explícita, sempre registrada.
         if self.pk and self.bloqueada and not getattr(self, "_alteracao_autorizada", False):

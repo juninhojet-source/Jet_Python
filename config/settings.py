@@ -231,3 +231,10 @@ if not DEBUG:
 PARAMETROS_EDITAL = os.environ.get(
     "MCMV_PARAMETROS_EDITAL", str(BASE_DIR / "regras" / "parametros_edital.yaml")
 )
+
+# --- Backup ----------------------------------------------------------------- #
+# Pasta onde os backups (banco + documentos) são gravados. Em produção, aponte
+# para um disco/local seguro (idealmente fora do servidor de aplicação).
+MCMV_BACKUP_DIR = Path(os.environ.get("MCMV_BACKUP_DIR", BASE_DIR / "backups"))
+# Retenção (dias) — backups mais antigos são removidos automaticamente.
+MCMV_BACKUP_RETENCAO_DIAS = int(os.environ.get("MCMV_BACKUP_RETENCAO_DIAS", "30"))
