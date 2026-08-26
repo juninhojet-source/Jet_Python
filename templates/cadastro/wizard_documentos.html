@@ -1,6 +1,24 @@
 {% extends "cadastro/wizard_base.html" %}
 {% block etapa %}
 <div class="card">
+  <h2>Checklist da documentação (item 4)</h2>
+  <p class="trilha">Documentos exigidos para esta inscrição. A apresentação deve
+  ser integral (item 4.2).</p>
+  <table>
+    <thead><tr><th>Item</th><th>Documento</th><th>Situação</th></tr></thead>
+    <tbody>
+      {% for e in checklist %}
+      <tr>
+        <td>{{ e.codigo }}</td>
+        <td>{{ e.rotulo }}{% if e.detalhe %} <span class="trilha">({{ e.detalhe }})</span>{% endif %}</td>
+        <td>{% if e.ok %}<span class="badge ok">✔ Apresentado</span>{% else %}<span class="badge nao">✗ Falta</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
   <h2>4. Documentos</h2>
   <table>
     <thead><tr><th>Tipo</th><th>Pessoa</th><th>Obrig.</th><th>Situação</th><th>Arquivo</th></tr></thead>

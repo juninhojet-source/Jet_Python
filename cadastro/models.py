@@ -233,13 +233,42 @@ class Documento(ModeloAuditavel):
         REJEITADO = "REJEITADO", "Rejeitado"
         SUBSTITUICAO = "SUBSTITUICAO", "Substituição solicitada"
 
+    class Tipo(models.TextChoices):
+        # Documentação exigida (item 4 do Edital 001/2026).
+        RG = "RG", "RG"                                           # 4.1.1
+        CPF = "CPF", "CPF"                                        # 4.1.1
+        CERT_CASAMENTO = "CERT_CASAMENTO", "Certidão de Casamento"  # 4.1.2.a
+        CERT_CASAMENTO_DIVORCIO = "CERT_CASAMENTO_DIVORCIO", "Certidão de Casamento c/ averbação de divórcio"  # 4.1.2.b
+        CERT_CASAMENTO_OBITO = "CERT_CASAMENTO_OBITO", "Certidão de Casamento c/ averbação de óbito"  # 4.1.2.c
+        CERT_OBITO = "CERT_OBITO", "Certidão de Óbito"           # 4.1.2.c
+        CERT_NASCIMENTO = "CERT_NASCIMENTO", "Certidão de Nascimento"  # 4.1.2.d
+        UNIAO_ESTAVEL = "UNIAO_ESTAVEL", "Escritura/Declaração de União Estável"  # 4.1.2.e
+        DECL_ESTADO_CIVIL = "DECL_ESTADO_CIVIL", "Declaração de não alteração do estado civil (Anexo IV)"  # 4.1.2
+        COMP_ENDERECO = "COMP_ENDERECO", "Comprovante de endereço (água/energia)"  # 4.1.3
+        DECL_MORADIA = "DECL_MORADIA", "Declaração de moradia (alugado/cedido/emprestado)"  # 4.1.3
+        CONTRATO_LOCACAO = "CONTRATO_LOCACAO", "Contrato de locação assinado"  # 4.1.3
+        RENDA_CONTRACHEQUE = "RENDA_CONTRACHEQUE", "Renda — contracheque (3 últimos meses)"  # 4.1.4.a
+        RENDA_EXTRATO = "RENDA_EXTRATO", "Renda — extrato bancário/IR/pró-labore"  # 4.1.4.b
+        RENDA_INSS = "RENDA_INSS", "Renda — extrato INSS/RPPS (aposentado/pensionista)"  # 4.1.4.c
+        RES5_SAUDE = "RES5_SAUDE", "Residência 5 anos — atenção básica de saúde"  # 4.1.5.a
+        RES5_CONCESSIONARIA = "RES5_CONCESSIONARIA", "Residência 5 anos — água/energia (ininterrupto)"  # 4.1.5.b
+        RES5_ESCOLAR = "RES5_ESCOLAR", "Residência 5 anos — histórico/declaração escolar"  # 4.1.5.c
+        RES5_CTPS = "RES5_CTPS", "Residência 5 anos — CTPS c/ contrato no município"  # 4.1.5.d
+        RES5_OUTRO = "RES5_OUTRO", "Residência 5 anos — outro documento oficial"  # 4.1.5.e
+        ANEXO_II = "ANEXO_II", "Declaração de Inscrição e Anuência (Anexo II)"  # 4.1.6
+        ANEXO_III = "ANEXO_III", "Declaração Negativa de Propriedade (Anexo III)"  # 4.1.7
+        LAUDO_PCD = "LAUDO_PCD", "Laudo médico de deficiência"   # 4.1.8
+        MORADIA_RISCO = "MORADIA_RISCO", "Comprovação de moradia precária/risco (Defesa Civil/laudo)"  # 4.1.9
+        CADUNICO = "CADUNICO", "Declaração do CadÚnico (mulher responsável)"  # 4.1.10
+        OUTRO = "OUTRO", "Outro (especificar na observação)"     # 4.3
+
     inscricao = models.ForeignKey(
         Inscricao, on_delete=models.CASCADE, related_name="documentos"
     )
     pessoa = models.ForeignKey(
         Pessoa, on_delete=models.SET_NULL, null=True, blank=True, related_name="documentos"
     )
-    tipo = models.CharField(max_length=100)
+    tipo = models.CharField(max_length=100, choices=Tipo.choices)
     obrigatorio = models.BooleanField(default=True)
     # Guardado em MEDIA_ROOT (fora da raiz web); servido por view autenticada (Fase 3).
     arquivo = models.FileField(upload_to="documentos/%Y/%m/", null=True, blank=True)

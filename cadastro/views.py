@@ -196,7 +196,13 @@ def wizard_cadastro(request, pk, etapa):
                 return redirect("cadastro:wizard", pk=pk, etapa="documentos")
         else:
             form = DocumentoForm(inscricao=inscricao)
-        ctx.update(form=form, documentos=inscricao.documentos.select_related("pessoa"))
+        from . import documentos as _docs
+
+        ctx.update(
+            form=form,
+            documentos=inscricao.documentos.select_related("pessoa"),
+            checklist=_docs.exigidos(inscricao),
+        )
         return render(request, "cadastro/wizard_documentos.html", ctx)
 
     if etapa == "avaliacao":

@@ -655,3 +655,64 @@ class BackupTests(TestCase):
                 nomes = z.namelist()
                 self.assertIn("db.sqlite3", nomes)
                 self.assertIn("manifesto.json", nomes)
+
+
+class DocumentacaoTests(TestCase):
+    def setUp(self):
+        from .models import Documento
+        self.Documento = Documento
+        self.req = Pessoa.objects.create(
+            nome="Requerente F", cpf="700", data_nascimento=nasc(40), sexo="F",
+            estado_civil="SOLTEIRO",
+        )
+        self.insc = Inscricao.objects.create(requerente=self.req, data_referencia=REF)
+        MembroNucleo.objects.create(
+            inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE", arrimo=True
+        )
+
+    def _codigos_faltantes(self):
+        from . import documentos
+        return {e.rotulo for e in documentos.faltantes(self.insc)}
+
+    def test_lista_exigidos_base(self):
+        from . import documentos
+        rotulos = {e.rotulo for e in documentos.exigidos(self.insc)}
+        # Base do item 4
+        self.assertTrue(any("RG" in r for r in rotulos))
+        self.assertTrue(any("CPF" in r for r in rotulos))
+        self.assertTrue(any("renda" in r.lower() for r in rotulos))
+        self.assertTrue(any("residência no município" in r.lower() for r in rotulos))
+        self.assertTrue(any("(Anexo II)" in r for r in rotulos))
+        self.assertTrue(any("(Anexo III)" in r for r in rotulos))
+        # Solteiro -> exige Certidão de Nascimento
+        self.assertTrue(any("Nascimento" in r for r in rotulos))
+        # Mulher responsável (arrimo F) -> CadÚnico
+        self.assertTrue(any("CadÚnico" in r for r in rotulos))
+
+    def test_documento_satisfaz_exigencia(self):
+        T = self.Documento.Tipo
+        antes = self._codigos_faltantes()
+        self.assertTrue(any("(Anexo II)" in r for r in antes))
+        self.Documento.objects.create(inscricao=self.insc, tipo=T.ANEXO_II, status="RECEBIDO")
+        depois = self._codigos_faltantes()
+        self.assertFalse(any("(Anexo II)" in r for r in depois))
+
+    def test_documento_rejeitado_nao_satisfaz(self):
+        T = self.Documento.Tipo
+        self.Documento.objects.create(inscricao=self.insc, tipo=T.RG, status="REJEITADO")
+        self.assertTrue(any("RG" in r for r in self._codigos_faltantes()))
+
+    def test_condicional_pcd_e_aluguel(self):
+        from . import documentos
+        # Sem PcD e sem aluguel: não exige laudo nem declaração de moradia
+        rot = {e.rotulo for e in documentos.exigidos(self.insc)}
+        self.assertFalse(any("Laudo" in r for r in rot))
+        self.assertFalse(any("Declaração de moradia" in r for r in rot))
+        # Marca PcD no núcleo e aluguel
+        self.req.pcd = True
+        self.req.save()
+        self.insc.aluguel_cedido = True
+        self.insc.save()
+        rot2 = {e.rotulo for e in documentos.exigidos(self.insc)}
+        self.assertTrue(any("Laudo" in r for r in rot2))
+        self.assertTrue(any("moradia" in r.lower() for r in rot2))

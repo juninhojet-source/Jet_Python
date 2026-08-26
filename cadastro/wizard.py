@@ -82,8 +82,14 @@ def pendencias(inscricao) -> list[str]:
     if sem_renda:
         itens.append("Sem renda registrada para: " + ", ".join(sem_renda))
 
-    if not inscricao.documentos.exists():
-        itens.append("Documentos: nenhum documento anexado")
+    from . import documentos as _docs
+
+    faltam_docs = _docs.faltantes(inscricao)
+    if faltam_docs:
+        itens.append(
+            "Documentos faltantes (item 4): "
+            + "; ".join(e.rotulo for e in faltam_docs)
+        )
 
     if inscricao.data_referencia is None:
         itens.append("Avaliação: data de referência não definida")
