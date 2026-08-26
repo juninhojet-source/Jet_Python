@@ -47,7 +47,24 @@ def main() -> None:
 
     from config.wsgi import application
 
-    serve(application, host=host, port=port, threads=threads)
+    opcoes = {"host": host, "port": port, "threads": threads}
+
+    # Atrás de um proxy reverso (IIS/nginx), confia nos cabeçalhos X-Forwarded-*
+    # vindos do proxy local. Sem isto, o Waitress 2.x DESCARTA o X-Forwarded-Proto
+    # (clear_untrusted_proxy_headers=True por padrão) e o Django nunca sabe que a
+    # requisição chegou por HTTPS -> entra em loop de redirect (301). Configurável
+    # por MCMV_TRUSTED_PROXY (vazio desativa; padrão 127.0.0.1).
+    proxy = os.environ.get("MCMV_TRUSTED_PROXY", "127.0.0.1").strip()
+    if proxy:
+        opcoes["trusted_proxy"] = proxy
+        opcoes["trusted_proxy_headers"] = {
+            "x-forwarded-for",
+            "x-forwarded-proto",
+            "x-forwarded-host",
+        }
+        opcoes["clear_untrusted_proxy_headers"] = True
+
+    serve(application, **opcoes)
 
 
 if __name__ == "__main__":
