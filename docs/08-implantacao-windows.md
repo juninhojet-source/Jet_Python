@@ -145,6 +145,34 @@ Parâmetros úteis: `-Hostname`, `-Porta`, `-Backend`, `-BaixarModulos`.
 site do IIS (binding 443), altere no `web.config` o `X-Forwarded-Proto` para
 `https` e no `.env` `DJANGO_SSL_REDIRECT=1`; reinicie o Waitress.
 
+## 7.2. HTTPS automático — script pronto
+
+Há um script que faz todo o HTTPS de uma vez: garante os módulos, publica o
+`web.config` de HTTPS (redireciona HTTP→HTTPS e repassa `X-Forwarded-Proto: https`),
+**gera um certificado autoassinado** para o hostname/IP (ou importa um `.pfx`),
+vincula na porta 443, libera o firewall e ajusta o `.env`.
+
+```bat
+REM O Waitress (servico MCMV) deve estar rodando em 127.0.0.1:8000.
+cd C:\mcmv\Jet_Python\deploy\windows\iis
+
+REM Autoassinado (com internet para baixar os modulos, se faltarem):
+powershell -ExecutionPolicy Bypass -File .\configurar-https.ps1 -ProjetoDir C:\mcmv\Jet_Python -BaixarModulos
+
+REM Depois, reinicie o Waitress para aplicar o .env:
+net stop MCMV && net start MCMV
+```
+
+Acesse `https://mcmv.baraodecocais.mg.gov.br` (ou `https://172.16.64.9`).
+
+- **Certificado oficial (.pfx):** acrescente `-Pfx C:\certs\mcmv.pfx -SenhaPfx "senha"`.
+- **Autoassinado + aviso do navegador:** o script exporta o certificado público
+  em `C:\mcmv\mcmv-cert.cer`. Instale-o nas máquinas clientes em **Autoridades de
+  Certificação Raiz Confiáveis** (ou distribua por **GPO** no domínio) para o
+  aviso "Não seguro" desaparecer.
+- **Rollback (voltar para HTTP em `:8000`):** no `.env`, `DJANGO_SSL_REDIRECT=0`,
+  `MCMV_HOST=0.0.0.0`, e reinicie o Waitress.
+
 ## 8. Banco de dados
 
 - **Teste prático:** SQLite (padrão) — nada a instalar; o arquivo é `db.sqlite3`.

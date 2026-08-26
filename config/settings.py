@@ -193,9 +193,12 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = _ssl
     CSRF_COOKIE_SECURE = _ssl
     if _ssl:
+        # HSTS: 0 desliga (recomendado com certificado autoassinado, para não
+        # "prender" o navegador em HTTPS se o certificado expirar/mudar).
         SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", 31536000))
-        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-        SECURE_HSTS_PRELOAD = True
+        if SECURE_HSTS_SECONDS > 0:
+            SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+            SECURE_HSTS_PRELOAD = True
 
 # Logging (console + arquivo rotacionável em produção).
 _LOG_DIR = Path(os.environ.get("MCMV_LOG_DIR", BASE_DIR / "logs"))
