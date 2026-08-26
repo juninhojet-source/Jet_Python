@@ -33,7 +33,7 @@ from pathlib import Path
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.serialization import pkcs12
+from cryptography.hazmat.primitives.serialization import PrivateFormat, pkcs12
 from cryptography.x509.oid import NameOID
 
 
@@ -61,7 +61,7 @@ def main() -> int:
 
     chave = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     nome = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, args.hostname)])
-    agora = datetime.datetime.utcnow()
+    agora = datetime.datetime.now(datetime.timezone.utc)
     cert = (
         x509.CertificateBuilder()
         .subject_name(nome)
@@ -88,12 +88,21 @@ def main() -> int:
 
     pfx = saida / f"{args.nome}.pfx"
     cer = saida / f"{args.nome}-cert.cer"
+    # PKCS12 no formato LEGADO (3DES + MAC SHA-1). O Windows Server 2012 R2 nao
+    # abre PFX com criptografia moderna (AES-256) das versoes novas da lib
+    # cryptography -> daria "ERROR_INVALID_PASSWORD" na importacao pelo IIS.
+    enc = (
+        PrivateFormat.PKCS12.encryption_builder()
+        .key_cert_algorithm(pkcs12.PBES.PBESv1SHA1And3KeyTripleDESCBC)
+        .hmac_hash(hashes.SHA1())
+        .build(args.senha.encode())
+    )
     pfx_bytes = pkcs12.serialize_key_and_certificates(
         name=args.hostname.encode(),
         key=chave,
         cert=cert,
         cas=None,
-        encryption_algorithm=serialization.BestAvailableEncryption(args.senha.encode()),
+        encryption_algorithm=enc,
     )
     pfx.write_bytes(pfx_bytes)
     cer.write_bytes(cert.public_bytes(serialization.Encoding.DER))
