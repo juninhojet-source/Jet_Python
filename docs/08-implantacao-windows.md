@@ -186,6 +186,13 @@ Acesse `https://mcmv.baraodecocais.mg.gov.br` (ou `https://172.16.64.9`).
   Confiáveis** dos clientes (ou por GPO). Aí o cadeado aparece — por nome e por IP.
 - **HSTS:** o `configurar-https.ps1` só liga HSTS com a opção `-HSTS` (use apenas
   com certificado oficial e confiável; com autoassinado, deixe desligado).
+- **Instalar o certificado nas estações:** copie `mcmv-cert.cer` e
+  `deploy/windows/estacao/instalar-certificado.bat` para `C:\mcmv` da estação e
+  rode o `.bat` **como Administrador** (ele faz `certutil -addstore -f Root` e
+  fecha o navegador). Para muitas máquinas de uma vez, prefira **GPO**:
+  Configuração do Computador → Políticas → Configurações do Windows →
+  Configurações de Segurança → Diretivas de Chave Pública → Autoridades de
+  Certificação Raiz Confiáveis → **Importar** o `mcmv-cert.cer`.
 - **Rollback (voltar para HTTP em `:8000`):** no `.env`, `DJANGO_SSL_REDIRECT=0`,
   `MCMV_HOST=0.0.0.0`, e reinicie o Waitress.
 
