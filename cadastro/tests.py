@@ -741,3 +741,45 @@ class DocumentacaoTests(TestCase):
         rot2 = {e.rotulo for e in documentos.exigidos(self.insc)}
         self.assertTrue(any("Laudo" in r for r in rot2))
         self.assertTrue(any("moradia" in r.lower() for r in rot2))
+
+
+class ChecklistMarcavelTests(TestCase):
+    def setUp(self):
+        from .models import Documento
+        self.Documento = Documento
+        self.user = _com_perfil("chk", "Atendente")
+        self.req = Pessoa.objects.create(
+            nome="Req", cpf="600", data_nascimento=nasc(40), sexo="M", estado_civil="SOLTEIRO")
+        self.insc = Inscricao.objects.create(requerente=self.req, data_referencia=REF)
+        MembroNucleo.objects.create(
+            inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE")
+
+    def test_marcar_cria_e_desmarcar_remove(self):
+        from . import documentos
+        documentos.marcar_entregues(self.insc, ["RG", "ANEXO_II"], usuario=self.user)
+        tipos = set(self.insc.documentos.values_list("tipo", flat=True))
+        self.assertIn("RG", tipos)
+        self.assertIn("ANEXO_II", tipos)
+        # Desmarca RG (mantém ANEXO_II)
+        documentos.marcar_entregues(self.insc, ["ANEXO_II"], usuario=self.user)
+        tipos = set(self.insc.documentos.values_list("tipo", flat=True))
+        self.assertNotIn("RG", tipos)
+        self.assertIn("ANEXO_II", tipos)
+
+    def test_nao_remove_documento_com_anexo(self):
+        d = self.Documento.objects.create(
+            inscricao=self.insc, tipo="ANEXO_III", status="RECEBIDO", observacao="upload real")
+        d.arquivo.name = "documentos/2026/x.pdf"
+        d.save()
+        from . import documentos
+        # Desmarca tudo: o documento real (com anexo) deve permanecer.
+        documentos.marcar_entregues(self.insc, [], usuario=self.user)
+        self.assertTrue(self.insc.documentos.filter(pk=d.pk).exists())
+
+    def test_view_checklist_post(self):
+        self.client.force_login(self.user)
+        url = reverse("cadastro:wizard", args=[self.insc.pk, "documentos"])
+        resp = self.client.post(url, {"acao": "checklist", "entregue": ["RG", "CPF"]})
+        self.assertEqual(resp.status_code, 302)
+        tipos = set(self.insc.documentos.values_list("tipo", flat=True))
+        self.assertEqual(tipos, {"RG", "CPF"})

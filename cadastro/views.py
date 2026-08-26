@@ -183,6 +183,16 @@ def wizard_cadastro(request, pk, etapa):
         return render(request, "cadastro/wizard_renda.html", ctx)
 
     if etapa == "documentos":
+        from . import documentos as _docs
+
+        if request.method == "POST" and request.POST.get("acao") == "checklist":
+            # Marcação rápida: documentos entregues na secretaria (sem anexo).
+            _docs.marcar_entregues(
+                inscricao, request.POST.getlist("entregue"), usuario=request.user
+            )
+            messages.success(request, "Checklist de documentos atualizado.")
+            return redirect("cadastro:wizard", pk=pk, etapa="documentos")
+
         if request.method == "POST":
             form = DocumentoForm(request.POST, request.FILES, inscricao=inscricao)
             if form.is_valid():
@@ -196,7 +206,6 @@ def wizard_cadastro(request, pk, etapa):
                 return redirect("cadastro:wizard", pk=pk, etapa="documentos")
         else:
             form = DocumentoForm(inscricao=inscricao)
-        from . import documentos as _docs
 
         ctx.update(
             form=form,

@@ -26,6 +26,47 @@ class Exigencia:
     ok: bool             # já atendida?
     detalhe: str = ""    # observação (ex.: nomes sem RG/CPF)
 
+    @property
+    def chave(self) -> str:
+        """Chave estável do item (o tipo representativo), usada no checklist."""
+        return str(self.tipos[0]) if self.tipos else self.codigo
+
+
+# Marca de documento apenas conferido/entregue na secretaria (sem anexo).
+MARCA_ENTREGUE = "Entregue na secretaria (sem anexo)."
+
+
+def marcar_entregues(inscricao, chaves_marcadas, usuario=None) -> None:
+    """Sincroniza o checklist com os documentos: para cada exigência, cria uma
+    marca de "entregue" quando marcada e não houver documento; remove a marca
+    (nossa, sem anexo) quando desmarcada. Documentos com anexo ou registrados
+    manualmente NUNCA são removidos.
+    """
+    from django.utils import timezone
+
+    marcadas = set(chaves_marcadas)
+    presentes = _presentes(inscricao)
+    for ex in exigidos(inscricao):
+        if not ex.tipos:
+            continue
+        satisfeita = any(t in presentes for t in ex.tipos)
+        quer = ex.chave in marcadas
+        if quer and not satisfeita:
+            Documento.objects.create(
+                inscricao=inscricao,
+                tipo=ex.tipos[0],
+                obrigatorio=True,
+                status=Documento.Status.RECEBIDO,
+                observacao=MARCA_ENTREGUE,
+                conferido_por=usuario if usuario and usuario.is_authenticated else None,
+                data_conferencia=timezone.now(),
+            )
+        elif not quer:
+            # Remove apenas nossas marcas (sem anexo e com a observação padrão).
+            inscricao.documentos.filter(
+                tipo__in=ex.tipos, observacao=MARCA_ENTREGUE
+            ).filter(arquivo__in=["", None]).delete()
+
 
 def _presentes(inscricao) -> set[str]:
     """Tipos de documento registrados e não rejeitados."""

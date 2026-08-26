@@ -2,20 +2,32 @@
 {% block etapa %}
 <div class="card">
   <h2>Checklist da documentação (item 4)</h2>
-  <p class="trilha">Documentos exigidos para esta inscrição. A apresentação deve
-  ser integral (item 4.2).</p>
-  <table>
-    <thead><tr><th>Item</th><th>Documento</th><th>Situação</th></tr></thead>
-    <tbody>
-      {% for e in checklist %}
-      <tr>
-        <td>{{ e.codigo }}</td>
-        <td>{{ e.rotulo }}{% if e.detalhe %} <span class="trilha">({{ e.detalhe }})</span>{% endif %}</td>
-        <td>{% if e.ok %}<span class="badge ok">✔ Apresentado</span>{% else %}<span class="badge nao">✗ Falta</span>{% endif %}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <p class="trilha">Marque <strong>Entregue</strong> os documentos apresentados que
+  ficarão na secretaria (o anexo é opcional). A apresentação deve ser integral (item 4.2).</p>
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="acao" value="checklist">
+    <table>
+      <thead><tr><th>Entregue</th><th>Item</th><th>Documento</th><th>Situação</th></tr></thead>
+      <tbody>
+        {% for e in checklist %}
+        <tr>
+          <td style="text-align:center">
+            {% if e.tipos %}
+            <input type="checkbox" name="entregue" value="{{ e.chave }}" {% if e.ok %}checked{% endif %}>
+            {% else %}—{% endif %}
+          </td>
+          <td>{{ e.codigo }}</td>
+          <td>{{ e.rotulo }}{% if e.detalhe %} <span class="trilha">({{ e.detalhe }})</span>{% endif %}</td>
+          <td>{% if e.ok %}<span class="badge ok">✔ Apresentado</span>{% else %}<span class="badge nao">✗ Falta</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="margin-top:1rem"><button class="btn" type="submit">Salvar documentos entregues</button></div>
+  </form>
+  <p class="trilha" style="margin-top:.6rem">Precisa anexar o arquivo ou registrar
+  um tipo específico (ex.: qual comprovante de renda)? Use "Registrar documento" abaixo.</p>
 </div>
 
 <div class="card">
