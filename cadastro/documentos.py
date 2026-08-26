@@ -25,11 +25,13 @@ class Exigencia:
     tipos: tuple         # tipos que satisfazem (qualquer um)
     ok: bool             # já atendida?
     detalhe: str = ""    # observação (ex.: nomes sem RG/CPF)
+    pessoa_id: int | None = None  # exigência específica de uma pessoa (RG/CPF)
 
     @property
     def chave(self) -> str:
-        """Chave estável do item (o tipo representativo), usada no checklist."""
-        return str(self.tipos[0]) if self.tipos else self.codigo
+        """Chave estável do item (tipo representativo + pessoa), usada no checklist."""
+        base = str(self.tipos[0]) if self.tipos else self.codigo
+        return f"{base}:{self.pessoa_id}" if self.pessoa_id else base
 
 
 # Marca de documento apenas conferido/entregue na secretaria (sem anexo).
@@ -45,16 +47,15 @@ def marcar_entregues(inscricao, chaves_marcadas, usuario=None) -> None:
     from django.utils import timezone
 
     marcadas = set(chaves_marcadas)
-    presentes = _presentes(inscricao)
     for ex in exigidos(inscricao):
         if not ex.tipos:
             continue
-        satisfeita = any(t in presentes for t in ex.tipos)
         quer = ex.chave in marcadas
-        if quer and not satisfeita:
+        if quer and not ex.ok:
             Documento.objects.create(
                 inscricao=inscricao,
                 tipo=ex.tipos[0],
+                pessoa_id=ex.pessoa_id,
                 obrigatorio=True,
                 status=Documento.Status.RECEBIDO,
                 observacao=MARCA_ENTREGUE,
@@ -63,18 +64,20 @@ def marcar_entregues(inscricao, chaves_marcadas, usuario=None) -> None:
             )
         elif not quer:
             # Remove apenas nossas marcas (sem anexo e com a observação padrão).
-            inscricao.documentos.filter(
+            qs = inscricao.documentos.filter(
                 tipo__in=ex.tipos, observacao=MARCA_ENTREGUE
-            ).filter(arquivo__in=["", None]).delete()
+            ).filter(arquivo__in=["", None])
+            qs = qs.filter(pessoa_id=ex.pessoa_id) if ex.pessoa_id else qs.filter(pessoa__isnull=True)
+            qs.delete()
 
 
-def _presentes(inscricao) -> set[str]:
-    """Tipos de documento registrados e não rejeitados."""
-    return {
-        d.tipo
+def _docs_validos(inscricao):
+    """Documentos registrados e não rejeitados (tipo, pessoa_id)."""
+    return [
+        (d.tipo, d.pessoa_id)
         for d in inscricao.documentos.all()
         if d.status != Documento.Status.REJEITADO
-    }
+    ]
 
 
 def _certidao_estado_civil(estado_civil: str) -> tuple[tuple, str]:
@@ -91,21 +94,27 @@ def _certidao_estado_civil(estado_civil: str) -> tuple[tuple, str]:
 
 
 def exigidos(inscricao) -> list[Exigencia]:
-    presentes = _presentes(inscricao)
+    docs = _docs_validos(inscricao)
+    tipos_presentes = {t for t, _ in docs}
     membros = [m.pessoa for m in inscricao.membros.select_related("pessoa").all()]
     if inscricao.requerente not in membros:
         membros = [inscricao.requerente, *membros]
     algum_pcd = any(getattr(p, "pcd", False) for p in membros)
 
     def item(codigo, rotulo, tipos, detalhe=""):
-        ok = any(t in presentes for t in tipos)
+        ok = any(t in tipos_presentes for t in tipos)
         return Exigencia(codigo, rotulo, tuple(tipos), ok, detalhe)
+
+    def item_pessoa(codigo, rotulo, tipos, pessoa):
+        ok = any((t, pessoa.id) in docs for t in tipos)
+        return Exigencia(codigo, rotulo, tuple(tipos), ok, pessoa_id=pessoa.id)
 
     itens: list[Exigencia] = []
 
-    # 4.1.1 — RG e CPF (de todos os membros do núcleo).
-    itens.append(item("4.1.1", "RG (todos os membros)", (T.RG,)))
-    itens.append(item("4.1.1", "CPF (todos os membros)", (T.CPF,)))
+    # 4.1.1 — RG e CPF de CADA membro do núcleo.
+    for p in membros:
+        itens.append(item_pessoa("4.1.1", f"RG — {p.nome}", (T.RG,), p))
+        itens.append(item_pessoa("4.1.1", f"CPF — {p.nome}", (T.CPF,), p))
 
     # 4.1.2 — Comprovante de estado civil (conforme o do requerente).
     tipos_ec, rot_ec = _certidao_estado_civil(inscricao.requerente.estado_civil)

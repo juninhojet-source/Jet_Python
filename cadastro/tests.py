@@ -756,7 +756,8 @@ class ChecklistMarcavelTests(TestCase):
 
     def test_marcar_cria_e_desmarcar_remove(self):
         from . import documentos
-        documentos.marcar_entregues(self.insc, ["RG", "ANEXO_II"], usuario=self.user)
+        rg = f"RG:{self.req.id}"
+        documentos.marcar_entregues(self.insc, [rg, "ANEXO_II"], usuario=self.user)
         tipos = set(self.insc.documentos.values_list("tipo", flat=True))
         self.assertIn("RG", tipos)
         self.assertIn("ANEXO_II", tipos)
@@ -779,7 +780,7 @@ class ChecklistMarcavelTests(TestCase):
     def test_view_checklist_post(self):
         self.client.force_login(self.user)
         url = reverse("cadastro:wizard", args=[self.insc.pk, "documentos"])
-        resp = self.client.post(url, {"acao": "checklist", "entregue": ["RG", "CPF"]})
+        resp = self.client.post(url, {"acao": "checklist", "entregue": [f"RG:{self.req.id}", f"CPF:{self.req.id}"]})
         self.assertEqual(resp.status_code, 302)
         tipos = set(self.insc.documentos.values_list("tipo", flat=True))
         self.assertEqual(tipos, {"RG", "CPF"})
