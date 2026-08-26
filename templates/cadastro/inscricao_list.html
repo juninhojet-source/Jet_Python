@@ -28,7 +28,7 @@
     <tr>
       <td>{{ i.numero_inscricao }}</td>
       <td>{{ i.requerente.nome }}</td>
-      <td>{{ i.requerente.cpf }}</td>
+      <td>{{ i.requerente.cpf_fmt }}</td>
       <td><span class="badge">{{ i.get_status_display }}</span></td>
       <td>{{ i.pontuacao_total|default:"—" }}</td>
       <td>

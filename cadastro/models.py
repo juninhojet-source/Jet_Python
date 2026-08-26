@@ -43,7 +43,14 @@ class Pessoa(ModeloAuditavel):
         ordering = ("nome",)
 
     def __str__(self):
-        return f"{self.nome} ({self.cpf})"
+        return f"{self.nome} ({self.cpf_fmt})"
+
+    @property
+    def cpf_fmt(self) -> str:
+        """CPF formatado 000.000.000-00 (para exibição)."""
+        from .validadores import formatar_cpf
+
+        return formatar_cpf(self.cpf)
 
 
 class Inscricao(ModeloAuditavel):

@@ -142,7 +142,7 @@ def ficha_pdf(inscricao) -> HttpResponse:
     req = inscricao.requerente
     dados = [
         ["Requerente", req.nome],
-        ["CPF", req.cpf],
+        ["CPF", req.cpf_fmt],
         ["Nascimento", str(req.data_nascimento)],
         ["Contato", f"{inscricao.telefone}  {inscricao.email}"],
         ["Endereço", f"{inscricao.endereco} {inscricao.numero} {inscricao.bairro} {inscricao.cep}"],
@@ -265,7 +265,7 @@ def _recibo_via(inscricao, titulo_via: str, estilos) -> list:
         ["Nº da inscrição", inscricao.numero_inscricao],
         ["Data/hora", data_fin.strftime("%d/%m/%Y %H:%M") if data_fin else "—"],
         ["Requerente", inscricao.requerente.nome],
-        ["CPF", inscricao.requerente.cpf],
+        ["CPF", inscricao.requerente.cpf_fmt],
         ["Integrantes do núcleo", str(inscricao.membros.count())],
         ["Situação", inscricao.get_status_display()],
     ]

@@ -13,27 +13,53 @@ from .validadores import cpf_valido, so_digitos
 _DATA = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
 
 
-class DinheiroInput(forms.NumberInput):
-    """Campo monetário: só aceita números (>= 0, 2 casas) e exibe prefixo R$.
+class DinheiroInput(forms.TextInput):
+    """Campo monetário no formato brasileiro (1.500,50) com prefixo R$.
 
-    A classe ``dinheiro`` faz o template (_campos.html) desenhar o "R$" à frente.
+    - Exibe o valor como 1.234,56 (milhar com ponto, decimal com vírgula);
+    - Aceita a digitação em português e normaliza para o Decimal ao salvar;
+    - A classe ``dinheiro`` faz o template desenhar o "R$" e o JS aplicar a máscara.
     """
 
     def __init__(self, attrs=None):
-        base = {
-            "step": "0.01", "min": "0", "inputmode": "decimal",
-            "class": "dinheiro", "placeholder": "0,00",
-        }
+        base = {"class": "dinheiro", "inputmode": "decimal", "placeholder": "0,00"}
         if attrs:
             base.update(attrs)
         super().__init__(base)
+
+    def format_value(self, value):
+        if value in (None, ""):
+            return ""
+        try:
+            from decimal import Decimal
+
+            d = Decimal(str(value).replace(",", "."))
+        except Exception:
+            return super().format_value(value)
+        # 1234.56 -> "1.234,56"
+        return f"{d:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+    def value_from_datadict(self, data, files, name):
+        v = super().value_from_datadict(data, files, name)
+        if isinstance(v, str) and "," in v:
+            # formato BR: remove milhar (.) e usa ponto como decimal
+            v = v.replace(".", "").replace(",", ".")
+        return v.strip() if isinstance(v, str) else v
+
+
+# Atributos do campo de CPF (máscara 000.000.000-00 aplicada pelo JS).
+_CPF_ATTRS = {"class": "cpf", "maxlength": "14", "inputmode": "numeric",
+              "placeholder": "000.000.000-00"}
 
 
 class PessoaForm(forms.ModelForm):
     class Meta:
         model = Pessoa
         fields = ["nome", "cpf", "data_nascimento", "sexo", "estado_civil", "brasileiro", "pcd"]
-        widgets = {"data_nascimento": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")}
+        widgets = {
+            "data_nascimento": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "cpf": forms.TextInput(attrs=_CPF_ATTRS),
+        }
 
     def clean_cpf(self):
         cpf = so_digitos(self.cleaned_data["cpf"])
@@ -46,7 +72,8 @@ class RequerenteInscricaoForm(forms.Form):
     """Cria o requerente (Pessoa) e a Inscrição em uma tela só."""
 
     nome = forms.CharField(label="Nome completo", max_length=200)
-    cpf = forms.CharField(label="CPF", max_length=14)
+    cpf = forms.CharField(label="CPF", max_length=14,
+                          widget=forms.TextInput(attrs=_CPF_ATTRS))
     data_nascimento = forms.DateField(
         label="Data de nascimento",
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
@@ -164,7 +191,8 @@ class MembroForm(forms.Form):
     """Cria/edita um integrante (Pessoa + vínculo no núcleo)."""
 
     nome = forms.CharField(label="Nome completo", max_length=200)
-    cpf = forms.CharField(label="CPF", max_length=14)
+    cpf = forms.CharField(label="CPF", max_length=14,
+                          widget=forms.TextInput(attrs=_CPF_ATTRS))
     data_nascimento = forms.DateField(
         label="Data de nascimento",
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),

@@ -9,6 +9,14 @@ def so_digitos(valor: str) -> str:
     return re.sub(r"\D", "", valor or "")
 
 
+def formatar_cpf(cpf: str) -> str:
+    """Formata como 000.000.000-00. Se não tiver 11 dígitos, devolve como está."""
+    d = so_digitos(cpf)
+    if len(d) != 11:
+        return cpf or ""
+    return f"{d[:3]}.{d[3:6]}.{d[6:9]}-{d[9:]}"
+
+
 def cpf_valido(cpf: str) -> bool:
     """Valida CPF pelo algoritmo dos dígitos verificadores (Receita Federal)."""
     cpf = so_digitos(cpf)
