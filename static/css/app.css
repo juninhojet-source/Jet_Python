@@ -74,7 +74,15 @@ form.pilha input[type=number], form.pilha input, form.pilha select, form.pilha t
   width: 100%; padding: .5rem; border: 1px solid var(--borda); border-radius: 6px; font: inherit; }
 form.pilha .check { display: flex; align-items: center; gap: .5rem; margin-top: .6rem; }
 form.pilha .check input { width: auto; }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.2rem; }
+/* Cada campo é um bloco único (rótulo + entrada), para o grid alinhar em pares. */
+form.pilha .campo { display: flex; flex-direction: column; }
+/* Campo monetário: prefixo "R$" colado à entrada. */
+.rs-group { display: flex; align-items: stretch; }
+.rs-group .rs { display: inline-flex; align-items: center; padding: 0 .6rem;
+  border: 1px solid var(--borda); border-right: 0; border-radius: 6px 0 0 6px;
+  background: var(--superficie-alt); color: var(--texto-suave); font-weight: 700; }
+form.pilha .rs-group input { flex: 1; width: auto; border-radius: 0 6px 6px 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.2rem; align-items: start; }
 @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
 
 .badge { display: inline-block; padding: .15rem .5rem; border-radius: 999px; font-size: .78rem;

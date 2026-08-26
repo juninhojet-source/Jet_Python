@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from django import forms
+from django.utils import timezone
 
 from .models import Documento, Inscricao, MembroNucleo, Pessoa, Renda
 from .validadores import cpf_valido, so_digitos
@@ -10,6 +11,22 @@ from .validadores import cpf_valido, so_digitos
 # DateInput compatível com <input type="date"> (valor em ISO YYYY-MM-DD),
 # para que a data já preenchida apareça ao editar.
 _DATA = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
+
+
+class DinheiroInput(forms.NumberInput):
+    """Campo monetário: só aceita números (>= 0, 2 casas) e exibe prefixo R$.
+
+    A classe ``dinheiro`` faz o template (_campos.html) desenhar o "R$" à frente.
+    """
+
+    def __init__(self, attrs=None):
+        base = {
+            "step": "0.01", "min": "0", "inputmode": "decimal",
+            "class": "dinheiro", "placeholder": "0,00",
+        }
+        if attrs:
+            base.update(attrs)
+        super().__init__(base)
 
 
 class PessoaForm(forms.ModelForm):
@@ -115,7 +132,32 @@ class AvaliacaoForm(forms.ModelForm):
             "residencia_5anos_comprovada", "nao_proprietario_declarado", "nao_beneficiado_declarado",
             "aluguel_mes_1", "aluguel_mes_2", "aluguel_mes_3", "aluguel_cedido",
         ]
-        widgets = {"data_referencia": forms.DateInput(attrs={"type": "date"})}
+        widgets = {
+            "data_referencia": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "aluguel_mes_1": DinheiroInput(),
+            "aluguel_mes_2": DinheiroInput(),
+            "aluguel_mes_3": DinheiroInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        insc = self.instance
+        # Data de referência associada ao cadastramento: padrão = data do cadastro.
+        if insc and insc.pk and getattr(insc, "data_inscricao", None):
+            dt = timezone.localtime(insc.data_inscricao)
+            self.fields["data_referencia"].help_text = (
+                f"Padrão: data do cadastramento — {dt.strftime('%d/%m/%Y %H:%M')}."
+            )
+            if not insc.data_referencia and not self.initial.get("data_referencia"):
+                self.initial["data_referencia"] = dt.date()
+
+    def clean(self):
+        cleaned = super().clean()
+        if not cleaned.get("data_referencia"):
+            insc = self.instance
+            if insc and getattr(insc, "data_inscricao", None):
+                cleaned["data_referencia"] = timezone.localtime(insc.data_inscricao).date()
+        return cleaned
 
 
 class MembroForm(forms.Form):
@@ -176,6 +218,7 @@ class RendaForm(forms.ModelForm):
     class Meta:
         model = Renda
         fields = ["tipo", "valor", "computavel", "competencia"]
+        widgets = {"valor": DinheiroInput()}
 
 
 class RendaWizardForm(forms.ModelForm):
@@ -186,6 +229,7 @@ class RendaWizardForm(forms.ModelForm):
     class Meta:
         model = Renda
         fields = ["membro", "tipo", "valor", "computavel", "competencia"]
+        widgets = {"valor": DinheiroInput()}
 
     def __init__(self, *args, inscricao=None, **kwargs):
         super().__init__(*args, **kwargs)
