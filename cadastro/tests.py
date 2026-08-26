@@ -301,6 +301,31 @@ class RelatoriosTest(TestCase):
         resp = self.client.get(reverse("cadastro:rel_base"), {"pcd": "1"})
         self.assertEqual(resp.status_code, 200)
 
+    def test_recibo_duas_vias_e_ficha_checklist(self):
+        from io import BytesIO
+
+        try:
+            from pypdf import PdfReader
+        except ImportError:  # pragma: no cover
+            self.skipTest("pypdf não instalado")
+
+        from . import relatorios
+
+        self.insc.protocolo = "MCMV-2026-000999"
+        # Recibo: uma folha com as duas vias.
+        r = PdfReader(BytesIO(relatorios.recibo_pdf(self.insc).content))
+        self.assertEqual(len(r.pages), 1)
+        txt = r.pages[0].extract_text() or ""
+        self.assertIn("1ª VIA", txt)
+        self.assertIn("2ª VIA", txt)
+        self.assertIn("corte aqui", txt)
+        self.assertIn("Documenta", txt)  # resumo da documentação
+        # Ficha: contém o checklist da documentação (item 4).
+        f = PdfReader(BytesIO(relatorios.ficha_pdf(self.insc).content))
+        ftxt = "".join((p.extract_text() or "") for p in f.pages)
+        self.assertIn("Checklist da documenta", ftxt)
+        self.assertIn("4.1.1", ftxt)
+
 
 class AcessoFluxoTest(TestCase):
     def _inscricao_apta(self, cpf="fx1"):

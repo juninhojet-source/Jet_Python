@@ -19,6 +19,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
     Image,
+    KeepTogether,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -95,6 +96,36 @@ def _estilo_tabela(cabecalho=True):
     return TableStyle(cmds)
 
 
+def _checklist_flowables(inscricao, estilos, titulo="Checklist da documentação (item 4)", fonte=8.0):
+    """Tabela do checklist da documentação exigida (Apresentado/Falta)."""
+    from . import documentos as _docs
+
+    itens = _docs.exigidos(inscricao)
+    flows = [Paragraph(titulo, estilos["Heading3"])]
+    linhas = [["Item", "Documento", "Situação"]]
+    for ex in itens:
+        rot = ex.rotulo + (f" ({ex.detalhe})" if ex.detalhe else "")
+        linhas.append([ex.codigo, rot, "Apresentado" if ex.ok else "FALTA"])
+    t = Table(linhas, colWidths=[15 * mm, 129 * mm, 30 * mm], repeatRows=1)
+    cmds = [
+        ("FONTSIZE", (0, 0), (-1, -1), fonte),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#d6dce3")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("BACKGROUND", (0, 0), (-1, 0), _AZUL),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+    ]
+    for i, ex in enumerate(itens, start=1):
+        cor = colors.HexColor("#137333") if ex.ok else colors.HexColor("#b3261e")
+        cmds.append(("TEXTCOLOR", (2, i), (2, i), cor))
+        cmds.append(("FONTNAME", (2, i), (2, i), "Helvetica-Bold"))
+    t.setStyle(TableStyle(cmds))
+    flows.append(t)
+    return flows
+
+
 def ficha_pdf(inscricao) -> HttpResponse:
     estilos = getSampleStyleSheet()
     h = estilos["Heading2"]
@@ -159,6 +190,10 @@ def ficha_pdf(inscricao) -> HttpResponse:
         estilos["Heading3"],
     ))
 
+    # Checklist da documentação exigida (item 4 do edital).
+    e.append(Spacer(1, 8))
+    e.extend(_checklist_flowables(inscricao, estilos))
+
     # Pendências de cadastro (campos esperados em branco).
     from .wizard import pendencias as _pendencias
 
@@ -190,29 +225,39 @@ def classificacao_pdf(itens) -> HttpResponse:
     return _pdf_response("classificacao.pdf", e)
 
 
-def recibo_pdf(inscricao) -> HttpResponse:
-    """Comprovante (recibo) de inscrição para imprimir e entregar ao requerente."""
-    estilos = getSampleStyleSheet()
-    normal = estilos["BodyText"]
-    centro = estilos["Title"]
-    e = []
+def _recibo_via(inscricao, titulo_via: str, estilos) -> list:
+    """Monta os elementos de UMA via do comprovante (compacta, meia folha)."""
+    via_lbl = estilos["Normal"].clone("via_lbl")
+    via_lbl.fontSize = 8
+    via_lbl.textColor = colors.HexColor("#5a6672")
+    via_lbl.alignment = 2  # direita
 
-    # Brasão (se disponível nos estáticos).
+    cab = estilos["Normal"].clone("cab_recibo")
+    cab.fontSize = 9
+    cab.alignment = 1  # centro
+
+    titulo = estilos["Heading2"].clone("tit_recibo")
+    titulo.alignment = 1
+    titulo.textColor = _AZUL
+
+    corpo = estilos["Normal"].clone("corpo_recibo")
+    corpo.fontSize = 8
+
+    flows = [Paragraph(titulo_via, via_lbl)]
+
+    # Cabeçalho compacto: logo pequeno + textos centrados.
     caminho_logo = finders.find("img/logo-prefeitura.jpg")
     if caminho_logo:
-        img = Image(caminho_logo, width=32 * mm, height=32 * mm)
+        img = Image(caminho_logo, width=16 * mm, height=16 * mm)
         img.hAlign = "CENTER"
-        e.append(img)
-
-    e.append(Paragraph("Prefeitura Municipal de Barão de Cocais/MG", estilos["Heading3"]))
-    e.append(Paragraph("Secretaria Municipal de Assistência Social", normal))
-    e.append(Spacer(1, 6))
-    e.append(Paragraph("COMPROVANTE DE INSCRIÇÃO", centro))
-    e.append(Paragraph(
-        "Programa Minha Casa, Minha Vida — Faixa 02 · Edital de Chamamento nº 001/2026",
-        normal,
-    ))
-    e.append(Spacer(1, 10))
+        flows.append(img)
+    flows.append(Paragraph("Prefeitura Municipal de Barão de Cocais/MG", cab))
+    flows.append(Paragraph("Secretaria Municipal de Assistência Social", cab))
+    flows.append(Spacer(1, 3))
+    flows.append(Paragraph("COMPROVANTE DE INSCRIÇÃO", titulo))
+    flows.append(Paragraph(
+        "Programa Minha Casa, Minha Vida — Faixa 02 · Edital 001/2026", cab))
+    flows.append(Spacer(1, 5))
 
     data_fin = inscricao.data_finalizacao
     dados = [
@@ -221,28 +266,38 @@ def recibo_pdf(inscricao) -> HttpResponse:
         ["Data/hora", data_fin.strftime("%d/%m/%Y %H:%M") if data_fin else "—"],
         ["Requerente", inscricao.requerente.nome],
         ["CPF", inscricao.requerente.cpf],
-        ["Nº de integrantes do núcleo", str(inscricao.membros.count())],
+        ["Integrantes do núcleo", str(inscricao.membros.count())],
         ["Situação", inscricao.get_status_display()],
     ]
-    t = Table(dados, colWidths=[55 * mm, 120 * mm])
-    t.setStyle(_estilo_tabela(cabecalho=False))
-    e.append(t)
+    t = Table(dados, colWidths=[45 * mm, 129 * mm])
+    est = _estilo_tabela(cabecalho=False)
+    est.add("FONTSIZE", (0, 0), (-1, -1), 8)
+    est.add("TOPPADDING", (0, 0), (-1, -1), 1.5)
+    est.add("BOTTOMPADDING", (0, 0), (-1, -1), 1.5)
+    t.setStyle(est)
+    flows.append(t)
 
-    e.append(Spacer(1, 12))
-    e.append(Paragraph(
-        "Declaramos, para os devidos fins, que a inscrição acima foi recebida nesta data. "
-        "A inscrição e a eventual classificação <b>não geram direito</b> à contratação, ao "
-        "financiamento ou à aquisição de unidade habitacional, que dependem de análise "
-        "posterior da instituição financeira responsável, nos termos do Edital 001/2026.",
-        normal,
-    ))
-    e.append(Paragraph(
-        "É de responsabilidade exclusiva do candidato o acompanhamento das publicações "
-        "oficiais referentes a este Edital.",
-        normal,
-    ))
+    # Resumo compacto da documentação (item 4) — o checklist detalhado vai na ficha.
+    from . import documentos as _docs
 
-    e.append(Spacer(1, 26))
+    itens = _docs.exigidos(inscricao)
+    apres = sum(1 for x in itens if x.ok)
+    falt = [x.rotulo for x in itens if not x.ok]
+    flows.append(Spacer(1, 4))
+    flows.append(Paragraph(
+        f"<b>Documentação (item 4):</b> {apres} de {len(itens)} itens apresentados.", corpo))
+    if falt:
+        txt = "; ".join(falt) if len(falt) <= 8 else f"{len(falt)} itens (ver ficha do cadastro)"
+        flows.append(Paragraph(f"Pendentes: {txt}.", corpo))
+
+    flows.append(Spacer(1, 5))
+    flows.append(Paragraph(
+        "Declaramos que a inscrição acima foi recebida nesta data. A inscrição e a "
+        "eventual classificação <b>não geram direito</b> à contratação, financiamento "
+        "ou aquisição de unidade, que dependem de análise posterior da instituição "
+        "financeira, nos termos do Edital 001/2026.", corpo))
+
+    flows.append(Spacer(1, 14))
     assinaturas = [
         ["_______________________________", "_______________________________"],
         ["Servidor responsável", "Requerente"],
@@ -250,18 +305,26 @@ def recibo_pdf(inscricao) -> HttpResponse:
     ta = Table(assinaturas, colWidths=[87 * mm, 87 * mm])
     ta.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
         ("TOPPADDING", (0, 1), (-1, 1), 2),
     ]))
-    e.append(ta)
+    flows.append(ta)
+    return flows
 
-    e.append(Spacer(1, 16))
-    rodape = estilos["Normal"]
-    rodape.fontSize = 7.5
-    rodape.textColor = colors.HexColor("#5a6672")
-    e.append(Paragraph(
-        "Departamento de Informática e Tecnologia — Prefeitura Municipal de Barão de "
-        "Cocais/MG · Responsável: Aristides Ferreira Junior · Contato: (31) 3837-7661",
-        rodape,
-    ))
+
+def recibo_pdf(inscricao) -> HttpResponse:
+    """Comprovante de inscrição em DUAS VIAS numa folha (Assistência e Requerente)."""
+    estilos = getSampleStyleSheet()
+    corte = estilos["Normal"].clone("corte")
+    corte.fontSize = 7.5
+    corte.textColor = colors.HexColor("#8a97a3")
+    corte.alignment = 1
+
+    e = []
+    e.append(KeepTogether(_recibo_via(inscricao, "1ª VIA — ASSISTÊNCIA SOCIAL", estilos)))
+    e.append(Spacer(1, 6))
+    e.append(Paragraph("✂ - - - - - - - - - - - - - - - - - - - -  corte aqui  "
+                       "- - - - - - - - - - - - - - - - - - - -", corte))
+    e.append(Spacer(1, 6))
+    e.append(KeepTogether(_recibo_via(inscricao, "2ª VIA — REQUERENTE", estilos)))
     return _pdf_response(f"recibo_{inscricao.protocolo or inscricao.numero_inscricao}.pdf", e)
