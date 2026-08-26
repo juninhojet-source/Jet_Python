@@ -13,6 +13,7 @@ from django.db.models import Count, Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views.decorators.http import require_POST
 from django.utils import timezone
 
 from contas.acesso import ADMIN, ANALISTA, ATENDENTE, COMISSAO, em_perfil, perfil_requerido
@@ -289,6 +290,7 @@ def inscricao_detalhe(request, pk):
         "pode_cadastrar": em_perfil(request.user, ATENDENTE, ANALISTA),
         "pode_avaliar": em_perfil(request.user, ANALISTA, COMISSAO),
         "pode_excluir": em_perfil(request.user, ADMIN),
+        "email_ativo": getattr(settings, "MCMV_EMAIL_ATIVO", False),
     }
     return render(request, "cadastro/inscricao_detalhe.html", ctx)
 
@@ -644,6 +646,26 @@ def rel_recibo_pdf(request, pk):
         messages.info(request, "O recibo fica disponível após finalizar a inscrição.")
         return redirect("cadastro:inscricao_detalhe", pk=pk)
     return relatorios.recibo_pdf(inscricao)
+
+
+@login_required
+@require_POST
+def rel_recibo_email(request, pk):
+    """Envia o recibo por e-mail ao requerente (após a finalização)."""
+    inscricao = get_object_or_404(Inscricao.objects.select_related("requerente"), pk=pk)
+    if not inscricao.protocolo:
+        messages.info(request, "O recibo fica disponível após finalizar a inscrição.")
+        return redirect("cadastro:inscricao_detalhe", pk=pk)
+    from . import emails
+
+    try:
+        destino = emails.enviar_recibo(inscricao)
+        messages.success(request, f"Recibo enviado por e-mail para {destino}.")
+    except ValueError as exc:
+        messages.error(request, str(exc))
+    except Exception as exc:  # falha de SMTP/rede
+        messages.error(request, f"Não foi possível enviar o e-mail: {exc}")
+    return redirect("cadastro:inscricao_detalhe", pk=pk)
 
 
 @login_required

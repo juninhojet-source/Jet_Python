@@ -232,6 +232,28 @@ PARAMETROS_EDITAL = os.environ.get(
     "MCMV_PARAMETROS_EDITAL", str(BASE_DIR / "regras" / "parametros_edital.yaml")
 )
 
+# --- E-mail (envio do recibo) ---------------------------------------------- #
+# Preencha DJANGO_EMAIL_HOST (e usuário/senha) no .env para ativar o envio.
+# Sem host configurado, cai no backend de console (apenas imprime no log).
+EMAIL_HOST = os.environ.get("DJANGO_EMAIL_HOST", "")
+EMAIL_PORT = int(os.environ.get("DJANGO_EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("DJANGO_EMAIL_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("DJANGO_EMAIL_PASSWORD", "")
+EMAIL_USE_TLS = _env_bool("DJANGO_EMAIL_USE_TLS", "1")
+EMAIL_USE_SSL = _env_bool("DJANGO_EMAIL_USE_SSL", "0")
+EMAIL_TIMEOUT = int(os.environ.get("DJANGO_EMAIL_TIMEOUT", "20"))
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DJANGO_EMAIL_FROM", EMAIL_HOST_USER or "mcmv@baraodecocais.mg.gov.br"
+)
+if EMAIL_HOST:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+else:
+    EMAIL_BACKEND = os.environ.get(
+        "DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+    )
+# Só habilita a ação de "enviar recibo" quando há SMTP configurado.
+MCMV_EMAIL_ATIVO = bool(EMAIL_HOST)
+
 # --- Backup ----------------------------------------------------------------- #
 # Pasta onde os backups (banco + documentos) são gravados. Em produção, aponte
 # para um disco/local seguro (idealmente fora do servidor de aplicação).

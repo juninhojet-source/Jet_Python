@@ -784,3 +784,51 @@ class ChecklistMarcavelTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         tipos = set(self.insc.documentos.values_list("tipo", flat=True))
         self.assertEqual(tipos, {"RG", "CPF"})
+
+
+from django.test import override_settings  # noqa: E402
+
+
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    MCMV_EMAIL_ATIVO=True,
+    DEFAULT_FROM_EMAIL="mcmv@teste.gov.br",
+)
+class EmailReciboTests(TestCase):
+    def setUp(self):
+        self.user = _com_perfil("mail", "Atendente")
+        self.client.force_login(self.user)
+        self.req = Pessoa.objects.create(
+            nome="Maria", cpf="800", data_nascimento=nasc(40), sexo="F")
+        self.insc = Inscricao.objects.create(
+            requerente=self.req, data_referencia=REF, email="maria@exemplo.com",
+            protocolo="MCMV-2026-000777")
+        MembroNucleo.objects.create(inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE")
+
+    def test_enviar_recibo_anexa_pdf(self):
+        from django.core import mail
+        from . import emails
+        destino = emails.enviar_recibo(self.insc)
+        self.assertEqual(destino, "maria@exemplo.com")
+        self.assertEqual(len(mail.outbox), 1)
+        msg = mail.outbox[0]
+        self.assertIn("Comprovante de inscrição", msg.subject)
+        self.assertEqual(msg.to, ["maria@exemplo.com"])
+        self.assertEqual(len(msg.attachments), 1)
+        nome, conteudo, mime = msg.attachments[0]
+        self.assertTrue(nome.endswith(".pdf"))
+        self.assertEqual(mime, "application/pdf")
+
+    def test_view_envia_e_redireciona(self):
+        from django.core import mail
+        url = reverse("cadastro:rel_recibo_email", args=[self.insc.pk])
+        resp = self.client.post(url)
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_sem_email_nao_envia(self):
+        from . import emails
+        self.insc.email = ""
+        self.insc.save()
+        with self.assertRaises(ValueError):
+            emails.enviar_recibo(self.insc)

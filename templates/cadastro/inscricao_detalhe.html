@@ -10,6 +10,16 @@
   <strong>Protocolo:</strong> {{ inscricao.protocolo }}
   {% if inscricao.data_finalizacao %}· {{ inscricao.data_finalizacao|date:"d/m/Y H:i" }}{% endif %}
   &nbsp; <a class="btn" href="{% url 'cadastro:rel_recibo_pdf' inscricao.pk %}" target="_blank">🖨 Imprimir recibo</a>
+  {% if email_ativo %}
+    {% if inscricao.email %}
+    <form method="post" action="{% url 'cadastro:rel_recibo_email' inscricao.pk %}" style="display:inline">
+      {% csrf_token %}
+      <button class="btn secundario" type="submit">✉ Enviar por e-mail</button>
+    </form>
+    {% else %}
+    <span class="trilha">(sem e-mail do requerente para enviar)</span>
+    {% endif %}
+  {% endif %}
 </div>
 {% endif %}
 

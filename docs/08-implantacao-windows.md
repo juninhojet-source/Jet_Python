@@ -196,6 +196,24 @@ Acesse `https://mcmv.baraodecocais.mg.gov.br` (ou `https://172.16.64.9`).
 - **Rollback (voltar para HTTP em `:8000`):** no `.env`, `DJANGO_SSL_REDIRECT=0`,
   `MCMV_HOST=0.0.0.0`, e reinicie o Waitress.
 
+## 7.3. E-mail do recibo (opcional)
+
+Para enviar o comprovante (recibo) por e-mail ao requerente, preencha o SMTP da
+Prefeitura no `.env` e reinicie o serviço:
+
+```
+DJANGO_EMAIL_HOST=smtp.baraodecocais.mg.gov.br
+DJANGO_EMAIL_PORT=587
+DJANGO_EMAIL_USER=mcmv@baraodecocais.mg.gov.br
+DJANGO_EMAIL_PASSWORD=...              REM senha do e-mail
+DJANGO_EMAIL_USE_TLS=1
+DJANGO_EMAIL_FROM=mcmv@baraodecocais.mg.gov.br
+```
+
+Com o host configurado, aparece o botão **"✉ Enviar por e-mail"** na tela da
+inscrição (após finalizar, e se o requerente tiver e-mail). Sem `DJANGO_EMAIL_HOST`,
+o botão fica oculto. Teste enviando para um e-mail seu antes de usar com o público.
+
 ## 8. Banco de dados
 
 - **Teste prático:** SQLite (padrão) — nada a instalar; o arquivo é `db.sqlite3`.
