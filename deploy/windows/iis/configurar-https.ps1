@@ -166,11 +166,13 @@ if ($ProjetoDir -and (Test-Path (Join-Path $ProjetoDir ".env"))) {
     # HSTS: opt-in (-HSTS). Desligado por padrao para nao "prender" o navegador
     # em HTTPS caso o certificado (autoassinado/interno) expire ou mude. Ligue-o
     # (-HSTS) apenas com certificado oficial e confiavel.
-    $hsts = if ($HSTS) { "31536000" } else { "0" }
+    # Obs: PowerShell nao diferencia maiusc/minusc em variaveis, entao o nome
+    # local NAO pode ser $hsts (colidiria com o switch $HSTS).
+    $hstsSegundos = if ($HSTS) { "31536000" } else { "0" }
     $desejado = [ordered]@{
         "DJANGO_BEHIND_PROXY"         = "1"
         "DJANGO_SSL_REDIRECT"         = "1"
-        "DJANGO_HSTS_SECONDS"         = $hsts
+        "DJANGO_HSTS_SECONDS"         = $hstsSegundos
         "DJANGO_ALLOWED_HOSTS"        = "$Hostname,$Ip,127.0.0.1,localhost"
         "DJANGO_CSRF_TRUSTED_ORIGINS" = "https://$Hostname,https://$Ip"
         "MCMV_HOST"                   = "127.0.0.1"
