@@ -181,6 +181,12 @@ class MembroForm(forms.Form):
     def __init__(self, *args, inscricao=None, **kwargs):
         self.inscricao = inscricao
         super().__init__(*args, **kwargs)
+        # O requerente já é o titular do núcleo; não deve ser oferecido como
+        # parentesco ao adicionar os demais integrantes.
+        self.fields["parentesco"].choices = [
+            c for c in MembroNucleo.Parentesco.choices
+            if c[0] != MembroNucleo.Parentesco.REQUERENTE
+        ]
 
     def clean_cpf(self):
         cpf = so_digitos(self.cleaned_data["cpf"])
