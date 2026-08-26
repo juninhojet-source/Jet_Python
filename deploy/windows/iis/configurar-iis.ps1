@@ -90,6 +90,9 @@ if (-not $temRewrite -or -not $temArr) {
 Write-Host "== 3/6 Habilitando o proxy do ARR ==" -ForegroundColor Cyan
 Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.webServer/proxy" -name "enabled" -value "True"
 Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter "system.webServer/proxy" -name "preserveHostHeader" -value "True"
+# Desbloqueia a definicao de server variables no site. Sem isto, a regra que
+# seta HTTP_X_FORWARDED_PROTO falha com 500.50 / win32 33 (ERROR_LOCK_VIOLATION).
+& "$env:windir\system32\inetsrv\appcmd.exe" unlock config /section:system.webServer/rewrite/allowedServerVariables | Out-Null
 
 Write-Host "== 4/6 Publicando o site no IIS ==" -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path $SitePath | Out-Null

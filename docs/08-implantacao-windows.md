@@ -213,3 +213,5 @@ net start MCMV
 | Python não inicia (erro de DLL) | Instale o **UCRT (KB2999226)** e reinicie |
 | Porta 8000 ocupada | Altere `MCMV_PORT` no `.env` e libere no Firewall |
 | `check --deploy` acusa cookies inseguros | Esperado em HTTP; some ao ativar HTTPS (`DJANGO_SSL_REDIRECT=1`) |
+| **IIS retorna 500 em tudo** (log IIS mostra `500 50 33`) | O `win32 33` (LOCK_VIOLATION) indica que a definição de *server variables* está travada. Desbloqueie e reinicie o IIS: `C:\Windows\System32\inetsrv\appcmd.exe unlock config /section:system.webServer/rewrite/allowedServerVariables` e depois `iisreset`. Os scripts `configurar-iis.ps1`/`configurar-https.ps1` já fazem isso |
+| `DisallowedHost` só depois de rodar um script `.ps1` | O `.env` foi gravado com BOM (PowerShell 5.1). Rode `python scripts\windows\definir_secret.py` (limpa o BOM e garante a `SECRET_KEY`) e reinicie o serviço |
