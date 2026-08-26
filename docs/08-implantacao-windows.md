@@ -84,23 +84,27 @@ netsh advfirewall firewall add rule name="MCMV 8000" dir=in action=allow protoco
 
 ## 6. Rodar como Serviço do Windows (NSSM) — recomendado
 
-Para o sistema subir sozinho com o servidor e reiniciar em caso de falha:
+Para o sistema subir sozinho com o servidor e reiniciar em caso de falha.
 
-1. Baixe o **NSSM** (nssm.cc) e copie `nssm.exe` para `C:\mcmv`.
-2. Instale o serviço:
+1. Baixe o **NSSM** (https://nssm.cc/download), extraia o `win64\nssm.exe` e
+   copie para a pasta do projeto (`C:\mcmv\Jet_Python`) ou para `C:\mcmv\`.
+2. Instale o serviço com um comando (Prompt **como Administrador**):
 
    ```bat
-   C:\mcmv\nssm.exe install MCMV "C:\mcmv\Jet_Python\.venv\Scripts\python.exe" "C:\mcmv\Jet_Python\run_waitress.py"
-   C:\mcmv\nssm.exe set MCMV AppDirectory "C:\mcmv\Jet_Python"
-   C:\mcmv\nssm.exe set MCMV Start SERVICE_AUTO_START
-   C:\mcmv\nssm.exe set MCMV AppStdout "C:\mcmv\logs\servico.log"
-   C:\mcmv\nssm.exe set MCMV AppStderr "C:\mcmv\logs\servico.log"
-   net start MCMV
+   cd C:\mcmv\Jet_Python
+   scripts\windows\instalar-servico.bat
    ```
 
-   O serviço lê o `.env` da pasta do projeto (via `AppDirectory`), então as
-   configurações continuam vindo do `.env`.
+   O script localiza o `nssm.exe`, cria o serviço `MCMV` apontando para o
+   `run_waitress.py` (que aplica migrações e coleta estáticos antes de servir),
+   configura início automático, log rotativo em `C:\mcmv\logs\servico.log` e
+   inicia o serviço. As configurações continuam vindo do `.env` (via
+   `AppDirectory`).
 3. Parar/iniciar: `net stop MCMV` / `net start MCMV`.
+4. Remover o serviço: `scripts\windows\remover-servico.bat`.
+
+> Ao usar o serviço, **não** rode também o `iniciar.bat` ao mesmo tempo — os
+> dois tentariam usar a mesma porta.
 
 ## 7. HTTPS (opcional, recomendado antes de dados reais)
 
@@ -163,10 +167,12 @@ net stop MCMV
 git pull
 .venv\Scripts\activate.bat
 pip install -r requirements-windows.txt
-python manage.py migrate
-python manage.py collectstatic --noinput
 net start MCMV
 ```
+
+> `migrate` e `collectstatic` são aplicados automaticamente ao iniciar (pelo
+> `run_waitress.py`). Se preferir, ainda pode rodá-los à mão antes do
+> `net start`.
 
 ## 11. Problemas comuns
 
