@@ -55,7 +55,41 @@ _CEP_ATTRS = {"class": "cep", "maxlength": "9", "inputmode": "numeric",
               "placeholder": "00000-000"}
 
 
-class PessoaForm(forms.ModelForm):
+class SelectPtBrMixin:
+    """Troca o rótulo em branco padrão dos <select> ("---------", que o
+    navegador exibe traduzido como "Select an option") por um texto claro em
+    português. Aplica-se a todos os campos de seleção simples do formulário.
+    """
+
+    PLACEHOLDER_SELECT = "Selecione…"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._traduzir_selects_ptbr()
+
+    def _traduzir_selects_ptbr(self):
+        from django.forms import ModelChoiceField
+        from django.forms.widgets import Select, SelectMultiple
+
+        for field in self.fields.values():
+            widget = field.widget
+            # Só selects simples (exclui múltiplos, rádios, checkboxes).
+            if not isinstance(widget, Select) or isinstance(widget, SelectMultiple):
+                continue
+            if isinstance(field, ModelChoiceField):
+                # Mantém None (sem opção em branco); troca o traço padrão.
+                if field.empty_label is not None:
+                    field.empty_label = self.PLACEHOLDER_SELECT
+                continue
+            choices = list(field.choices)
+            if choices and choices[0][0] in ("", None):
+                rotulo = str(choices[0][1]).strip()
+                if rotulo == "" or set(rotulo) <= {"-"}:
+                    choices[0] = ("", self.PLACEHOLDER_SELECT)
+                    field.choices = choices
+
+
+class PessoaForm(SelectPtBrMixin, forms.ModelForm):
     class Meta:
         model = Pessoa
         fields = ["nome", "cpf", "data_nascimento", "sexo", "estado_civil", "brasileiro", "pcd"]
@@ -71,7 +105,7 @@ class PessoaForm(forms.ModelForm):
         return cpf
 
 
-class RequerenteInscricaoForm(forms.Form):
+class RequerenteInscricaoForm(SelectPtBrMixin, forms.Form):
     """Cria o requerente (Pessoa) e a Inscrição em uma tela só."""
 
     nome = forms.CharField(label="Nome completo", max_length=200)
@@ -136,7 +170,7 @@ class RequerenteInscricaoForm(forms.Form):
         return inscricao
 
 
-class InscricaoContatoForm(forms.ModelForm):
+class InscricaoContatoForm(SelectPtBrMixin, forms.ModelForm):
     """Dados declarados de contato/endereço (bloqueados após a finalização)."""
 
     class Meta:
@@ -150,7 +184,7 @@ class InscricaoContatoForm(forms.ModelForm):
         }
 
 
-class AvaliacaoForm(forms.ModelForm):
+class AvaliacaoForm(SelectPtBrMixin, forms.ModelForm):
     """Fatos apurados pela análise: Critérios Legais, requisitos documentais e aluguel.
 
     Editável pela análise mesmo após a finalização (procedimento autorizado e
@@ -193,7 +227,7 @@ class AvaliacaoForm(forms.ModelForm):
         return cleaned
 
 
-class MembroForm(forms.Form):
+class MembroForm(SelectPtBrMixin, forms.Form):
     """Cria/edita um integrante (Pessoa + vínculo no núcleo)."""
 
     nome = forms.CharField(label="Nome completo", max_length=200)
@@ -254,7 +288,7 @@ class MembroForm(forms.Form):
         )
 
 
-class MembroEditForm(forms.Form):
+class MembroEditForm(SelectPtBrMixin, forms.Form):
     """Edita um integrante existente (Pessoa + vínculo no núcleo), incluindo arrimo.
 
     Para o requerente, o parentesco é fixo (não aparece) e ele não pode ser removido.
@@ -326,14 +360,14 @@ class MembroEditForm(forms.Form):
         return self.membro
 
 
-class RendaForm(forms.ModelForm):
+class RendaForm(SelectPtBrMixin, forms.ModelForm):
     class Meta:
         model = Renda
         fields = ["tipo", "valor", "computavel", "competencia"]
         widgets = {"valor": DinheiroInput()}
 
 
-class RendaWizardForm(forms.ModelForm):
+class RendaWizardForm(SelectPtBrMixin, forms.ModelForm):
     """Renda com seleção do integrante (usada no assistente de cadastro)."""
 
     membro = forms.ModelChoiceField(queryset=MembroNucleo.objects.none(), label="Integrante")
@@ -357,7 +391,7 @@ class RendaWizardForm(forms.ModelForm):
         return renda
 
 
-class DocumentoForm(forms.ModelForm):
+class DocumentoForm(SelectPtBrMixin, forms.ModelForm):
     class Meta:
         model = Documento
         fields = ["tipo", "pessoa", "obrigatorio", "arquivo", "status", "observacao"]
