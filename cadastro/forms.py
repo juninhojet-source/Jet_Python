@@ -254,6 +254,78 @@ class MembroForm(forms.Form):
         )
 
 
+class MembroEditForm(forms.Form):
+    """Edita um integrante existente (Pessoa + vínculo no núcleo), incluindo arrimo.
+
+    Para o requerente, o parentesco é fixo (não aparece) e ele não pode ser removido.
+    """
+
+    nome = forms.CharField(label="Nome completo", max_length=200)
+    cpf = forms.CharField(label="CPF", max_length=14, widget=forms.TextInput(attrs=_CPF_ATTRS))
+    data_nascimento = forms.DateField(
+        label="Data de nascimento",
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+    )
+    sexo = forms.ChoiceField(label="Sexo", choices=Pessoa.Sexo.choices)
+    estado_civil = forms.ChoiceField(
+        label="Estado civil", choices=[("", "—")] + list(Pessoa.EstadoCivil.choices), required=False
+    )
+    pcd = forms.BooleanField(label="Pessoa com deficiência", required=False)
+    parentesco = forms.ChoiceField(label="Parentesco", choices=MembroNucleo.Parentesco.choices)
+    dependente = forms.BooleanField(label="Dependente", required=False)
+    arrimo = forms.BooleanField(label="Arrimo do núcleo", required=False)
+    considerado_apuracao_renda = forms.BooleanField(
+        label="Considerar na apuração da renda per capita", required=False
+    )
+
+    def __init__(self, *args, membro=None, **kwargs):
+        self.membro = membro
+        super().__init__(*args, **kwargs)
+        self.e_requerente = bool(membro and membro.pessoa_id == membro.inscricao.requerente_id)
+        if self.e_requerente:
+            self.fields.pop("parentesco")  # requerente: parentesco fixo
+        else:
+            self.fields["parentesco"].choices = [
+                c for c in MembroNucleo.Parentesco.choices
+                if c[0] != MembroNucleo.Parentesco.REQUERENTE
+            ]
+        if membro and not self.is_bound:
+            p = membro.pessoa
+            self.initial.update(
+                nome=p.nome, cpf=p.cpf, data_nascimento=p.data_nascimento, sexo=p.sexo,
+                estado_civil=p.estado_civil, pcd=p.pcd, parentesco=membro.parentesco,
+                dependente=membro.dependente, arrimo=membro.arrimo,
+                considerado_apuracao_renda=membro.considerado_apuracao_renda,
+            )
+
+    def clean_cpf(self):
+        cpf = so_digitos(self.cleaned_data["cpf"])
+        if not cpf_valido(cpf):
+            raise forms.ValidationError("CPF inválido.")
+        outra = Pessoa.objects.filter(cpf=cpf).exclude(pk=self.membro.pessoa_id).first()
+        if outra:
+            raise forms.ValidationError("Já existe outra pessoa com este CPF.")
+        return cpf
+
+    def salvar(self) -> MembroNucleo:
+        d = self.cleaned_data
+        p = self.membro.pessoa
+        p.nome = d["nome"]
+        p.cpf = d["cpf"]
+        p.data_nascimento = d["data_nascimento"]
+        p.sexo = d["sexo"]
+        p.estado_civil = d["estado_civil"]
+        p.pcd = d["pcd"]
+        p.save()
+        self.membro.dependente = d["dependente"]
+        self.membro.arrimo = d["arrimo"]
+        self.membro.considerado_apuracao_renda = d["considerado_apuracao_renda"]
+        if not self.e_requerente:
+            self.membro.parentesco = d["parentesco"]
+        self.membro.save()
+        return self.membro
+
+
 class RendaForm(forms.ModelForm):
     class Meta:
         model = Renda

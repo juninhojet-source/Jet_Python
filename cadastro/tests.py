@@ -844,3 +844,51 @@ class BackupCopiaTests(TestCase):
             call_command("backup", destino=destino, copia=copia, reter=0)
             self.assertEqual(len(list(Path(destino).glob("mcmv-backup-*.zip"))), 1)
             self.assertEqual(len(list(Path(copia).glob("mcmv-backup-*.zip"))), 1)
+
+
+class MembroEditarExcluirTests(TestCase):
+    def setUp(self):
+        self.user = _com_perfil("mem", "Atendente")
+        self.client.force_login(self.user)
+        self.req = Pessoa.objects.create(
+            nome="Titular", cpf=gera_cpf("111222333"), data_nascimento=nasc(40), sexo="M")
+        self.insc = Inscricao.objects.create(requerente=self.req, data_referencia=REF)
+        self.m_req = MembroNucleo.objects.create(
+            inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE")
+        self.f = Pessoa.objects.create(
+            nome="Filho", cpf=gera_cpf("444555666"), data_nascimento=nasc(8), sexo="F")
+        self.m_f = MembroNucleo.objects.create(
+            inscricao=self.insc, pessoa=self.f, parentesco="FILHO")
+
+    def test_marcar_arrimo_do_requerente(self):
+        url = reverse("cadastro:membro_editar", args=[self.m_req.pk])
+        resp = self.client.post(url, {
+            "nome": "Titular", "cpf": self.req.cpf, "data_nascimento": "1985-01-01",
+            "sexo": "M", "arrimo": "on", "considerado_apuracao_renda": "on",
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.m_req.refresh_from_db()
+        self.assertTrue(self.m_req.arrimo)
+
+    def test_editar_integrante_muda_parentesco_e_nome(self):
+        url = reverse("cadastro:membro_editar", args=[self.m_f.pk])
+        resp = self.client.post(url, {
+            "nome": "Filho Editado", "cpf": self.f.cpf, "data_nascimento": "2016-01-01",
+            "sexo": "F", "parentesco": "ENTEADO",
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.m_f.refresh_from_db(); self.f.refresh_from_db()
+        self.assertEqual(self.f.nome, "Filho Editado")
+        self.assertEqual(self.m_f.parentesco, "ENTEADO")
+
+    def test_excluir_integrante(self):
+        url = reverse("cadastro:membro_excluir", args=[self.m_f.pk])
+        resp = self.client.post(url)
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(MembroNucleo.objects.filter(pk=self.m_f.pk).exists())
+        self.assertFalse(Pessoa.objects.filter(pk=self.f.pk).exists())  # órfã removida
+
+    def test_nao_exclui_requerente(self):
+        url = reverse("cadastro:membro_excluir", args=[self.m_req.pk])
+        self.client.post(url)
+        self.assertTrue(MembroNucleo.objects.filter(pk=self.m_req.pk).exists())

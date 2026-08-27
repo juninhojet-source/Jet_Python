@@ -23,6 +23,7 @@ from .forms import (
     AvaliacaoForm,
     DocumentoForm,
     InscricaoContatoForm,
+    MembroEditForm,
     MembroForm,
     PessoaForm,
     RendaForm,
@@ -384,6 +385,56 @@ def membro_novo(request, pk):
     return render(
         request, "cadastro/membro_form.html", {"form": form, "inscricao": inscricao}
     )
+
+
+@login_required
+@perfil_requerido(ATENDENTE, ANALISTA)
+def membro_editar(request, membro_pk):
+    membro = get_object_or_404(
+        MembroNucleo.objects.select_related("inscricao__requerente", "pessoa"), pk=membro_pk
+    )
+    inscricao = membro.inscricao
+    if _bloqueio_guard(request, inscricao):
+        return redirect("cadastro:inscricao_detalhe", pk=inscricao.pk)
+    if request.method == "POST":
+        form = MembroEditForm(request.POST, membro=membro)
+        if form.is_valid():
+            form.salvar()
+            messages.success(request, "Integrante atualizado.")
+            return redirect("cadastro:wizard", pk=inscricao.pk, etapa="nucleo")
+    else:
+        form = MembroEditForm(membro=membro)
+    return render(
+        request, "cadastro/membro_editar.html",
+        {"form": form, "inscricao": inscricao, "membro": membro},
+    )
+
+
+@login_required
+@perfil_requerido(ATENDENTE, ANALISTA)
+@require_POST
+def membro_excluir(request, membro_pk):
+    membro = get_object_or_404(
+        MembroNucleo.objects.select_related("inscricao", "pessoa"), pk=membro_pk
+    )
+    inscricao = membro.inscricao
+    if _bloqueio_guard(request, inscricao):
+        return redirect("cadastro:inscricao_detalhe", pk=inscricao.pk)
+    if membro.pessoa_id == inscricao.requerente_id:
+        messages.error(request, "O requerente não pode ser removido do núcleo.")
+        return redirect("cadastro:wizard", pk=inscricao.pk, etapa="nucleo")
+    pessoa = membro.pessoa
+    with transaction.atomic():
+        membro.delete()
+        # Remove a Pessoa órfã (sem outros vínculos), liberando o CPF.
+        orfa = (
+            not pessoa.participacoes.exists()
+            and not Inscricao.objects.filter(requerente=pessoa).exists()
+        )
+        if orfa:
+            pessoa.delete()
+    messages.success(request, "Integrante removido.")
+    return redirect("cadastro:wizard", pk=inscricao.pk, etapa="nucleo")
 
 
 @login_required
