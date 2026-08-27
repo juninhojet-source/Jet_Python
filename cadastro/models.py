@@ -216,8 +216,20 @@ class Renda(ModeloAuditavel):
         AUTONOMO = "AUTONOMO", "Autônomo"
         APOSENTADORIA = "APOSENTADORIA", "Aposentadoria"
         PENSAO = "PENSAO", "Pensão"
-        BENEFICIO = "BENEFICIO", "Benefício"
+        BENEFICIO = "BENEFICIO", "Benefício previdenciário/outro"
+        # Benefícios NÃO computáveis para enquadramento (item 3.1.4.1).
+        BPC = "BPC", "BPC/LOAS (não computável)"
+        BOLSA_FAMILIA = "BOLSA_FAMILIA", "Bolsa Família (não computável)"
+        SEGURO_DESEMPREGO = "SEGURO_DESEMPREGO", "Seguro-desemprego (não computável)"
+        AUXILIO_DOENCA = "AUXILIO_DOENCA", "Auxílio-doença (não computável)"
+        AUXILIO_ACIDENTE = "AUXILIO_ACIDENTE", "Auxílio-acidente (não computável)"
         OUTRA = "OUTRA", "Outra"
+
+    # Tipos que, por força do item 3.1.4.1, nunca entram no cálculo da renda.
+    NAO_COMPUTAVEIS = frozenset({
+        Tipo.BPC, Tipo.BOLSA_FAMILIA, Tipo.SEGURO_DESEMPREGO,
+        Tipo.AUXILIO_DOENCA, Tipo.AUXILIO_ACIDENTE,
+    })
 
     membro = models.ForeignKey(
         MembroNucleo, on_delete=models.CASCADE, related_name="rendas"
@@ -231,6 +243,13 @@ class Renda(ModeloAuditavel):
     class Meta:
         verbose_name = "renda"
         verbose_name_plural = "rendas"
+
+    def save(self, *args, **kwargs):
+        # Garante a exclusão legal (item 3.1.4.1) independentemente da marcação
+        # manual: benefícios não computáveis nunca entram no cálculo da renda.
+        if self.tipo in self.NAO_COMPUTAVEIS:
+            self.computavel = False
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.get_tipo_display()}: R$ {self.valor}"

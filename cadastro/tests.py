@@ -197,6 +197,30 @@ class ClassificacaoTest(TestCase):
         self.assertFalse(a.classificacao.empate_pendente_sorteio)
 
 
+class RendaNaoComputavelTest(TestCase):
+    """Item 3.1.4.1: BPC, Bolsa Família etc. nunca entram no cálculo da renda."""
+
+    def _nucleo(self):
+        req = Pessoa.objects.create(nome="RN", cpf="rn1", data_nascimento=nasc(40), sexo="F")
+        insc = Inscricao.objects.create(requerente=req, data_referencia=REF)
+        m = MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        return insc, m
+
+    def test_beneficio_nao_computavel_forcado_no_save(self):
+        _, m = self._nucleo()
+        # Mesmo marcando computável=True, o tipo BPC força a exclusão.
+        r = Renda.objects.create(membro=m, tipo="BPC", valor=Decimal("1000"), computavel=True)
+        r.refresh_from_db()
+        self.assertFalse(r.computavel)
+
+    def test_excluido_do_calculo_da_renda(self):
+        insc, m = self._nucleo()
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal("2000"))
+        Renda.objects.create(membro=m, tipo="BOLSA_FAMILIA", valor=Decimal("700"))
+        renda = services.montar_nucleo(insc).renda_bruta_computavel()
+        self.assertEqual(renda, Decimal("2000"))  # os 700 do Bolsa Família não entram
+
+
 class RequisitosTest(TestCase):
     def _inscricao(self, idade=40, renda="3000", brasileiro=True):
         req = Pessoa.objects.create(

@@ -383,6 +383,17 @@ class RendaWizardForm(SelectPtBrMixin, forms.ModelForm):
             self.fields["membro"].queryset = MembroNucleo.objects.filter(
                 inscricao=inscricao
             ).select_related("pessoa")
+        self.fields["computavel"].help_text = (
+            "Benefícios não computáveis (BPC, Bolsa Família, seguro-desemprego, "
+            "auxílio-doença/acidente) são excluídos automaticamente do cálculo "
+            "da renda, conforme o item 3.1.4.1."
+        )
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("tipo") in Renda.NAO_COMPUTAVEIS:
+            cleaned["computavel"] = False
+        return cleaned
 
     def salvar(self) -> Renda:
         renda = self.save(commit=False)
