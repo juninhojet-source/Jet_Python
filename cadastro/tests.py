@@ -832,3 +832,15 @@ class EmailReciboTests(TestCase):
         self.insc.save()
         with self.assertRaises(ValueError):
             emails.enviar_recibo(self.insc)
+
+
+class BackupCopiaTests(TestCase):
+    def test_backup_faz_copia_adicional(self):
+        import tempfile
+        from pathlib import Path
+        from django.core.management import call_command
+
+        with tempfile.TemporaryDirectory() as destino, tempfile.TemporaryDirectory() as copia:
+            call_command("backup", destino=destino, copia=copia, reter=0)
+            self.assertEqual(len(list(Path(destino).glob("mcmv-backup-*.zip"))), 1)
+            self.assertEqual(len(list(Path(copia).glob("mcmv-backup-*.zip"))), 1)

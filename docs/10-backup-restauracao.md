@@ -15,12 +15,25 @@ Cada backup é um único arquivo `mcmv-backup-AAAAMMDD-HHMMSS.zip` contendo:
 ## Configuração (`.env`)
 
 ```
-MCMV_BACKUP_DIR=C:\mcmv\backups         REM pasta dos backups (de preferencia outro disco/local seguro)
-MCMV_BACKUP_RETENCAO_DIAS=30            REM remove backups mais antigos que N dias
+MCMV_BACKUP_DIR=C:\mcmv\backups          REM pasta local dos backups
+MCMV_BACKUP_RETENCAO_DIAS=30             REM remove backups mais antigos que N dias
+MCMV_BACKUP_COPIA=\\SERVIDOR\compart\mcmv  REM (opcional) copia p/ outro servidor
 ```
 
-> Recomendado: aponte `MCMV_BACKUP_DIR` para um **segundo disco ou pasta de rede**,
-> e leve cópias para **fora do servidor** periodicamente.
+Com `MCMV_BACKUP_COPIA` preenchido, cada backup é gerado localmente **e** copiado
+para o outro local (a retenção também é aplicada na cópia).
+
+> ⚠️ **Unidade mapeada (M:) x tarefa agendada:** a tarefa de backup roda como
+> **SYSTEM**, e o SYSTEM **não enxerga** unidades mapeadas por usuário (ex.: `M:`).
+> Por isso, em `MCMV_BACKUP_COPIA` use o **caminho UNC** do compartilhamento
+> (ex.: `\\SERVIDOR\compartilhamento\mcmv`), não `M:\mcmv`. Descubra o UNC do `M:`
+> com `net use` no Prompt. Se o outro servidor exigir login, ou rode a tarefa com
+> uma conta de usuário que tenha acesso, ou garanta permissão de escrita ao
+> computador do servidor no compartilhamento.
+
+> Recomendado: `MCMV_BACKUP_DIR` num **segundo disco** do próprio servidor e
+> `MCMV_BACKUP_COPIA` na **pasta de rede de outro servidor** — assim há cópia
+> local (rápida) e remota (fora da máquina).
 
 ## Backup manual
 

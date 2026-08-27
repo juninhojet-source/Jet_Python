@@ -20,6 +20,7 @@ comando cobre o cenário padrão em SQLite.
 from __future__ import annotations
 
 import json
+import shutil
 import sqlite3
 import tempfile
 import zipfile
@@ -39,6 +40,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--destino", default=None, help="pasta de saída (padrão: MCMV_BACKUP_DIR)")
         parser.add_argument("--reter", type=int, default=None, help="dias de retenção (padrão: MCMV_BACKUP_RETENCAO_DIAS)")
+        parser.add_argument("--copia", default=None, help="pasta adicional para cópia (padrão: MCMV_BACKUP_COPIA)")
 
     def handle(self, *args, **opts):
         if connection.vendor != "sqlite":
@@ -88,6 +90,22 @@ class Command(BaseCommand):
         removidos = self._aplicar_retencao(destino, reter)
         if removidos:
             self.stdout.write(f"Retenção: {removidos} backup(s) antigo(s) removido(s) (> {reter} dias).")
+
+        # Cópia adicional (ex.: pasta de rede em outro servidor).
+        copia = opts["copia"] if opts["copia"] is not None else getattr(settings, "MCMV_BACKUP_COPIA", "")
+        if copia:
+            try:
+                cp = Path(copia)
+                cp.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(alvo, cp / alvo.name)
+                self.stdout.write(self.style.SUCCESS(f"Cópia enviada para: {cp / alvo.name}"))
+                rem = self._aplicar_retencao(cp, reter)
+                if rem:
+                    self.stdout.write(f"Retenção na cópia: {rem} removido(s).")
+            except Exception as exc:
+                self.stdout.write(self.style.ERROR(
+                    f"AVISO: não foi possível copiar para {copia}: {exc}"
+                ))
 
     def _backup_sqlite(self, copia: Path) -> None:
         """Snapshot consistente do banco, mesmo com o sistema em uso.

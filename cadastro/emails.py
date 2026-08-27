@@ -33,7 +33,7 @@ def enviar_recibo(inscricao) -> str:
         "financiamento ou aquisição de unidade habitacional, conforme o edital. "
         "Acompanhe as publicações oficiais.\n\n"
         "Prefeitura Municipal de Barão de Cocais/MG\n"
-        "Departamento de Informática e Tecnologia — (31) 3837-7661"
+        "Assistência Social - 31-3837-7608"
     )
     msg = EmailMessage(assunto, corpo, settings.DEFAULT_FROM_EMAIL, [destino])
     msg.attach(f"recibo_{protocolo}.pdf", pdf, "application/pdf")

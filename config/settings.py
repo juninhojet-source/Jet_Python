@@ -260,3 +260,7 @@ MCMV_EMAIL_ATIVO = bool(EMAIL_HOST)
 MCMV_BACKUP_DIR = Path(os.environ.get("MCMV_BACKUP_DIR", BASE_DIR / "backups"))
 # Retenção (dias) — backups mais antigos são removidos automaticamente.
 MCMV_BACKUP_RETENCAO_DIAS = int(os.environ.get("MCMV_BACKUP_RETENCAO_DIAS", "30"))
+# Cópia adicional em outro local (ex.: pasta de rede em outro servidor). Vazio
+# desativa. Para tarefa agendada (conta SYSTEM), use caminho UNC (\\servidor\...),
+# pois unidades mapeadas (M:) não existem para o SYSTEM.
+MCMV_BACKUP_COPIA = os.environ.get("MCMV_BACKUP_COPIA", "")
