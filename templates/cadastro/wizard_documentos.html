@@ -24,8 +24,9 @@
             {% else %}—{% endif %}
           </td>
           <td>{{ e.codigo }}</td>
-          <td>{{ e.rotulo }}{% if e.detalhe %} <span class="trilha">({{ e.detalhe }})</span>{% endif %}</td>
-          <td>{% if e.ok %}<span class="badge ok">✔ Apresentado</span>{% else %}<span class="badge nao">✗ Falta</span>{% endif %}</td>
+          <td>{{ e.rotulo }}{% if e.detalhe %} <span class="trilha">({{ e.detalhe }})</span>{% endif %}
+            {% if not e.obrigatoria %} <span class="trilha">— só se aplicável</span>{% endif %}</td>
+          <td>{% if e.ok %}<span class="badge ok">✔ Apresentado</span>{% elif not e.obrigatoria %}<span class="badge">Opcional</span>{% else %}<span class="badge nao">✗ Falta</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>

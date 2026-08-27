@@ -26,6 +26,7 @@ class Exigencia:
     ok: bool             # já atendida?
     detalhe: str = ""    # observação (ex.: nomes sem RG/CPF)
     pessoa_id: int | None = None  # exigência específica de uma pessoa (RG/CPF)
+    obrigatoria: bool = True  # se falso, aparece no checklist mas não vira pendência
 
     @property
     def chave(self) -> str:
@@ -126,11 +127,15 @@ def exigidos(inscricao) -> list[Exigencia]:
 
     # 4.1.3 — Comprovante de endereço (+ declaração/contrato se não for próprio).
     itens.append(item("4.1.3", "Comprovante de endereço (água/energia)", (T.COMP_ENDERECO,)))
+    # A declaração/contrato aparece sempre no checklist (para poder ser marcada já
+    # na etapa de documentos), mas só vira pendência quando houver aluguel/cedido
+    # informado na avaliação (imóvel não próprio).
     aluguel = any([inscricao.aluguel_mes_1, inscricao.aluguel_mes_2,
                    inscricao.aluguel_mes_3, inscricao.aluguel_cedido])
-    if aluguel:
-        itens.append(item("4.1.3", "Declaração de moradia ou contrato de locação (imóvel não próprio)",
-                          (T.DECL_MORADIA, T.CONTRATO_LOCACAO)))
+    decl = item("4.1.3", "Declaração de moradia ou contrato de locação (imóvel não próprio)",
+                (T.DECL_MORADIA, T.CONTRATO_LOCACAO))
+    decl.obrigatoria = bool(aluguel)
+    itens.append(decl)
 
     # 4.1.4 — Comprovante de renda (qualquer uma das formas).
     itens.append(item("4.1.4", "Comprovante de renda (contracheque, extrato/IR ou INSS)",
@@ -164,4 +169,4 @@ def exigidos(inscricao) -> list[Exigencia]:
 
 
 def faltantes(inscricao) -> list[Exigencia]:
-    return [e for e in exigidos(inscricao) if not e.ok]
+    return [e for e in exigidos(inscricao) if not e.ok and e.obrigatoria]

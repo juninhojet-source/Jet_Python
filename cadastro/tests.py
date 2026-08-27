@@ -729,10 +729,15 @@ class DocumentacaoTests(TestCase):
 
     def test_condicional_pcd_e_aluguel(self):
         from . import documentos
-        # Sem PcD e sem aluguel: não exige laudo nem declaração de moradia
+        # Sem PcD e sem aluguel: não exige laudo.
         rot = {e.rotulo for e in documentos.exigidos(self.insc)}
         self.assertFalse(any("Laudo" in r for r in rot))
-        self.assertFalse(any("Declaração de moradia" in r for r in rot))
+        # A declaração de moradia aparece sempre no checklist, mas como opcional
+        # (não obrigatória) e portanto não é pendência sem aluguel/cedido.
+        decl = [e for e in documentos.exigidos(self.insc) if "Declaração de moradia" in e.rotulo]
+        self.assertEqual(len(decl), 1)
+        self.assertFalse(decl[0].obrigatoria)
+        self.assertFalse(any("Declaração de moradia" in e.rotulo for e in documentos.faltantes(self.insc)))
         # Marca PcD no núcleo e aluguel
         self.req.pcd = True
         self.req.save()
@@ -741,6 +746,10 @@ class DocumentacaoTests(TestCase):
         rot2 = {e.rotulo for e in documentos.exigidos(self.insc)}
         self.assertTrue(any("Laudo" in r for r in rot2))
         self.assertTrue(any("moradia" in r.lower() for r in rot2))
+        # Com aluguel/cedido, a declaração passa a ser obrigatória (vira pendência).
+        decl2 = [e for e in documentos.exigidos(self.insc) if "Declaração de moradia" in e.rotulo]
+        self.assertTrue(decl2[0].obrigatoria)
+        self.assertTrue(any("Declaração de moradia" in e.rotulo for e in documentos.faltantes(self.insc)))
 
 
 class ChecklistMarcavelTests(TestCase):
