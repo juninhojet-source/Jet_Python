@@ -8,13 +8,19 @@
     {% csrf_token %}
     <input type="hidden" name="acao" value="checklist">
     <table>
-      <thead><tr><th>Entregue</th><th>Item</th><th>Documento</th><th>Situação</th></tr></thead>
+      <thead><tr>
+        <th style="text-align:center;white-space:nowrap">
+          <input type="checkbox" id="marcar-todos" title="Marcar/desmarcar todos">
+          <label for="marcar-todos" style="font-weight:normal;cursor:pointer">Todos</label>
+        </th>
+        <th>Item</th><th>Documento</th><th>Situação</th>
+      </tr></thead>
       <tbody>
         {% for e in checklist %}
         <tr>
           <td style="text-align:center">
             {% if e.tipos %}
-            <input type="checkbox" name="entregue" value="{{ e.chave }}" {% if e.ok %}checked{% endif %}>
+            <input type="checkbox" class="chk-entregue" name="entregue" value="{{ e.chave }}" {% if e.ok %}checked{% endif %}>
             {% else %}—{% endif %}
           </td>
           <td>{{ e.codigo }}</td>
@@ -28,6 +34,24 @@
   </form>
   <p class="trilha" style="margin-top:.6rem">Precisa anexar o arquivo ou registrar
   um tipo específico (ex.: qual comprovante de renda)? Use "Registrar documento" abaixo.</p>
+  <script>
+  (function () {
+    var todos = document.getElementById("marcar-todos");
+    if (!todos) return;
+    var itens = document.querySelectorAll(".chk-entregue");
+    function sincronizaCabecalho() {
+      var marcados = 0;
+      itens.forEach(function (c) { if (c.checked) marcados++; });
+      todos.checked = marcados === itens.length && itens.length > 0;
+      todos.indeterminate = marcados > 0 && marcados < itens.length;
+    }
+    todos.addEventListener("change", function () {
+      itens.forEach(function (c) { c.checked = todos.checked; });
+    });
+    itens.forEach(function (c) { c.addEventListener("change", sincronizaCabecalho); });
+    sincronizaCabecalho();
+  })();
+  </script>
 </div>
 
 <div class="card">
