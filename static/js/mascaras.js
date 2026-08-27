@@ -10,6 +10,12 @@
     return v;
   }
 
+  function mascaraCEP(v) {
+    v = (v || "").replace(/\D/g, "").slice(0, 8);
+    if (v.length > 5) return v.replace(/(\d{5})(\d{1,3})/, "$1-$2");
+    return v;
+  }
+
   function mascaraDinheiro(v) {
     // mantém apenas dígitos; os 2 últimos são os centavos
     var d = (v || "").replace(/\D/g, "");
@@ -39,6 +45,7 @@
 
   function init() {
     aplicar("input.cpf", mascaraCPF);
+    aplicar("input.cep", mascaraCEP);
     aplicar("input.dinheiro", mascaraDinheiro);
   }
 

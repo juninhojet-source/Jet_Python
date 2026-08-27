@@ -50,6 +50,9 @@ class DinheiroInput(forms.TextInput):
 # Atributos do campo de CPF (máscara 000.000.000-00 aplicada pelo JS).
 _CPF_ATTRS = {"class": "cpf", "maxlength": "14", "inputmode": "numeric",
               "placeholder": "000.000.000-00"}
+# Atributos do campo de CEP (máscara 00000-000 pelo JS; ViaCEP no cep.js).
+_CEP_ATTRS = {"class": "cep", "maxlength": "9", "inputmode": "numeric",
+              "placeholder": "00000-000"}
 
 
 class PessoaForm(forms.ModelForm):
@@ -87,13 +90,15 @@ class RequerenteInscricaoForm(forms.Form):
 
     telefone = forms.CharField(label="Telefone", max_length=20, required=False)
     email = forms.EmailField(label="E-mail", required=False)
+    # CEP antes do endereço: ao sair do campo, o ViaCEP preenche cidade/UF/endereço.
+    cep = forms.CharField(label="CEP", max_length=9, required=False,
+                          widget=forms.TextInput(attrs=_CEP_ATTRS))
     endereco = forms.CharField(label="Endereço", max_length=200, required=False)
     numero = forms.CharField(label="Número", max_length=20, required=False)
     complemento = forms.CharField(label="Complemento", max_length=100, required=False)
     bairro = forms.CharField(label="Bairro", max_length=100, required=False)
     cidade = forms.CharField(label="Cidade", max_length=100, required=False)
     uf = forms.CharField(label="UF", max_length=2, required=False)
-    cep = forms.CharField(label="CEP", max_length=9, required=False)
 
     def clean_cpf(self):
         cpf = so_digitos(self.cleaned_data["cpf"])
@@ -136,8 +141,9 @@ class InscricaoContatoForm(forms.ModelForm):
 
     class Meta:
         model = Inscricao
-        fields = ["telefone", "email", "endereco", "numero", "complemento", "bairro",
-                  "cidade", "uf", "cep", "ciencia_lgpd"]
+        fields = ["telefone", "email", "cep", "endereco", "numero", "complemento",
+                  "bairro", "cidade", "uf", "ciencia_lgpd"]
+        widgets = {"cep": forms.TextInput(attrs=_CEP_ATTRS)}
         labels = {
             "ciencia_lgpd": "O requerente declara estar ciente do tratamento dos "
             "dados pessoais conforme a Política de Privacidade (LGPD).",
