@@ -225,6 +225,13 @@ def classificacao_pdf(itens) -> HttpResponse:
     return _pdf_response("classificacao.pdf", e)
 
 
+def _nome_usuario(u) -> str:
+    """Nome de exibição de um servidor (nome completo ou, na falta, o login)."""
+    if not u:
+        return ""
+    return (u.get_full_name() or u.get_username()).strip()
+
+
 def _recibo_via(inscricao, titulo_via: str, estilos) -> list:
     """Monta os elementos de UMA via do comprovante (compacta, meia folha)."""
     via_lbl = estilos["Normal"].clone("via_lbl")
@@ -259,11 +266,13 @@ def _recibo_via(inscricao, titulo_via: str, estilos) -> list:
         "Programa Minha Casa, Minha Vida — Faixa 02 · Edital 001/2026", cab))
     flows.append(Spacer(1, 5))
 
+    from django.utils import timezone
+
     data_fin = inscricao.data_finalizacao
     dados = [
         ["Protocolo", inscricao.protocolo or "—"],
         ["Nº da inscrição", inscricao.numero_inscricao],
-        ["Data/hora", data_fin.strftime("%d/%m/%Y %H:%M") if data_fin else "—"],
+        ["Data/hora", timezone.localtime(data_fin).strftime("%d/%m/%Y %H:%M") if data_fin else "—"],
         ["Requerente", inscricao.requerente.nome],
         ["CPF", inscricao.requerente.cpf_fmt],
         ["Integrantes do núcleo", str(inscricao.membros.count())],
@@ -290,23 +299,28 @@ def _recibo_via(inscricao, titulo_via: str, estilos) -> list:
         txt = "; ".join(falt) if len(falt) <= 8 else f"{len(falt)} itens (ver ficha do cadastro)"
         flows.append(Paragraph(f"Pendentes: {txt}.", corpo))
 
-    flows.append(Spacer(1, 5))
+    flows.append(Spacer(1, 4))
     flows.append(Paragraph(
         "Declaramos que a inscrição acima foi recebida nesta data. A inscrição e a "
         "eventual classificação <b>não geram direito</b> à contratação, financiamento "
         "ou aquisição de unidade, que dependem de análise posterior da instituição "
         "financeira, nos termos do Edital 001/2026.", corpo))
 
-    flows.append(Spacer(1, 14))
+    flows.append(Spacer(1, 10))
+    servidor = _nome_usuario(inscricao.finalizado_por)
+    requerente = inscricao.requerente.nome
     assinaturas = [
         ["_______________________________", "_______________________________"],
+        [servidor or " ", requerente or " "],
         ["Servidor responsável", "Requerente"],
     ]
     ta = Table(assinaturas, colWidths=[87 * mm, 87 * mm])
     ta.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("FONTNAME", (0, 1), (-1, 1), "Helvetica-Bold"),
         ("TOPPADDING", (0, 1), (-1, 1), 2),
+        ("TEXTCOLOR", (0, 2), (-1, 2), colors.HexColor("#5a6672")),
     ]))
     flows.append(ta)
     return flows
@@ -327,4 +341,16 @@ def recibo_pdf(inscricao) -> HttpResponse:
                        "- - - - - - - - - - - - - - - - - - - -", corte))
     e.append(Spacer(1, 6))
     e.append(KeepTogether(_recibo_via(inscricao, "2ª VIA — REQUERENTE", estilos)))
-    return _pdf_response(f"recibo_{inscricao.protocolo or inscricao.numero_inscricao}.pdf", e)
+
+    # Comprovante: margens mais justas para caber as duas vias em uma folha.
+    nome = f"recibo_{inscricao.protocolo or inscricao.numero_inscricao}.pdf"
+    buf = BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4, topMargin=12 * mm, bottomMargin=12 * mm,
+        leftMargin=16 * mm, rightMargin=16 * mm, title=nome,
+    )
+    doc.build(e)
+    buf.seek(0)
+    resp = HttpResponse(buf.getvalue(), content_type="application/pdf")
+    resp["Content-Disposition"] = f'inline; filename="{nome}"'
+    return resp

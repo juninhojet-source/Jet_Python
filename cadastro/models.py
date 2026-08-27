@@ -120,6 +120,11 @@ class Inscricao(ModeloAuditavel):
     pontuacao_total = models.PositiveIntegerField(null=True, blank=True, db_index=True)
 
     data_finalizacao = models.DateTimeField(null=True, blank=True)
+    # Servidor responsável pela finalização do cadastro (para o comprovante).
+    finalizado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="inscricoes_finalizadas",
+    )
     bloqueada = models.BooleanField(default=False)
     # Protocolo do comprovante de inscrição (gerado na finalização).
     protocolo = models.CharField(max_length=40, blank=True, db_index=True)

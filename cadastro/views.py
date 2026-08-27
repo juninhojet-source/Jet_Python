@@ -550,6 +550,7 @@ def finalizar(request, pk):
         agora = timezone.now()
         inscricao.status = Inscricao.Status.RECEBIDA
         inscricao.data_finalizacao = agora
+        inscricao.finalizado_por = request.user
         inscricao.bloqueada = True
         if not inscricao.protocolo:
             inscricao.protocolo = f"MCMV-{agora:%Y}-{inscricao.numero_inscricao}"
@@ -778,7 +779,7 @@ def rel_auditoria(request):
     cab = ["Data/hora", "Usuário", "IP", "Operação", "Tabela", "Registro", "Campo",
            "Valor anterior", "Valor novo", "Justificativa"]
     linhas = [
-        [r.data_hora.strftime("%d/%m/%Y %H:%M"), r.usuario.get_username() if r.usuario else "",
+        [timezone.localtime(r.data_hora).strftime("%d/%m/%Y %H:%M"), r.usuario.get_username() if r.usuario else "",
          r.ip or "", r.get_operacao_display(), r.tabela, r.registro_id, r.campo,
          r.valor_anterior, r.valor_novo, r.justificativa]
         for r in regs
