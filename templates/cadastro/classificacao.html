@@ -11,13 +11,18 @@
 {% else %}
 <p class="trilha">Somente a Comissão pode gerar a classificação.</p>
 {% endif %}
+{% if pendente_geracao %}
+<p class="pend" style="margin-bottom:1rem">⚠ A ordem abaixo é <strong>provisória</strong>: há inscrições
+classificáveis ainda não registradas na classificação oficial{% if pode_classificar %} —
+clique em <strong>Gerar/atualizar classificação</strong> para consolidar{% endif %}.</p>
+{% endif %}
 
 <table>
   <thead><tr><th>Pos.</th><th>Inscrição</th><th>Requerente</th><th>Pontos</th><th>Filhos ≤12</th><th>Idosos</th><th>Empate</th></tr></thead>
   <tbody>
     {% for c in itens %}
     <tr>
-      <td>{{ c.posicao }}</td>
+      <td>{{ c.posicao }}{% if c.posicao_persistida is None %} <span class="pend" title="ainda não consolidada">•</span>{% endif %}</td>
       <td>{{ c.inscricao.numero_inscricao }}</td>
       <td>{{ c.inscricao.requerente.nome }}</td>
       <td>{{ c.pontuacao }}</td>

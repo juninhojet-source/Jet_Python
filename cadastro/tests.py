@@ -171,6 +171,31 @@ class ClassificacaoTest(TestCase):
         self.assertTrue(a.classificacao.empate_pendente_sorteio)
         self.assertTrue(b.classificacao.empate_pendente_sorteio)
 
+    def test_classificavel_aparece_antes_de_gerar(self):
+        # Inscrição classificável recém-finalizada (posição oficial ainda nula)
+        # já deve aparecer na listagem, em ordem provisória.
+        a = self._apta("50", filhos_ate_12=1)
+        self.assertIsNone(a.classificacao.posicao)
+        itens = services.ordenar_classificaveis()
+        alvo = [c for c in itens if c.inscricao_id == a.id]
+        self.assertEqual(len(alvo), 1)
+        self.assertIsNotNone(alvo[0].posicao)            # posição calculada em memória
+        self.assertIsNone(alvo[0].posicao_persistida)    # ainda não consolidada
+
+    def test_gerar_limpa_posicao_de_inapto(self):
+        a = self._apta("60", filhos_ate_12=1)
+        services.classificar_todos()
+        a.refresh_from_db()
+        self.assertIsNotNone(a.classificacao.posicao)
+        # Deixa de ser classificável; ao regerar, a posição é removida.
+        a.status = Inscricao.Status.INAPTO
+        a._alteracao_autorizada = True
+        a.save()
+        services.classificar_todos()
+        a.refresh_from_db()
+        self.assertIsNone(a.classificacao.posicao)
+        self.assertFalse(a.classificacao.empate_pendente_sorteio)
+
 
 class RequisitosTest(TestCase):
     def _inscricao(self, idade=40, renda="3000", brasileiro=True):

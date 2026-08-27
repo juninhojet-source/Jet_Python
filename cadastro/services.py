@@ -146,30 +146,48 @@ STATUS_CLASSIFICAVEIS = (
 )
 
 
-@transaction.atomic
-def classificar_todos() -> list[Classificacao]:
-    """Ordena as inscrições aptas e grava posição + marcação de empate p/ sorteio."""
+def _chave_classificacao(c: Classificacao):
+    return (c.pontuacao, c.dependentes_ate_12, c.idosos)
+
+
+def ordenar_classificaveis() -> list[Classificacao]:
+    """Lista, em ordem oficial, todas as inscrições classificáveis, anotando em
+    memória ``posicao`` e ``empate_pendente_sorteio`` (sem gravar). Serve tanto à
+    exibição (mostra inscrições recém-finalizadas antes mesmo de gerar) quanto à
+    persistência em :func:`classificar_todos`.
+    """
     itens = list(
-        Classificacao.objects.select_related("inscricao").filter(
+        Classificacao.objects.select_related("inscricao__requerente").filter(
             inscricao__status__in=STATUS_CLASSIFICAVEIS
         )
     )
-
-    def chave(c: Classificacao):
-        return (c.pontuacao, c.dependentes_ate_12, c.idosos)
-
-    itens.sort(key=chave, reverse=True)
-
+    itens.sort(key=_chave_classificacao, reverse=True)
+    for c in itens:
+        # Guarda a posição oficial já gravada antes de sobrescrever em memória.
+        c.posicao_persistida = c.posicao
     for posicao, c in enumerate(itens, start=1):
         # Empate remanescente: mesma chave completa que o anterior ou o próximo.
-        empate = False
-        if posicao > 1 and chave(itens[posicao - 2]) == chave(c):
-            empate = True
-        if posicao < len(itens) and chave(itens[posicao]) == chave(c):
-            empate = True
+        empate = (
+            (posicao > 1 and _chave_classificacao(itens[posicao - 2]) == _chave_classificacao(c))
+            or (posicao < len(itens) and _chave_classificacao(itens[posicao]) == _chave_classificacao(c))
+        )
         c.posicao = posicao
         c.empate_pendente_sorteio = empate
+    return itens
+
+
+@transaction.atomic
+def classificar_todos() -> list[Classificacao]:
+    """Ordena as inscrições aptas e grava posição + marcação de empate p/ sorteio."""
+    itens = ordenar_classificaveis()
+    for c in itens:
         c._alteracao_autorizada = True
         c.save()
+
+    # Remove a posição de inscrições que deixaram de ser classificáveis
+    # (ex.: marcadas como NÃO APTA depois de já classificadas).
+    Classificacao.objects.filter(posicao__isnull=False).exclude(
+        inscricao__status__in=STATUS_CLASSIFICAVEIS
+    ).update(posicao=None, empate_pendente_sorteio=False)
 
     return itens

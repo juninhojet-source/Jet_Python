@@ -575,13 +575,15 @@ def classificacao(request):
             request, f"{len(itens)} classificada(s); {empates} em empate para sorteio."
         )
         return redirect("cadastro:classificacao")
-    from .models import Classificacao
-
-    itens = Classificacao.objects.select_related("inscricao__requerente").filter(
-        posicao__isnull=False
-    )
+    itens = services.ordenar_classificaveis()
+    # A lista já mostra as inscrições classificáveis em ordem (inclusive as
+    # recém-finalizadas). Se a posição oficial gravada divergir da ordem atual
+    # — nova inscrição sem posição, ou ordem desatualizada — a classificação
+    # oficial precisa ser (re)gerada.
+    pendente_geracao = any(c.posicao != c.posicao_persistida for c in itens)
     return render(request, "cadastro/classificacao.html", {
         "itens": itens,
+        "pendente_geracao": pendente_geracao,
         "pode_classificar": em_perfil(request.user, COMISSAO),
     })
 
