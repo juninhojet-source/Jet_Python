@@ -805,3 +805,74 @@ def rel_auditoria(request):
         for r in regs
     ]
     return relatorios.planilha_response("auditoria.xlsx", cab, linhas)
+
+
+# --------------------------------------------------------------------------- #
+# Backup e restauração manual (somente Administrador)
+# --------------------------------------------------------------------------- #
+@login_required
+@perfil_requerido(ADMIN)
+def admin_backup(request):
+    from pathlib import Path
+
+    from . import backup_utils
+
+    destino = Path(settings.MCMV_BACKUP_DIR)
+    backups = []
+    if destino.exists():
+        for arq in sorted(destino.glob(f"{backup_utils.PREFIXO}*.zip"), reverse=True)[:10]:
+            backups.append({
+                "nome": arq.name,
+                "tamanho_mb": arq.stat().st_size / (1024 * 1024),
+                "data": timezone.datetime.fromtimestamp(arq.stat().st_mtime),
+            })
+    return render(request, "cadastro/admin_backup.html", {
+        "backups": backups,
+        "pasta_backup": str(destino),
+    })
+
+
+@login_required
+@perfil_requerido(ADMIN)
+def backup_baixar(request):
+    """Gera um backup consistente (salva em MCMV_BACKUP_DIR) e o envia para download."""
+    from pathlib import Path
+
+    from . import backup_utils
+
+    alvo = Path(settings.MCMV_BACKUP_DIR) / backup_utils.nome_backup()
+    backup_utils.gerar_zip(alvo)
+    return FileResponse(
+        open(alvo, "rb"), as_attachment=True, filename=alvo.name,
+        content_type="application/zip",
+    )
+
+
+@login_required
+@perfil_requerido(ADMIN)
+@require_POST
+def backup_restaurar(request):
+    """Restaura o sistema a partir de um .zip de backup (destrutivo — só Admin)."""
+    from . import backup_utils
+
+    arquivo = request.FILES.get("arquivo")
+    if not arquivo:
+        messages.error(request, "Selecione o arquivo de backup (.zip) a restaurar.")
+        return redirect("cadastro:admin_backup")
+    if request.POST.get("confirmar") != "on":
+        messages.error(request, "Marque a confirmação: a restauração substitui os dados atuais.")
+        return redirect("cadastro:admin_backup")
+    try:
+        info = backup_utils.restaurar_zip(arquivo)
+    except Exception as exc:
+        messages.error(request, f"Falha na restauração: {exc}")
+        return redirect("cadastro:admin_backup")
+
+    from pathlib import Path
+
+    messages.success(
+        request,
+        "Backup restaurado com sucesso. Cópia de segurança do estado anterior: "
+        f"{Path(info['copia_seguranca']).name}. Talvez seja necessário entrar novamente.",
+    )
+    return redirect("cadastro:admin_backup")

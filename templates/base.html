@@ -44,6 +44,7 @@
     <a href="{% url 'cadastro:inscricao_nova' %}">Nova inscrição</a>
     {% if eh_admin %}<a href="{% url 'cadastro:classificacao' %}">Classificação</a>{% endif %}
     <a href="{% url 'cadastro:relatorios' %}">Relatórios</a>
+    {% if eh_admin %}<a href="{% url 'cadastro:admin_backup' %}">Backup</a>{% endif %}
     <a href="/admin/">Admin</a>
   </nav>
   <span class="direita">

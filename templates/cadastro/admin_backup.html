@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block titulo %}Backup e restauração — MCMV{% endblock %}
+{% block content %}
+<h1>Backup e restauração</h1>
+<p class="trilha">Área restrita ao Administrador. O backup inclui o banco de dados
+e os documentos anexados (mídia).</p>
+
+<h2>Backup manual</h2>
+<div class="card">
+  <p>Gera um backup consistente agora (banco + documentos), salva na pasta de
+  backups do servidor e baixa uma cópia para você.</p>
+  <a class="btn" href="{% url 'cadastro:backup_baixar' %}">⬇ Baixar backup agora (.zip)</a>
+  <p class="trilha" style="margin-top:.6rem">Pasta de backups no servidor: <code>{{ pasta_backup }}</code></p>
+</div>
+
+{% if backups %}
+<div class="card">
+  <h3 style="margin-top:0">Backups recentes no servidor</h3>
+  <table>
+    <thead><tr><th>Arquivo</th><th>Data</th><th>Tamanho</th></tr></thead>
+    <tbody>
+      {% for b in backups %}
+      <tr>
+        <td>{{ b.nome }}</td>
+        <td>{{ b.data|date:"d/m/Y H:i" }}</td>
+        <td>{{ b.tamanho_mb|floatformat:1 }} MB</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<h2>Restaurar backup</h2>
+<div class="card" style="border-color:#b3261e">
+  <p><strong>Atenção:</strong> a restauração <strong>substitui todos os dados atuais</strong>
+  (inscrições, documentos e usuários) pelos dados do backup enviado. Antes de
+  sobrescrever, o sistema grava automaticamente uma cópia de segurança do estado
+  atual. Após restaurar, pode ser necessário <strong>entrar novamente</strong>.</p>
+  <form method="post" action="{% url 'cadastro:backup_restaurar' %}" enctype="multipart/form-data" class="pilha"
+        onsubmit="return confirm('Confirmar a RESTAURAÇÃO? Os dados atuais serão substituídos pelos do backup.');">
+    {% csrf_token %}
+    <div class="campo">
+      <label for="arquivo">Arquivo de backup (.zip gerado por este sistema)</label>
+      <input type="file" name="arquivo" id="arquivo" accept=".zip" required>
+    </div>
+    <div class="check">
+      <input type="checkbox" name="confirmar" id="confirmar" required>
+      <label for="confirmar">Entendo que os dados atuais serão substituídos.</label>
+    </div>
+    <div style="margin-top:1rem">
+      <button class="btn perigo" type="submit">↥ Restaurar backup</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

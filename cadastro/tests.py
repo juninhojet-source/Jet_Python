@@ -758,6 +758,73 @@ class BackupTests(TestCase):
                 self.assertIn("manifesto.json", nomes)
 
 
+class AdminBackupWebTests(TestCase):
+    def test_acesso_restrito_ao_admin(self):
+        self.client.force_login(_com_perfil("an_bk", "Analista"))
+        self.assertEqual(self.client.get(reverse("cadastro:admin_backup")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("cadastro:backup_baixar")).status_code, 403)
+        self.assertEqual(self.client.post(reverse("cadastro:backup_restaurar")).status_code, 403)
+
+    def test_admin_baixa_backup_zip(self):
+        # Patch de gerar_zip: evita o snapshot real do SQLite (que trava sob o
+        # banco de testes em memória com transação aberta); testa o roteamento
+        # da view e o download.
+        import tempfile
+        import zipfile
+        from pathlib import Path
+        from unittest import mock
+
+        from django.test import override_settings
+
+        def _fake_zip(alvo):
+            alvo = Path(alvo)
+            alvo.parent.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(alvo, "w") as z:
+                z.writestr("db.sqlite3", b"conteudo")
+            return alvo
+
+        self.client.force_login(_com_perfil("adm_bk", "Administrador"))
+        with tempfile.TemporaryDirectory() as d:
+            with override_settings(MCMV_BACKUP_DIR=Path(d)), \
+                    mock.patch("cadastro.backup_utils.gerar_zip", side_effect=_fake_zip):
+                resp = self.client.get(reverse("cadastro:backup_baixar"))
+                self.assertEqual(resp.status_code, 200)
+                self.assertEqual(resp["Content-Type"], "application/zip")
+                conteudo = b"".join(resp.streaming_content)
+                self.assertTrue(conteudo[:2] == b"PK", "não parece um .zip")
+
+    def test_validacao_de_backup_invalido(self):
+        import sqlite3
+        import tempfile
+        from pathlib import Path
+
+        from . import backup_utils
+
+        with tempfile.TemporaryDirectory() as d:
+            # Banco SQLite válido e compatível (tem cadastro_inscricao).
+            bom = Path(d) / "ok.sqlite3"
+            con = sqlite3.connect(str(bom))
+            con.execute("CREATE TABLE cadastro_inscricao (id integer primary key)")
+            con.commit()
+            con.close()
+            backup_utils._validar_sqlite(bom)  # não levanta
+
+            # Arquivo que não é SQLite.
+            ruim = Path(d) / "ruim.sqlite3"
+            ruim.write_bytes(b"conteudo qualquer, nao e sqlite")
+            with self.assertRaises(ValueError):
+                backup_utils._validar_sqlite(ruim)
+
+            # SQLite válido mas sem as tabelas do sistema.
+            incompat = Path(d) / "incompat.sqlite3"
+            con = sqlite3.connect(str(incompat))
+            con.execute("CREATE TABLE outra (id integer primary key)")
+            con.commit()
+            con.close()
+            with self.assertRaises(ValueError):
+                backup_utils._validar_sqlite(incompat)
+
+
 class DocumentacaoTests(TestCase):
     def setUp(self):
         from .models import Documento

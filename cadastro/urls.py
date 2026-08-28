@@ -24,6 +24,10 @@ urlpatterns = [
     path("inscricoes/<int:pk>/inapto/", views.marcar_inapto, name="marcar_inapto"),
     path("inscricoes/<int:pk>/finalizar/", views.finalizar, name="finalizar"),
     path("classificacao/", views.classificacao, name="classificacao"),
+    # Backup e restauração manual (somente Administrador)
+    path("admin-backup/", views.admin_backup, name="admin_backup"),
+    path("admin-backup/baixar/", views.backup_baixar, name="backup_baixar"),
+    path("admin-backup/restaurar/", views.backup_restaurar, name="backup_restaurar"),
     # Relatórios e exportação (Fase 5)
     path("relatorios/", views.relatorios_index, name="relatorios"),
     path("relatorios/base.xlsx", views.rel_base, name="rel_base"),
