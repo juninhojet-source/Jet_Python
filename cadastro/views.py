@@ -602,23 +602,29 @@ def relatorios_index(request):
 
 
 def _linha_inscricao(i):
+    from decimal import ROUND_HALF_UP, Decimal
+
+    from motor import calcular_pontuacao
+
     membros = list(i.membros.all())
-    ref = i.data_referencia or i.data_inscricao.date()
-
-    def idade(p):
-        return ref.year - p.pessoa.data_nascimento.year - (
-            (ref.month, ref.day) < (p.pessoa.data_nascimento.month, p.pessoa.data_nascimento.day)
-        )
-
-    ate12 = sum(1 for m in membros if idade(m) <= 12)
-    idosos = sum(1 for m in membros if idade(m) >= 60)
     pcd = sum(1 for m in membros if m.pessoa.pcd)
     pos = getattr(getattr(i, "classificacao", None), "posicao", None)
+
+    # Recalcula ao vivo (não depende do snapshot salvo, que pode estar
+    # desatualizado/zerado se a pontuação não foi recalculada após a digitação).
+    nucleo = services.montar_nucleo(i)
+    r = calcular_pontuacao(nucleo, services.parametros())
+
+    def _2(v):
+        if v is None:
+            return 0
+        return Decimal(v).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
     return [
         i.numero_inscricao, i.requerente.nome, i.requerente.cpf, i.get_status_display(),
-        len(membros), ate12, idosos, pcd,
-        i.renda_bruta_computavel or 0, i.renda_per_capita or 0, i.percentual_aluguel or 0,
-        i.pontos_legais or 0, i.pontos_complementares or 0, i.pontuacao_total or 0,
+        len(membros), r.dependentes_ate_12, r.idosos, pcd,
+        _2(nucleo.renda_bruta_computavel()), _2(r.renda_per_capita), _2(r.percentual_aluguel),
+        r.pontos_legais, r.pontos_complementares, r.pontuacao_total,
         pos or "",
     ]
 
@@ -630,6 +636,7 @@ CAB_BASE = [
 
 
 @login_required
+@perfil_requerido(ADMIN)
 def rel_base(request):
     qs = Inscricao.objects.select_related("requerente").prefetch_related("membros__pessoa")
     status = request.GET.get("status", "").strip()

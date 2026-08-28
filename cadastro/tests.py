@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from auditoria.models import Auditoria
 
-from . import requisitos, services
+from . import requisitos, services, views
 from .models import Inscricao, MembroNucleo, Pessoa, Renda
 
 REF = date(2026, 9, 15)
@@ -346,6 +346,22 @@ class RelatoriosTest(TestCase):
             self.assertEqual(resp.status_code, 200, nome)
             self.assertEqual(resp["Content-Type"], XLSX, nome)
             self.assertTrue(resp.content[:2] == b"PK", f"{nome} não parece um .xlsx")
+
+    def test_rel_base_restrito_ao_admin(self):
+        outro = self.client_class()
+        outro.force_login(_com_perfil("an_base", "Analista"))
+        self.assertEqual(outro.get(reverse("cadastro:rel_base")).status_code, 403)
+
+    def test_rel_base_recalcula_ao_vivo(self):
+        # Inscrição com renda mas sem snapshot salvo: o Excel deve trazer valores,
+        # não zeros (recálculo ao vivo na exportação).
+        req = Pessoa.objects.create(nome="Vivo", cpf="viv1", data_nascimento=nasc(40), sexo="M")
+        insc = Inscricao.objects.create(requerente=req, data_referencia=REF, status=Inscricao.Status.APTO)
+        m = MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal("2500"))
+        linha = views._linha_inscricao(insc)
+        self.assertEqual(linha[8], Decimal("2500.00"))   # renda computável
+        self.assertEqual(linha[13], 40)                  # total (CL_IV: renda ≤ 4863)
 
     def test_pdfs(self):
         for url in [reverse("cadastro:rel_classificacao_pdf"),
