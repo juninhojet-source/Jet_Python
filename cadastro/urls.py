@@ -29,6 +29,7 @@ urlpatterns = [
     path("relatorios/base.xlsx", views.rel_base, name="rel_base"),
     path("relatorios/classificacao.xlsx", views.rel_classificacao_xlsx, name="rel_classificacao_xlsx"),
     path("relatorios/classificacao.pdf", views.rel_classificacao_pdf, name="rel_classificacao_pdf"),
+    path("relatorios/ordem-cadastro.pdf", views.rel_ordem_cadastro_pdf, name="rel_ordem_cadastro_pdf"),
     path("relatorios/pendentes.xlsx", views.rel_pendentes, name="rel_pendentes"),
     path("relatorios/indeferidos.xlsx", views.rel_indeferidos, name="rel_indeferidos"),
     path("relatorios/aptos.xlsx", views.rel_aptos, name="rel_aptos"),

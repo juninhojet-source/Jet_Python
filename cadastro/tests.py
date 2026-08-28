@@ -271,8 +271,17 @@ class ViewsSmokeTest(TestCase):
 
     def test_paginas_principais_respondem(self):
         for nome in ["cadastro:dashboard", "cadastro:inscricao_list",
-                     "cadastro:inscricao_nova", "cadastro:classificacao"]:
+                     "cadastro:inscricao_nova"]:
             self.assertEqual(self.client.get(reverse(nome)).status_code, 200)
+
+    def test_classificacao_restrita_ao_admin(self):
+        # Atendente não acessa a classificação (somente Administrador).
+        self.assertEqual(self.client.get(reverse("cadastro:classificacao")).status_code, 403)
+        self.assertEqual(
+            self.client.get(reverse("cadastro:rel_classificacao_pdf")).status_code, 403)
+        # Administrador acessa normalmente.
+        self.client.force_login(_com_perfil("adm", "Administrador"))
+        self.assertEqual(self.client.get(reverse("cadastro:classificacao")).status_code, 200)
 
     def test_logout_via_post(self):
         # O logout do Django aceita apenas POST; o botão "sair" usa formulário POST.
@@ -311,7 +320,8 @@ class ViewsSmokeTest(TestCase):
 
 class RelatoriosTest(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user("srv2", password="x")
+        # Superusuário: cobre também os relatórios de classificação (restritos ao Admin).
+        self.user = User.objects.create_user("srv2", password="x", is_superuser=True, is_staff=True)
         self.client.force_login(self.user)
         req = Pessoa.objects.create(nome="Rel", cpf="rel1", data_nascimento=nasc(40), sexo="M")
         self.insc = Inscricao.objects.create(
@@ -339,6 +349,7 @@ class RelatoriosTest(TestCase):
 
     def test_pdfs(self):
         for url in [reverse("cadastro:rel_classificacao_pdf"),
+                    reverse("cadastro:rel_ordem_cadastro_pdf"),
                     reverse("cadastro:rel_ficha_pdf", args=[self.insc.pk])]:
             resp = self.client.get(url)
             self.assertEqual(resp.status_code, 200)

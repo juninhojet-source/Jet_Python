@@ -565,10 +565,9 @@ def finalizar(request, pk):
 
 
 @login_required
+@perfil_requerido(ADMIN)
 def classificacao(request):
     if request.method == "POST":
-        if not em_perfil(request.user, COMISSAO):
-            raise PermissionDenied("Apenas a Comissão pode gerar a classificação.")
         itens = services.classificar_todos()
         empates = sum(1 for c in itens if c.empate_pendente_sorteio)
         messages.success(
@@ -584,7 +583,7 @@ def classificacao(request):
     return render(request, "cadastro/classificacao.html", {
         "itens": itens,
         "pendente_geracao": pendente_geracao,
-        "pode_classificar": em_perfil(request.user, COMISSAO),
+        "pode_classificar": True,  # a view já é restrita ao Administrador
     })
 
 
@@ -656,6 +655,7 @@ def rel_base(request):
 
 
 @login_required
+@perfil_requerido(ADMIN)
 def rel_classificacao_xlsx(request):
     itens = Classificacao.objects.select_related("inscricao__requerente").filter(
         posicao__isnull=False
@@ -672,11 +672,21 @@ def rel_classificacao_xlsx(request):
 
 
 @login_required
+@perfil_requerido(ADMIN)
 def rel_classificacao_pdf(request):
     itens = Classificacao.objects.select_related("inscricao__requerente").filter(
         posicao__isnull=False
     )
     return relatorios.classificacao_pdf(itens)
+
+
+@login_required
+def rel_ordem_cadastro_pdf(request):
+    """Relação geral das inscrições por ordem de cadastro (PDF)."""
+    inscricoes = (
+        Inscricao.objects.select_related("requerente").order_by("data_inscricao")
+    )
+    return relatorios.lista_ordem_cadastro_pdf(inscricoes)
 
 
 @login_required
@@ -760,6 +770,7 @@ def rel_aptos(request):
 
 
 @login_required
+@perfil_requerido(ADMIN)
 def rel_empates(request):
     itens = Classificacao.objects.select_related("inscricao__requerente").filter(
         empate_pendente_sorteio=True

@@ -3,12 +3,20 @@
 {% block content %}
 <h1>Relatórios e exportação</h1>
 
+<h2>Listagem geral (PDF)</h2>
+<div class="card">
+  <a class="btn" href="{% url 'cadastro:rel_ordem_cadastro_pdf' %}" target="_blank">Classificação geral por ordem de cadastro (PDF)</a>
+  <p class="trilha" style="margin-top:.6rem">Relação de todas as inscrições na ordem de cadastro (ordem de chegada). Não é critério de classificação (item 7.2).</p>
+</div>
+
+{% if eh_admin %}
 <h2>Classificação</h2>
 <div class="card">
   <a class="btn" href="{% url 'cadastro:rel_classificacao_pdf' %}" target="_blank">Classificação (PDF)</a>
   <a class="btn secundario" href="{% url 'cadastro:rel_classificacao_xlsx' %}">Classificação (Excel)</a>
   <a class="btn secundario" href="{% url 'cadastro:rel_empates' %}">Empates p/ sorteio (Excel)</a>
 </div>
+{% endif %}
 
 <h2>Listagens (Excel)</h2>
 <div class="card">

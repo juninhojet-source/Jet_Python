@@ -42,7 +42,7 @@
     <a href="{% url 'cadastro:dashboard' %}">Painel</a>
     <a href="{% url 'cadastro:inscricao_list' %}">Inscrições</a>
     <a href="{% url 'cadastro:inscricao_nova' %}">Nova inscrição</a>
-    <a href="{% url 'cadastro:classificacao' %}">Classificação</a>
+    {% if eh_admin %}<a href="{% url 'cadastro:classificacao' %}">Classificação</a>{% endif %}
     <a href="{% url 'cadastro:relatorios' %}">Relatórios</a>
     <a href="/admin/">Admin</a>
   </nav>

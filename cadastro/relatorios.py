@@ -232,6 +232,37 @@ def _nome_usuario(u) -> str:
     return (u.get_full_name() or u.get_username()).strip()
 
 
+def lista_ordem_cadastro_pdf(inscricoes) -> HttpResponse:
+    """Relação geral das inscrições por ordem de cadastro (ordem de chegada).
+
+    Lista simples, ordenada pela data/hora da inscrição (item 2.1 do edital),
+    independentemente da pontuação — útil para conferência do protocolo.
+    """
+    from django.utils import timezone
+
+    estilos = getSampleStyleSheet()
+    e = [
+        Paragraph("Relação de inscrições por ordem de cadastro", estilos["Title"]),
+        Paragraph("MCMV — Barão de Cocais/MG · Edital 001/2026", estilos["Normal"]),
+        Spacer(1, 8),
+    ]
+    linhas = [["#", "Nº", "Data/hora do cadastro", "Requerente", "CPF", "Situação"]]
+    for ordem, i in enumerate(inscricoes, start=1):
+        dt = timezone.localtime(i.data_inscricao).strftime("%d/%m/%Y %H:%M")
+        linhas.append([
+            str(ordem), i.numero_inscricao, dt,
+            i.requerente.nome, i.requerente.cpf_fmt, i.get_status_display(),
+        ])
+    t = Table(linhas, colWidths=[10 * mm, 24 * mm, 34 * mm, 55 * mm, 32 * mm, 30 * mm], repeatRows=1)
+    t.setStyle(_estilo_tabela())
+    e.append(t)
+    e.append(Spacer(1, 8))
+    e.append(Paragraph(
+        f"Total de inscrições: {len(linhas) - 1}. A ordem de cadastro não é "
+        "critério de classificação (item 7.2 do edital).", estilos["Normal"]))
+    return _pdf_response("inscricoes_ordem_cadastro.pdf", e)
+
+
 def _recibo_via(inscricao, titulo_via: str, estilos) -> list:
     """Monta os elementos de UMA via do comprovante (compacta, meia folha)."""
     via_lbl = estilos["Normal"].clone("via_lbl")
