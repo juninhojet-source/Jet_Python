@@ -221,6 +221,23 @@ class RendaNaoComputavelTest(TestCase):
         self.assertEqual(renda, Decimal("2000"))  # os 700 do Bolsa Família não entram
 
 
+class ResetNumeracaoTest(TestCase):
+    def test_reinicia_em_000001_com_banco_vazio(self):
+        from django.core.management import CommandError, call_command
+
+        p = Pessoa.objects.create(nome="A", cpf="rnum1", data_nascimento=nasc(30))
+        i = Inscricao.objects.create(requerente=p)
+        # Com inscrição existente, o comando recusa.
+        with self.assertRaises(CommandError):
+            call_command("resetar_numeracao")
+        i.delete()
+
+        call_command("resetar_numeracao")
+        p2 = Pessoa.objects.create(nome="B", cpf="rnum2", data_nascimento=nasc(30))
+        i2 = Inscricao.objects.create(requerente=p2)
+        self.assertEqual(i2.numero_inscricao, "000001")
+
+
 class RequisitosTest(TestCase):
     def _inscricao(self, idade=40, renda="3000", brasileiro=True):
         req = Pessoa.objects.create(
