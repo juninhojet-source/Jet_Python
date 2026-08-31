@@ -1,6 +1,6 @@
 # =============================================================================
 # PARÂMETROS DO EDITAL — fonte única da verdade para o motor de pontuação
-# Edital de Chamamento nº 001/2026 — Barão de Cocais/MG (MCMV Faixa 02)
+# Edital de Chamamento nº 001/2026 — Barão de Cocais/MG (MCMV)
 # Lei Municipal nº 2.064/2023
 # -----------------------------------------------------------------------------
 # Se o edital mudar, altere ESTE arquivo — não o código do motor.
@@ -12,7 +12,7 @@ edital:
   numero: "001/2026"
   municipio: "Barão de Cocais/MG"
   data_publicacao: "2026-08-28"
-  programa: "Minha Casa, Minha Vida - Faixa 02"
+  programa: "Minha Casa, Minha Vida - MCMV"
   base_legal: "Lei Municipal nº 2.064/2023"
 
 # Valores de referência ancorados na publicação (não reajustar automaticamente)

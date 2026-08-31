@@ -294,7 +294,7 @@ def _recibo_via(inscricao, titulo_via: str, estilos) -> list:
     flows.append(Spacer(1, 3))
     flows.append(Paragraph("COMPROVANTE DE INSCRIÇÃO", titulo))
     flows.append(Paragraph(
-        "Programa Minha Casa, Minha Vida — Faixa 02 · Edital 001/2026", cab))
+        "Programa Minha Casa, Minha Vida — MCMV · Edital 001/2026", cab))
     flows.append(Spacer(1, 5))
 
     from django.utils import timezone

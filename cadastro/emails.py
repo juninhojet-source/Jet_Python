@@ -27,7 +27,7 @@ def enviar_recibo(inscricao) -> str:
     corpo = (
         f"Olá, {inscricao.requerente.nome}.\n\n"
         "Segue em anexo o comprovante da sua inscrição no Programa Minha Casa, "
-        "Minha Vida (Faixa 02) — Edital de Chamamento nº 001/2026.\n"
+        "Minha Vida (MCMV) — Edital de Chamamento nº 001/2026.\n"
         f"Protocolo: {inscricao.protocolo or '—'}\n\n"
         "A inscrição e a eventual classificação não geram direito à contratação, "
         "financiamento ou aquisição de unidade habitacional, conforme o edital. "

@@ -2,7 +2,7 @@
 
 Sistema interno para operacionalizar o **Edital de Chamamento nº 001/2026** — inscrição,
 análise, pontuação e classificação de Núcleos Familiares candidatos a subsídios do
-Programa Minha Casa, Minha Vida (Faixa 02), nos termos da Lei Municipal nº 2.064/2023.
+Programa Minha Casa, Minha Vida (MCMV), nos termos da Lei Municipal nº 2.064/2023.
 
 > **Status atual:** Fases 0–6 concluídas — o sistema cobre o ciclo completo do edital e
 > está preparado para produção. Login, painel, cadastro de requerente/núcleo/renda,
