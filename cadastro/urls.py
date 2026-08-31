@@ -28,6 +28,7 @@ urlpatterns = [
     path("admin-backup/", views.admin_backup, name="admin_backup"),
     path("admin-backup/baixar/", views.backup_baixar, name="backup_baixar"),
     path("admin-backup/restaurar/", views.backup_restaurar, name="backup_restaurar"),
+    path("admin-backup/reiniciar-numeracao/", views.numeracao_resetar, name="numeracao_resetar"),
     # Relatórios e exportação (Fase 5)
     path("relatorios/", views.relatorios_index, name="relatorios"),
     path("relatorios/base.xlsx", views.rel_base, name="rel_base"),

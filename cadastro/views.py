@@ -876,3 +876,29 @@ def backup_restaurar(request):
         f"{Path(info['copia_seguranca']).name}. Talvez seja necessário entrar novamente.",
     )
     return redirect("cadastro:admin_backup")
+
+
+@login_required
+@perfil_requerido(ADMIN)
+@require_POST
+def numeracao_resetar(request):
+    """Reinicia a numeração das inscrições em 000001 (só Admin, banco sem inscrições).
+
+    Roda dentro do serviço em execução — garante que o reinício atinge o mesmo
+    banco usado pelo sistema (evita o problema de rodar o comando num ambiente
+    ou diretório diferente).
+    """
+    from io import StringIO
+
+    from django.core.management import CommandError, call_command
+
+    saida = StringIO()
+    try:
+        call_command("resetar_numeracao", stdout=saida)
+    except CommandError as exc:
+        messages.error(request, str(exc))
+        return redirect("cadastro:admin_backup")
+    messages.success(
+        request, "Numeração reiniciada. A próxima inscrição cadastrada será 000001."
+    )
+    return redirect("cadastro:admin_backup")

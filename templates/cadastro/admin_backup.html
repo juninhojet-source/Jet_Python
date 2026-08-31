@@ -31,6 +31,19 @@ e os documentos anexados (mídia).</p>
 </div>
 {% endif %}
 
+<h2>Numeração das inscrições</h2>
+<div class="card">
+  <p>Reinicia a contagem para que a <strong>próxima inscrição seja 000001</strong>.
+  Funciona apenas com o banco <strong>sem inscrições</strong> — exclua todas antes
+  (o botão é recusado se houver inscrições, para não repetir números). Executa no
+  próprio sistema em uso, garantindo o reinício no banco correto.</p>
+  <form method="post" action="{% url 'cadastro:numeracao_resetar' %}"
+        onsubmit="return confirm('Reiniciar a numeração das inscrições em 000001?');">
+    {% csrf_token %}
+    <button class="btn" type="submit">↺ Reiniciar numeração (000001)</button>
+  </form>
+</div>
+
 <h2>Restaurar backup</h2>
 <div class="card" style="border-color:#b3261e">
   <p><strong>Atenção:</strong> a restauração <strong>substitui todos os dados atuais</strong>

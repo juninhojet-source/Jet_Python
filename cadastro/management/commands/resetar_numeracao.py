@@ -23,7 +23,15 @@ class Command(BaseCommand):
     help = "Reinicia a numeração das inscrições em 000001 (somente com o banco sem inscrições)."
 
     def handle(self, *args, **opts):
+        from django.conf import settings
+
+        # Mostra QUAL banco está sendo alterado (ajuda a diagnosticar quando o
+        # comando é rodado num diretório/ambiente diferente do serviço).
+        nome_db = settings.DATABASES["default"]["NAME"]
+        self.stdout.write(f"Banco: {nome_db}")
+
         n = Inscricao.objects.count()
+        self.stdout.write(f"Inscrições no banco: {n}")
         if n:
             raise CommandError(
                 f"Há {n} inscrição(ões) cadastrada(s). Exclua todas antes de "

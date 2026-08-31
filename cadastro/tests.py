@@ -810,6 +810,26 @@ class AdminBackupWebTests(TestCase):
                 conteudo = b"".join(resp.streaming_content)
                 self.assertTrue(conteudo[:2] == b"PK", "não parece um .zip")
 
+    def test_reiniciar_numeracao_pelo_botao(self):
+        # Não-admin é bloqueado.
+        analista = self.client_class()
+        analista.force_login(_com_perfil("an_num", "Analista"))
+        self.assertEqual(
+            analista.post(reverse("cadastro:numeracao_resetar")).status_code, 403)
+        # Com inscrição existente, o botão recusa (mensagem de erro, sem reiniciar).
+        self.client.force_login(_com_perfil("adm_num", "Administrador"))
+        p0 = Pessoa.objects.create(nome="X", cpf="btn0", data_nascimento=nasc(30))
+        i0 = Inscricao.objects.create(requerente=p0)
+        self.client.post(reverse("cadastro:numeracao_resetar"))
+        self.assertTrue(Inscricao.objects.filter(pk=i0.pk).exists())
+        i0.delete()
+        # Banco vazio: reinicia; próxima inscrição = 000001.
+        resp = self.client.post(reverse("cadastro:numeracao_resetar"))
+        self.assertEqual(resp.status_code, 302)
+        p = Pessoa.objects.create(nome="N", cpf="btn1", data_nascimento=nasc(30))
+        i = Inscricao.objects.create(requerente=p)
+        self.assertEqual(i.numero_inscricao, "000001")
+
     def test_validacao_de_backup_invalido(self):
         import sqlite3
         import tempfile
