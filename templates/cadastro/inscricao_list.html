@@ -30,7 +30,7 @@
       <td>{{ i.requerente.nome }}</td>
       <td>{{ i.requerente.cpf_fmt }}</td>
       <td><span class="badge">{{ i.get_status_display }}</span></td>
-      <td>{{ i.pontuacao_total|default:"—" }}</td>
+      <td>{{ i.pontos_exibicao|default_if_none:"—" }}</td>
       <td>
         <a class="btn pequeno" href="{% url 'cadastro:inscricao_detalhe' i.pk %}">Abrir</a>
         {% if pode_excluir %}

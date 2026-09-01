@@ -88,6 +88,23 @@ def inscricao_list(request):
         )
     if status:
         inscricoes = inscricoes.filter(status=status)
+
+    inscricoes = list(inscricoes)
+    # Pontuação exibida: usa o snapshot salvo (inclusive 0); quando ainda não foi
+    # calculado (None), calcula ao vivo para não exibir "—" indevidamente.
+    from motor import calcular_pontuacao
+
+    for i in inscricoes:
+        if i.pontuacao_total is not None:
+            i.pontos_exibicao = i.pontuacao_total
+        else:
+            try:
+                i.pontos_exibicao = calcular_pontuacao(
+                    services.montar_nucleo(i), services.parametros()
+                ).pontuacao_total
+            except Exception:
+                i.pontos_exibicao = None
+
     ctx = {
         "inscricoes": inscricoes,
         "q": q,

@@ -238,6 +238,32 @@ class ResetNumeracaoTest(TestCase):
         self.assertEqual(i2.numero_inscricao, "000001")
 
 
+class ListaPontuacaoTest(TestCase):
+    def test_pontuacao_zero_mostra_zero_nao_traco(self):
+        u = _com_perfil("lst", "Atendente")
+        self.client.force_login(u)
+        # Inscrição com pontuação 0 (snapshot salvo): deve exibir "0", não "—".
+        req = Pessoa.objects.create(nome="Z", cpf="lst0", data_nascimento=nasc(40), sexo="M")
+        insc = Inscricao.objects.create(requerente=req, pontuacao_total=0, status=Inscricao.Status.RECEBIDA)
+        resp = self.client.get(reverse("cadastro:inscricao_list"))
+        obj = [i for i in resp.context["inscricoes"] if i.pk == insc.pk][0]
+        self.assertEqual(obj.pontos_exibicao, 0)
+
+    def test_pontuacao_nula_calculada_ao_vivo(self):
+        u = _com_perfil("lst2", "Atendente")
+        self.client.force_login(u)
+        # Sem snapshot (None): calcula ao vivo. Requerente com renda baixa →
+        # per capita ≤ 810,50 → 15 pontos (CC), portanto não pode ficar "—".
+        req = Pessoa.objects.create(nome="Y", cpf="lstN", data_nascimento=nasc(40), sexo="M")
+        insc = Inscricao.objects.create(requerente=req)  # pontuacao_total None
+        m = MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal("500"))
+        resp = self.client.get(reverse("cadastro:inscricao_list"))
+        obj = [i for i in resp.context["inscricoes"] if i.pk == insc.pk][0]
+        self.assertIsNotNone(obj.pontos_exibicao)
+        self.assertGreaterEqual(obj.pontos_exibicao, 15)
+
+
 class LiberarCpfTest(TestCase):
     def test_libera_cpf_orfao(self):
         from django.core.management import call_command
