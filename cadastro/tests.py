@@ -238,6 +238,24 @@ class ResetNumeracaoTest(TestCase):
         self.assertEqual(i2.numero_inscricao, "000001")
 
 
+class LiberarCpfTest(TestCase):
+    def test_libera_cpf_orfao(self):
+        from django.core.management import call_command
+
+        p = Pessoa.objects.create(nome="Órfão", cpf="15145092610", data_nascimento=nasc(30))
+        call_command("liberar_cpf", "151.450.926-10")  # aceita com máscara
+        self.assertFalse(Pessoa.objects.filter(cpf="15145092610").exists())
+
+    def test_recusa_cpf_vinculado(self):
+        from django.core.management import CommandError, call_command
+
+        p = Pessoa.objects.create(nome="Titular", cpf="99988877700", data_nascimento=nasc(30))
+        Inscricao.objects.create(requerente=p)
+        with self.assertRaises(CommandError):
+            call_command("liberar_cpf", "99988877700")
+        self.assertTrue(Pessoa.objects.filter(cpf="99988877700").exists())
+
+
 class RequisitosTest(TestCase):
     def _inscricao(self, idade=40, renda="3000", brasileiro=True):
         req = Pessoa.objects.create(
