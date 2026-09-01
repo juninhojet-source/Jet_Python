@@ -902,3 +902,26 @@ def numeracao_resetar(request):
         request, "Numeração reiniciada. A próxima inscrição cadastrada será 000001."
     )
     return redirect("cadastro:admin_backup")
+
+
+@login_required
+@perfil_requerido(ADMIN)
+@require_POST
+def cpf_liberar(request):
+    """Libera um CPF preso por uma Pessoa órfã (só Admin). Roda no serviço em uso."""
+    from io import StringIO
+
+    from django.core.management import CommandError, call_command
+
+    cpf = (request.POST.get("cpf") or "").strip()
+    if not cpf:
+        messages.error(request, "Informe o CPF a liberar.")
+        return redirect("cadastro:admin_backup")
+    saida = StringIO()
+    try:
+        call_command("liberar_cpf", cpf, stdout=saida)
+    except CommandError as exc:
+        messages.error(request, str(exc))
+        return redirect("cadastro:admin_backup")
+    messages.success(request, saida.getvalue().strip() or "CPF liberado.")
+    return redirect("cadastro:admin_backup")

@@ -848,6 +848,19 @@ class AdminBackupWebTests(TestCase):
         i = Inscricao.objects.create(requerente=p)
         self.assertEqual(i.numero_inscricao, "000001")
 
+    def test_liberar_cpf_pelo_botao(self):
+        # Não-admin bloqueado.
+        analista = self.client_class()
+        analista.force_login(_com_perfil("an_cpf", "Analista"))
+        self.assertEqual(
+            analista.post(reverse("cadastro:cpf_liberar"), {"cpf": "12345678909"}).status_code, 403)
+        # Admin libera um CPF órfão.
+        self.client.force_login(_com_perfil("adm_cpf", "Administrador"))
+        Pessoa.objects.create(nome="Órfão", cpf="15145092610", data_nascimento=nasc(30))
+        resp = self.client.post(reverse("cadastro:cpf_liberar"), {"cpf": "151.450.926-10"})
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(Pessoa.objects.filter(cpf="15145092610").exists())
+
     def test_validacao_de_backup_invalido(self):
         import sqlite3
         import tempfile

@@ -44,6 +44,23 @@ e os documentos anexados (mídia).</p>
   </form>
 </div>
 
+<h2>Liberar CPF preso</h2>
+<div class="card">
+  <p>Se um CPF ficou "preso" por uma pessoa sem vínculo (impedindo um novo
+  cadastro), informe o CPF para liberá-lo. Só remove quando a pessoa <strong>não
+  está vinculada</strong> a nenhuma inscrição.</p>
+  <form method="post" action="{% url 'cadastro:cpf_liberar' %}" class="pilha"
+        onsubmit="return confirm('Liberar este CPF?');">
+    {% csrf_token %}
+    <div class="campo">
+      <label for="cpf">CPF (com ou sem máscara)</label>
+      <input type="text" name="cpf" id="cpf" class="cpf" maxlength="14"
+             inputmode="numeric" placeholder="000.000.000-00" required>
+    </div>
+    <div style="margin-top:.6rem"><button class="btn" type="submit">Liberar CPF</button></div>
+  </form>
+</div>
+
 <h2>Restaurar backup</h2>
 <div class="card" style="border-color:#b3261e">
   <p><strong>Atenção:</strong> a restauração <strong>substitui todos os dados atuais</strong>
