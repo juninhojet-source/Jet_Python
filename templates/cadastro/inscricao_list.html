@@ -47,4 +47,18 @@
     {% endfor %}
   </tbody>
 </table>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="paginacao" style="display:flex;gap:.5rem;align-items:center;justify-content:center;margin-top:1rem;flex-wrap:wrap">
+  {% if page_obj.has_previous %}
+    <a class="btn pequeno secundario" href="?page=1{% if filtros %}&{{ filtros }}{% endif %}">« Primeira</a>
+    <a class="btn pequeno secundario" href="?page={{ page_obj.previous_page_number }}{% if filtros %}&{{ filtros }}{% endif %}">‹ Anterior</a>
+  {% endif %}
+  <span class="trilha">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} inscrições)</span>
+  {% if page_obj.has_next %}
+    <a class="btn pequeno secundario" href="?page={{ page_obj.next_page_number }}{% if filtros %}&{{ filtros }}{% endif %}">Próxima ›</a>
+    <a class="btn pequeno secundario" href="?page={{ page_obj.paginator.num_pages }}{% if filtros %}&{{ filtros }}{% endif %}">Última »</a>
+  {% endif %}
+</nav>
+{% endif %}
 {% endblock %}

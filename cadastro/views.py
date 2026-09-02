@@ -8,11 +8,13 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import urlencode
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 
@@ -89,12 +91,17 @@ def inscricao_list(request):
     if status:
         inscricoes = inscricoes.filter(status=status)
 
-    inscricoes = list(inscricoes)
+    # Ordem de inscrição (000001, 000002, ...) e paginação.
+    inscricoes = inscricoes.order_by("numero_inscricao")
+    paginator = Paginator(inscricoes, 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
     # Pontuação exibida: usa o snapshot salvo (inclusive 0); quando ainda não foi
     # calculado (None), calcula ao vivo para não exibir "—" indevidamente.
     from motor import calcular_pontuacao
 
-    for i in inscricoes:
+    lista = list(page_obj.object_list)
+    for i in lista:
         if i.pontuacao_total is not None:
             i.pontos_exibicao = i.pontuacao_total
         else:
@@ -105,8 +112,14 @@ def inscricao_list(request):
             except Exception:
                 i.pontos_exibicao = None
 
+    # Querystring dos filtros (para preservar na navegação de páginas).
+    filtros = urlencode({k: v for k, v in (("q", q), ("status", status)) if v})
+
     ctx = {
-        "inscricoes": inscricoes,
+        "inscricoes": lista,
+        "page_obj": page_obj,
+        "paginator": paginator,
+        "filtros": filtros,
         "q": q,
         "status": status,
         "status_choices": Inscricao.Status.choices,

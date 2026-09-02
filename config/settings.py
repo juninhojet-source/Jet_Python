@@ -177,8 +177,11 @@ LOGOUT_REDIRECT_URL = "login"
 
 # --- Sessão e segurança web ------------------------------------------------ #
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_AGE = int(os.environ.get("DJANGO_SESSION_AGE", 30 * 60))  # 30 min
+SESSION_COOKIE_AGE = int(os.environ.get("DJANGO_SESSION_AGE", 60 * 60))  # 60 min
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+# Renova o prazo da sessão a cada requisição: o tempo é de INATIVIDADE, não um
+# limite fixo desde o login. Assim um cadastro longo não "cai" no login ao salvar.
+SESSION_SAVE_EVERY_REQUEST = True
 CSRF_COOKIE_HTTPONLY = False  # o token precisa ser lido por formulários
 
 # Cabeçalhos de segurança válidos em qualquer ambiente.

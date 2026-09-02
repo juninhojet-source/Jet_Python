@@ -264,6 +264,35 @@ class ListaPontuacaoTest(TestCase):
         self.assertGreaterEqual(obj.pontos_exibicao, 15)
 
 
+class ListaOrdemPaginacaoTest(TestCase):
+    def setUp(self):
+        self.user = _com_perfil("lstp", "Atendente")
+        self.client.force_login(self.user)
+
+    def test_ordem_de_inscricao_e_paginacao(self):
+        # Cria 30 inscrições (números 000001..000030).
+        for k in range(30):
+            p = Pessoa.objects.create(
+                nome=f"P{k:02d}", cpf=gera_cpf(f"1000000{k:02d}"[:9]),
+                data_nascimento=nasc(40), sexo="M",
+            )
+            Inscricao.objects.create(requerente=p)
+        url = reverse("cadastro:inscricao_list")
+        r1 = self.client.get(url)
+        self.assertEqual(r1.status_code, 200)
+        page1 = r1.context["page_obj"]
+        self.assertEqual(page1.paginator.count, 30)
+        self.assertEqual(page1.paginator.num_pages, 2)
+        self.assertEqual(len(r1.context["inscricoes"]), 25)
+        # Ordem crescente por número de inscrição.
+        nums = [i.numero_inscricao for i in r1.context["inscricoes"]]
+        self.assertEqual(nums, sorted(nums))
+        self.assertEqual(nums[0], "000001")
+        # Segunda página com o restante.
+        r2 = self.client.get(url, {"page": 2})
+        self.assertEqual(len(r2.context["inscricoes"]), 5)
+
+
 class LiberarCpfTest(TestCase):
     def test_libera_cpf_orfao(self):
         from django.core.management import call_command
