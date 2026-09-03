@@ -489,6 +489,45 @@ def renda_nova(request, membro_pk):
 
 
 @login_required
+@perfil_requerido(ATENDENTE, ANALISTA)
+def renda_editar(request, renda_pk):
+    from .models import Renda
+
+    renda = get_object_or_404(
+        Renda.objects.select_related("membro__inscricao", "membro__pessoa"), pk=renda_pk
+    )
+    inscricao = renda.membro.inscricao
+    if _bloqueio_guard(request, inscricao):
+        return redirect("cadastro:inscricao_detalhe", pk=inscricao.pk)
+    if request.method == "POST":
+        form = RendaForm(request.POST, instance=renda)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Renda atualizada.")
+            return redirect("cadastro:wizard", pk=inscricao.pk, etapa="renda")
+    else:
+        form = RendaForm(instance=renda)
+    return render(request, "cadastro/renda_editar.html", {
+        "form": form, "inscricao": inscricao, "renda": renda,
+    })
+
+
+@login_required
+@perfil_requerido(ATENDENTE, ANALISTA)
+@require_POST
+def renda_excluir(request, renda_pk):
+    from .models import Renda
+
+    renda = get_object_or_404(Renda.objects.select_related("membro__inscricao"), pk=renda_pk)
+    inscricao = renda.membro.inscricao
+    if _bloqueio_guard(request, inscricao):
+        return redirect("cadastro:inscricao_detalhe", pk=inscricao.pk)
+    renda.delete()
+    messages.success(request, "Renda removida.")
+    return redirect("cadastro:wizard", pk=inscricao.pk, etapa="renda")
+
+
+@login_required
 def documentos(request, pk):
     inscricao = get_object_or_404(Inscricao, pk=pk)
     if request.method == "POST":

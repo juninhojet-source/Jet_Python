@@ -12,7 +12,15 @@
         <td>{{ m.pessoa.nome }}</td>
         <td>
           {% for r in m.rendas.all %}
-            {{ r.get_tipo_display }}: R$ {{ r.valor }}{% if not r.computavel %} <em>(não comput.)</em>{% endif %}<br>
+            <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.3rem">
+              <span>{{ r.get_tipo_display }}: R$ {{ r.valor }}{% if not r.computavel %} <em>(não comput.)</em>{% endif %}</span>
+              <a class="btn pequeno secundario" href="{% url 'cadastro:renda_editar' r.pk %}">✏ Editar</a>
+              <form method="post" action="{% url 'cadastro:renda_excluir' r.pk %}" style="display:inline"
+                    onsubmit="return confirm('Remover esta renda?');">
+                {% csrf_token %}
+                <button class="btn pequeno perigo" type="submit">🗑 Excluir</button>
+              </form>
+            </div>
           {% empty %}<span class="pend">sem renda registrada</span>{% endfor %}
         </td>
       </tr>

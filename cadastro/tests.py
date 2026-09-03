@@ -293,6 +293,38 @@ class ListaOrdemPaginacaoTest(TestCase):
         self.assertEqual(len(r2.context["inscricoes"]), 5)
 
 
+class RendaEditarExcluirTest(TestCase):
+    def setUp(self):
+        self.user = _com_perfil("rnd", "Atendente")
+        self.client.force_login(self.user)
+        self.req = Pessoa.objects.create(nome="R", cpf=gera_cpf("222333444"),
+                                         data_nascimento=nasc(40), sexo="M")
+        self.insc = Inscricao.objects.create(requerente=self.req)
+        self.m = MembroNucleo.objects.create(inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE")
+        self.renda = Renda.objects.create(membro=self.m, tipo="FORMAL", valor=Decimal("1234.70"))
+
+    def test_editar_valor(self):
+        url = reverse("cadastro:renda_editar", args=[self.renda.pk])
+        resp = self.client.post(url, {"tipo": "FORMAL", "valor": "1.500,00", "competencia": ""})
+        self.assertEqual(resp.status_code, 302)
+        self.renda.refresh_from_db()
+        self.assertEqual(self.renda.valor, Decimal("1500.00"))
+
+    def test_excluir(self):
+        url = reverse("cadastro:renda_excluir", args=[self.renda.pk])
+        resp = self.client.post(url)
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(Renda.objects.filter(pk=self.renda.pk).exists())
+
+    def test_bloqueada_nao_edita(self):
+        self.insc.bloqueada = True
+        self.insc._alteracao_autorizada = True
+        self.insc.save()
+        url = reverse("cadastro:renda_excluir", args=[self.renda.pk])
+        self.client.post(url)
+        self.assertTrue(Renda.objects.filter(pk=self.renda.pk).exists())
+
+
 class LiberarCpfTest(TestCase):
     def test_libera_cpf_orfao(self):
         from django.core.management import call_command
