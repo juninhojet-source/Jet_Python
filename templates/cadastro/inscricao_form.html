@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titulo %}{% if novo %}Nova inscrição{% else %}Editar inscrição{% endif %} — MCMV{% endblock %}
+{% block content %}
+<h1>{% if novo %}Nova inscrição — Requerente{% else %}{{ titulo|default:"Editar" }} — {{ inscricao.numero_inscricao }}{% endif %}</h1>
+<div class="card">
+  <form method="post" class="pilha">
+    {% csrf_token %}
+    {% include "cadastro/_campos.html" %}
+    <div style="margin-top:1.2rem">
+      <button class="btn" type="submit">Salvar</button>
+      {% if inscricao %}<a class="btn secundario" href="{% url 'cadastro:inscricao_detalhe' inscricao.pk %}">Cancelar</a>{% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "cadastro/wizard_base.html" %}
+{% block etapa %}
+<div class="card">
+  <h2>Checklist da documentação (item 4)</h2>
+  <p class="trilha">Marque <strong>Entregue</strong> os documentos apresentados que
+  ficarão na secretaria (o anexo é opcional). A apresentação deve ser integral (item 4.2).</p>
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="acao" value="checklist">
+    <table>
+      <thead><tr>
+        <th style="text-align:center;white-space:nowrap">
+          <input type="checkbox" id="marcar-todos" title="Marcar/desmarcar todos">
+          <label for="marcar-todos" style="font-weight:normal;cursor:pointer">Todos</label>
+        </th>
+        <th>Item</th><th>Documento</th><th>Situação</th>
+      </tr></thead>
+      <tbody>
+        {% for e in checklist %}
+        <tr>
+          <td style="text-align:center">
+            {% if e.tipos %}
+            <input type="checkbox" class="chk-entregue" name="entregue" value="{{ e.chave }}" {% if e.ok %}checked{% endif %}>
+            {% else %}—{% endif %}
+          </td>
+          <td>{{ e.codigo }}</td>
+          <td>{{ e.rotulo }}{% if e.detalhe %} <span class="trilha">({{ e.detalhe }})</span>{% endif %}
+            {% if not e.obrigatoria %} <span class="trilha">— só se aplicável</span>{% endif %}</td>
+          <td>{% if e.ok %}<span class="badge ok">✔ Apresentado</span>{% elif not e.obrigatoria %}<span class="badge">Opcional</span>{% else %}<span class="badge nao">✗ Falta</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="margin-top:1rem"><button class="btn" type="submit">Salvar documentos entregues</button></div>
+  </form>
+  <p class="trilha" style="margin-top:.6rem">Precisa anexar o arquivo ou registrar
+  um tipo específico (ex.: qual comprovante de renda)? Use "Registrar documento" abaixo.</p>
+  <script>
+  (function () {
+    var todos = document.getElementById("marcar-todos");
+    if (!todos) return;
+    var itens = document.querySelectorAll(".chk-entregue");
+    function sincronizaCabecalho() {
+      var marcados = 0;
+      itens.forEach(function (c) { if (c.checked) marcados++; });
+      todos.checked = marcados === itens.length && itens.length > 0;
+      todos.indeterminate = marcados > 0 && marcados < itens.length;
+    }
+    todos.addEventListener("change", function () {
+      itens.forEach(function (c) { c.checked = todos.checked; });
+    });
+    itens.forEach(function (c) { c.addEventListener("change", sincronizaCabecalho); });
+    sincronizaCabecalho();
+  })();
+  </script>
+</div>
+
+<div class="card">
+  <h2>4. Documentos</h2>
+  <table>
+    <thead><tr><th>Tipo</th><th>Pessoa</th><th>Obrig.</th><th>Situação</th><th>Arquivo</th></tr></thead>
+    <tbody>
+      {% for d in documentos %}
+      <tr>
+        <td>{{ d.tipo }}</td>
+        <td>{{ d.pessoa.nome|default:"—" }}</td>
+        <td>{% if d.obrigatorio %}Sim{% else %}Não{% endif %}</td>
+        <td><span class="badge">{{ d.get_status_display }}</span></td>
+        <td>{% if d.arquivo %}<a href="{% url 'cadastro:documento_download' d.pk %}">baixar</a>{% else %}—{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5">Nenhum documento anexado ainda.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Registrar documento</h2>
+  <p class="trilha">O <strong>anexo é opcional</strong> — você pode apenas registrar o
+  documento apresentado e sua situação.</p>
+  <form method="post" class="pilha" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% include "cadastro/_campos.html" %}
+    <div style="margin-top:1rem"><button class="btn" type="submit">Salvar documento</button></div>
+  </form>
+</div>
+{% endblock %}

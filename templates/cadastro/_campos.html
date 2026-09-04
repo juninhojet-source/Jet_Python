@@ -1,0 +1,19 @@
+{% for field in form %}
+  {% if field.field.widget.input_type == "checkbox" %}
+    <div class="check">{{ field }} <label for="{{ field.id_for_label }}" style="margin:0">{{ field.label }}</label>
+      {% if field.errors %}<div class="nao" style="font-size:.85rem">{{ field.errors|striptags }}</div>{% endif %}
+      {% if field.help_text %}<div class="trilha">{{ field.help_text }}</div>{% endif %}
+    </div>
+  {% else %}
+    <div class="campo">
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {% if "dinheiro" in field.field.widget.attrs.class|default:"" %}
+        <div class="rs-group"><span class="rs">R$</span>{{ field }}</div>
+      {% else %}
+        {{ field }}
+      {% endif %}
+      {% if field.errors %}<div class="nao" style="font-size:.85rem">{{ field.errors|striptags }}</div>{% endif %}
+      {% if field.help_text %}<div class="trilha">{{ field.help_text }}</div>{% endif %}
+    </div>
+  {% endif %}
+{% endfor %}

@@ -1,0 +1,1201 @@
+"""Testes de integração da Fase 2 (Django): pontuação ponta a ponta, trilha de
+auditoria e bloqueio pós-finalização.
+
+Rodar: ``python manage.py test``
+(Os testes do motor puro ficam em ``tests/`` e rodam com ``pytest``.)
+"""
+
+from datetime import date
+from decimal import Decimal
+
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.test import TestCase
+from django.urls import reverse
+from django.utils import timezone
+
+from auditoria.models import Auditoria
+
+from . import requisitos, services, views
+from .models import Inscricao, MembroNucleo, Pessoa, Renda
+
+REF = date(2026, 9, 15)
+
+
+def nasc(idade):
+    return date(REF.year - idade, REF.month, REF.day)
+
+
+def gera_cpf(base9: str) -> str:
+    """Gera um CPF válido (com dígitos verificadores) a partir de 9 dígitos."""
+    cpf = base9
+    for _ in range(2):
+        soma = sum(int(cpf[i]) * ((len(cpf) + 1) - i) for i in range(len(cpf)))
+        cpf += str(((soma * 10) % 11) % 10)
+    return cpf
+
+
+class PontuacaoIntegracaoTest(TestCase):
+    def _criar_inscricao_exemplo(self):
+        req = Pessoa.objects.create(nome="João", cpf="111", data_nascimento=nasc(40), sexo="M")
+        conj = Pessoa.objects.create(nome="Maria", cpf="222", data_nascimento=nasc(38), sexo="F")
+        f1 = Pessoa.objects.create(nome="Pedro", cpf="333", data_nascimento=nasc(5), sexo="M")
+        f2 = Pessoa.objects.create(nome="Ana", cpf="444", data_nascimento=nasc(8), sexo="F")
+
+        insc = Inscricao.objects.create(
+            requerente=req,
+            data_referencia=REF,
+            habitacao_precaria_ou_risco=True,
+            matricula_comprovada=True,
+            aluguel_mes_1=Decimal("1000"),
+            aluguel_mes_2=Decimal("1100"),
+            aluguel_mes_3=Decimal("1000"),
+            status=Inscricao.Status.APTO,
+        )
+        m_req = MembroNucleo.objects.create(
+            inscricao=insc, pessoa=req, parentesco="REQUERENTE", arrimo=True
+        )
+        Renda.objects.create(membro=m_req, tipo="FORMAL", valor=Decimal("3000"))
+        MembroNucleo.objects.create(inscricao=insc, pessoa=conj, parentesco="COMPANHEIRO")
+        MembroNucleo.objects.create(inscricao=insc, pessoa=f1, parentesco="FILHO")
+        MembroNucleo.objects.create(inscricao=insc, pessoa=f2, parentesco="FILHO")
+        return insc
+
+    def test_exemplo_141_pontos_ponta_a_ponta(self):
+        insc = self._criar_inscricao_exemplo()
+        r = services.calcular_e_salvar(insc)
+
+        insc.refresh_from_db()
+        self.assertEqual(insc.pontos_legais, 120)
+        self.assertEqual(insc.pontos_complementares, 21)
+        self.assertEqual(insc.pontuacao_total, 141)
+        self.assertEqual(r.pontuacao_total, 141)
+
+        # Critérios legais persistidos
+        self.assertEqual(insc.criterios_legais.get(inciso="CL_III").pontos, 0)
+        self.assertEqual(insc.criterios_legais.get(inciso="CL_IV").pontos, 40)
+        # Classificação criada com chaves de desempate
+        self.assertEqual(insc.classificacao.dependentes_ate_12, 2)
+        self.assertEqual(insc.classificacao.idosos, 0)
+
+    def test_numero_inscricao_gerado(self):
+        insc = self._criar_inscricao_exemplo()
+        self.assertTrue(insc.numero_inscricao)
+        self.assertEqual(insc.numero_inscricao, f"{insc.pk:06d}")
+
+
+class AuditoriaTest(TestCase):
+    def test_criacao_gera_registro(self):
+        Pessoa.objects.create(nome="Zé", cpf="999", data_nascimento=nasc(30))
+        self.assertTrue(
+            Auditoria.objects.filter(
+                tabela="cadastro.Pessoa", operacao=Auditoria.Operacao.CRIACAO
+            ).exists()
+        )
+
+    def test_alteracao_registra_campo(self):
+        p = Pessoa.objects.create(nome="Zé", cpf="998", data_nascimento=nasc(30))
+        p.nome = "José"
+        p.save()
+        reg = Auditoria.objects.get(
+            tabela="cadastro.Pessoa",
+            operacao=Auditoria.Operacao.ALTERACAO,
+            campo="nome",
+        )
+        self.assertEqual(reg.valor_anterior, "Zé")
+        self.assertEqual(reg.valor_novo, "José")
+
+    def test_auditoria_e_imutavel(self):
+        p = Pessoa.objects.create(nome="Zé", cpf="997", data_nascimento=nasc(30))
+        reg = Auditoria.objects.filter(registro_id=str(p.pk)).first()
+        with self.assertRaises(RuntimeError):
+            reg.justificativa = "x"
+            reg.save()
+
+
+class BloqueioTest(TestCase):
+    def test_inscricao_bloqueada_nao_edita(self):
+        req = Pessoa.objects.create(nome="A", cpf="1", data_nascimento=nasc(40))
+        insc = Inscricao.objects.create(requerente=req)
+        insc.bloqueada = True
+        insc.data_finalizacao = timezone.now()
+        insc.save()  # a transição para bloqueada é permitida
+
+        insc.telefone = "99999-9999"
+        with self.assertRaises(ValidationError):
+            insc.save()
+
+    def test_alteracao_autorizada_passa(self):
+        req = Pessoa.objects.create(nome="B", cpf="2", data_nascimento=nasc(40))
+        insc = Inscricao.objects.create(requerente=req, bloqueada=True)
+        insc.telefone = "1234"
+        insc._alteracao_autorizada = True
+        insc.save()  # não deve levantar
+        insc.refresh_from_db()
+        self.assertEqual(insc.telefone, "1234")
+
+
+class ClassificacaoTest(TestCase):
+    def _apta(self, cpf, filhos_ate_12):
+        req = Pessoa.objects.create(nome=f"R{cpf}", cpf=cpf, data_nascimento=nasc(40))
+        insc = Inscricao.objects.create(
+            requerente=req,
+            data_referencia=REF,
+            habitacao_precaria_ou_risco=True,
+            matricula_comprovada=True,
+            status=Inscricao.Status.APTO,
+        )
+        m = MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal("3000"))
+        for i in range(filhos_ate_12):
+            f = Pessoa.objects.create(
+                nome=f"F{cpf}{i}", cpf=f"{cpf}f{i}", data_nascimento=nasc(5)
+            )
+            MembroNucleo.objects.create(inscricao=insc, pessoa=f, parentesco="FILHO")
+        services.calcular_e_salvar(insc)
+        return insc
+
+    def test_desempate_por_filhos(self):
+        a = self._apta("10", filhos_ate_12=2)
+        b = self._apta("20", filhos_ate_12=1)
+        services.classificar_todos()
+        a.refresh_from_db(); b.refresh_from_db()
+        # Mesma pontuação; A tem mais filhos <=12 → posição melhor (menor número).
+        self.assertLess(a.classificacao.posicao, b.classificacao.posicao)
+
+    def test_empate_marcado_para_sorteio(self):
+        a = self._apta("30", filhos_ate_12=1)
+        b = self._apta("40", filhos_ate_12=1)
+        services.classificar_todos()
+        a.refresh_from_db(); b.refresh_from_db()
+        self.assertTrue(a.classificacao.empate_pendente_sorteio)
+        self.assertTrue(b.classificacao.empate_pendente_sorteio)
+
+    def test_classificavel_aparece_antes_de_gerar(self):
+        # Inscrição classificável recém-finalizada (posição oficial ainda nula)
+        # já deve aparecer na listagem, em ordem provisória.
+        a = self._apta("50", filhos_ate_12=1)
+        self.assertIsNone(a.classificacao.posicao)
+        itens = services.ordenar_classificaveis()
+        alvo = [c for c in itens if c.inscricao_id == a.id]
+        self.assertEqual(len(alvo), 1)
+        self.assertIsNotNone(alvo[0].posicao)            # posição calculada em memória
+        self.assertIsNone(alvo[0].posicao_persistida)    # ainda não consolidada
+
+    def test_gerar_limpa_posicao_de_inapto(self):
+        a = self._apta("60", filhos_ate_12=1)
+        services.classificar_todos()
+        a.refresh_from_db()
+        self.assertIsNotNone(a.classificacao.posicao)
+        # Deixa de ser classificável; ao regerar, a posição é removida.
+        a.status = Inscricao.Status.INAPTO
+        a._alteracao_autorizada = True
+        a.save()
+        services.classificar_todos()
+        a.refresh_from_db()
+        self.assertIsNone(a.classificacao.posicao)
+        self.assertFalse(a.classificacao.empate_pendente_sorteio)
+
+
+class RendaNaoComputavelTest(TestCase):
+    """Item 3.1.4.1: BPC, Bolsa Família etc. nunca entram no cálculo da renda."""
+
+    def _nucleo(self):
+        req = Pessoa.objects.create(nome="RN", cpf="rn1", data_nascimento=nasc(40), sexo="F")
+        insc = Inscricao.objects.create(requerente=req, data_referencia=REF)
+        m = MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        return insc, m
+
+    def test_beneficio_nao_computavel_forcado_no_save(self):
+        _, m = self._nucleo()
+        # Mesmo marcando computável=True, o tipo BPC força a exclusão.
+        r = Renda.objects.create(membro=m, tipo="BPC", valor=Decimal("1000"), computavel=True)
+        r.refresh_from_db()
+        self.assertFalse(r.computavel)
+
+    def test_excluido_do_calculo_da_renda(self):
+        insc, m = self._nucleo()
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal("2000"))
+        Renda.objects.create(membro=m, tipo="BOLSA_FAMILIA", valor=Decimal("700"))
+        renda = services.montar_nucleo(insc).renda_bruta_computavel()
+        self.assertEqual(renda, Decimal("2000"))  # os 700 do Bolsa Família não entram
+
+
+class ResetNumeracaoTest(TestCase):
+    def test_reinicia_em_000001_com_banco_vazio(self):
+        from django.core.management import CommandError, call_command
+
+        p = Pessoa.objects.create(nome="A", cpf="rnum1", data_nascimento=nasc(30))
+        i = Inscricao.objects.create(requerente=p)
+        # Com inscrição existente, o comando recusa.
+        with self.assertRaises(CommandError):
+            call_command("resetar_numeracao")
+        i.delete()
+
+        call_command("resetar_numeracao")
+        p2 = Pessoa.objects.create(nome="B", cpf="rnum2", data_nascimento=nasc(30))
+        i2 = Inscricao.objects.create(requerente=p2)
+        self.assertEqual(i2.numero_inscricao, "000001")
+
+
+class ListaPontuacaoTest(TestCase):
+    def test_pontuacao_zero_mostra_zero_nao_traco(self):
+        u = _com_perfil("lst", "Atendente")
+        self.client.force_login(u)
+        # Inscrição com pontuação 0 (snapshot salvo): deve exibir "0", não "—".
+        req = Pessoa.objects.create(nome="Z", cpf="lst0", data_nascimento=nasc(40), sexo="M")
+        insc = Inscricao.objects.create(requerente=req, pontuacao_total=0, status=Inscricao.Status.RECEBIDA)
+        resp = self.client.get(reverse("cadastro:inscricao_list"))
+        obj = [i for i in resp.context["inscricoes"] if i.pk == insc.pk][0]
+        self.assertEqual(obj.pontos_exibicao, 0)
+
+    def test_pontuacao_nula_calculada_ao_vivo(self):
+        u = _com_perfil("lst2", "Atendente")
+        self.client.force_login(u)
+        # Sem snapshot (None): calcula ao vivo. Requerente com renda baixa →
+        # per capita ≤ 810,50 → 15 pontos (CC), portanto não pode ficar "—".
+        req = Pessoa.objects.create(nome="Y", cpf="lstN", data_nascimento=nasc(40), sexo="M")
+        insc = Inscricao.objects.create(requerente=req)  # pontuacao_total None
+        m = MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal("500"))
+        resp = self.client.get(reverse("cadastro:inscricao_list"))
+        obj = [i for i in resp.context["inscricoes"] if i.pk == insc.pk][0]
+        self.assertIsNotNone(obj.pontos_exibicao)
+        self.assertGreaterEqual(obj.pontos_exibicao, 15)
+
+
+class ListaOrdemPaginacaoTest(TestCase):
+    def setUp(self):
+        self.user = _com_perfil("lstp", "Atendente")
+        self.client.force_login(self.user)
+
+    def test_ordem_de_inscricao_e_paginacao(self):
+        # Cria 30 inscrições (números 000001..000030).
+        for k in range(30):
+            p = Pessoa.objects.create(
+                nome=f"P{k:02d}", cpf=gera_cpf(f"1000000{k:02d}"[:9]),
+                data_nascimento=nasc(40), sexo="M",
+            )
+            Inscricao.objects.create(requerente=p)
+        url = reverse("cadastro:inscricao_list")
+        r1 = self.client.get(url)
+        self.assertEqual(r1.status_code, 200)
+        page1 = r1.context["page_obj"]
+        self.assertEqual(page1.paginator.count, 30)
+        self.assertEqual(page1.paginator.num_pages, 2)
+        self.assertEqual(len(r1.context["inscricoes"]), 25)
+        # Ordem crescente por número de inscrição.
+        nums = [i.numero_inscricao for i in r1.context["inscricoes"]]
+        self.assertEqual(nums, sorted(nums))
+        self.assertEqual(nums[0], "000001")
+        # Segunda página com o restante.
+        r2 = self.client.get(url, {"page": 2})
+        self.assertEqual(len(r2.context["inscricoes"]), 5)
+
+
+class RendaEditarExcluirTest(TestCase):
+    def setUp(self):
+        self.user = _com_perfil("rnd", "Atendente")
+        self.client.force_login(self.user)
+        self.req = Pessoa.objects.create(nome="R", cpf=gera_cpf("222333444"),
+                                         data_nascimento=nasc(40), sexo="M")
+        self.insc = Inscricao.objects.create(requerente=self.req)
+        self.m = MembroNucleo.objects.create(inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE")
+        self.renda = Renda.objects.create(membro=self.m, tipo="FORMAL", valor=Decimal("1234.70"))
+
+    def test_editar_valor(self):
+        url = reverse("cadastro:renda_editar", args=[self.renda.pk])
+        resp = self.client.post(url, {"tipo": "FORMAL", "valor": "1.500,00", "competencia": ""})
+        self.assertEqual(resp.status_code, 302)
+        self.renda.refresh_from_db()
+        self.assertEqual(self.renda.valor, Decimal("1500.00"))
+
+    def test_excluir(self):
+        url = reverse("cadastro:renda_excluir", args=[self.renda.pk])
+        resp = self.client.post(url)
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(Renda.objects.filter(pk=self.renda.pk).exists())
+
+    def test_bloqueada_nao_edita(self):
+        self.insc.bloqueada = True
+        self.insc._alteracao_autorizada = True
+        self.insc.save()
+        url = reverse("cadastro:renda_excluir", args=[self.renda.pk])
+        self.client.post(url)
+        self.assertTrue(Renda.objects.filter(pk=self.renda.pk).exists())
+
+
+class LiberarCpfTest(TestCase):
+    def test_libera_cpf_orfao(self):
+        from django.core.management import call_command
+
+        p = Pessoa.objects.create(nome="Órfão", cpf="15145092610", data_nascimento=nasc(30))
+        call_command("liberar_cpf", "151.450.926-10")  # aceita com máscara
+        self.assertFalse(Pessoa.objects.filter(cpf="15145092610").exists())
+
+    def test_recusa_cpf_vinculado(self):
+        from django.core.management import CommandError, call_command
+
+        p = Pessoa.objects.create(nome="Titular", cpf="99988877700", data_nascimento=nasc(30))
+        Inscricao.objects.create(requerente=p)
+        with self.assertRaises(CommandError):
+            call_command("liberar_cpf", "99988877700")
+        self.assertTrue(Pessoa.objects.filter(cpf="99988877700").exists())
+
+
+class RequisitosTest(TestCase):
+    def _inscricao(self, idade=40, renda="3000", brasileiro=True):
+        req = Pessoa.objects.create(
+            nome="R", cpf="req", data_nascimento=nasc(idade), sexo="M", brasileiro=brasileiro
+        )
+        insc = Inscricao.objects.create(requerente=req, data_referencia=REF)
+        m = MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal(renda))
+        return insc
+
+    def test_apto_com_flags_documentais(self):
+        insc = self._inscricao()
+        insc.residencia_5anos_comprovada = True
+        insc.nao_proprietario_declarado = True
+        insc.nao_beneficiado_declarado = True
+        insc._alteracao_autorizada = True
+        insc.save()
+        itens = requisitos.avaliar(insc)
+        self.assertTrue(requisitos.apto(itens))
+
+    def test_inapto_menor_de_idade(self):
+        insc = self._inscricao(idade=17)
+        itens = requisitos.avaliar(insc)
+        self.assertFalse(requisitos.apto(itens))
+        r1 = next(i for i in itens if i.codigo == "R1")
+        self.assertFalse(r1.ok)
+
+    def test_inapto_renda_acima_do_teto(self):
+        insc = self._inscricao(renda="9000")
+        itens = requisitos.avaliar(insc)
+        r5 = next(i for i in itens if i.codigo == "R5")
+        self.assertFalse(r5.ok)
+
+
+def _com_perfil(username, *grupos):
+    from django.contrib.auth.models import Group
+
+    u = User.objects.create_user(username, password="x")
+    for g in grupos:
+        u.groups.add(Group.objects.get(name=g))
+    return u
+
+
+class ViewsSmokeTest(TestCase):
+    def setUp(self):
+        self.user = _com_perfil("srv", "Atendente")
+        self.client.force_login(self.user)
+
+    def test_paginas_principais_respondem(self):
+        for nome in ["cadastro:dashboard", "cadastro:inscricao_list",
+                     "cadastro:inscricao_nova"]:
+            self.assertEqual(self.client.get(reverse(nome)).status_code, 200)
+
+    def test_classificacao_restrita_ao_admin(self):
+        # Atendente não acessa a classificação (somente Administrador).
+        self.assertEqual(self.client.get(reverse("cadastro:classificacao")).status_code, 403)
+        self.assertEqual(
+            self.client.get(reverse("cadastro:rel_classificacao_pdf")).status_code, 403)
+        # Administrador acessa normalmente.
+        self.client.force_login(_com_perfil("adm", "Administrador"))
+        self.assertEqual(self.client.get(reverse("cadastro:classificacao")).status_code, 200)
+
+    def test_logout_via_post(self):
+        # O logout do Django aceita apenas POST; o botão "sair" usa formulário POST.
+        resp = self.client.post(reverse("logout"))
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.client.get(reverse("cadastro:dashboard")).status_code, 302)
+
+    def test_login_obrigatorio(self):
+        self.client.logout()
+        resp = self.client.get(reverse("cadastro:dashboard"))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/entrar/", resp.url)
+
+    def test_criar_inscricao_e_finalizar(self):
+        cpf = gera_cpf("111444777")
+        resp = self.client.post(
+            reverse("cadastro:inscricao_nova"),
+            {
+                "nome": "Fulano", "cpf": cpf, "data_nascimento": "1986-01-01",
+                "sexo": "M", "brasileiro": "on",
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        insc = Inscricao.objects.get(requerente__cpf=cpf)
+
+        # detalhe responde
+        self.assertEqual(
+            self.client.get(reverse("cadastro:inscricao_detalhe", args=[insc.pk])).status_code, 200
+        )
+        # finalizar bloqueia
+        self.client.post(reverse("cadastro:finalizar", args=[insc.pk]))
+        insc.refresh_from_db()
+        self.assertTrue(insc.bloqueada)
+        self.assertIsNotNone(insc.data_finalizacao)
+
+
+class RelatoriosTest(TestCase):
+    def setUp(self):
+        # Superusuário: cobre também os relatórios de classificação (restritos ao Admin).
+        self.user = User.objects.create_user("srv2", password="x", is_superuser=True, is_staff=True)
+        self.client.force_login(self.user)
+        req = Pessoa.objects.create(nome="Rel", cpf="rel1", data_nascimento=nasc(40), sexo="M")
+        self.insc = Inscricao.objects.create(
+            requerente=req, data_referencia=REF, habitacao_precaria_ou_risco=True,
+            matricula_comprovada=True, status=Inscricao.Status.APTO,
+        )
+        m = MembroNucleo.objects.create(inscricao=self.insc, pessoa=req, parentesco="REQUERENTE")
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal("3000"))
+        f = Pessoa.objects.create(nome="Fi", cpf="rel2", data_nascimento=nasc(5), sexo="F")
+        MembroNucleo.objects.create(inscricao=self.insc, pessoa=f, parentesco="FILHO")
+        services.calcular_e_salvar(self.insc)
+        services.classificar_todos()
+
+    def test_indice_relatorios(self):
+        self.assertEqual(self.client.get(reverse("cadastro:relatorios")).status_code, 200)
+
+    def test_exportacoes_xlsx(self):
+        XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        for nome in ["rel_base", "rel_classificacao_xlsx", "rel_pendentes",
+                     "rel_indeferidos", "rel_aptos", "rel_empates", "rel_auditoria"]:
+            resp = self.client.get(reverse(f"cadastro:{nome}"))
+            self.assertEqual(resp.status_code, 200, nome)
+            self.assertEqual(resp["Content-Type"], XLSX, nome)
+            self.assertTrue(resp.content[:2] == b"PK", f"{nome} não parece um .xlsx")
+
+    def test_rel_base_restrito_ao_admin(self):
+        outro = self.client_class()
+        outro.force_login(_com_perfil("an_base", "Analista"))
+        self.assertEqual(outro.get(reverse("cadastro:rel_base")).status_code, 403)
+
+    def test_rel_base_recalcula_ao_vivo(self):
+        # Inscrição com renda mas sem snapshot salvo: o Excel deve trazer valores,
+        # não zeros (recálculo ao vivo na exportação).
+        req = Pessoa.objects.create(nome="Vivo", cpf="viv1", data_nascimento=nasc(40), sexo="M")
+        insc = Inscricao.objects.create(requerente=req, data_referencia=REF, status=Inscricao.Status.APTO)
+        m = MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal("2500"))
+        linha = views._linha_inscricao(insc)
+        self.assertEqual(linha[8], Decimal("2500.00"))   # renda computável
+        self.assertEqual(linha[13], 40)                  # total (CL_IV: renda ≤ 4863)
+
+    def test_pdfs(self):
+        for url in [reverse("cadastro:rel_classificacao_pdf"),
+                    reverse("cadastro:rel_ordem_cadastro_pdf"),
+                    reverse("cadastro:rel_ficha_pdf", args=[self.insc.pk])]:
+            resp = self.client.get(url)
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(resp["Content-Type"], "application/pdf")
+            self.assertTrue(resp.content[:5] == b"%PDF-", "não parece um PDF")
+
+    def test_filtro_base_pcd(self):
+        # Sem PcD no núcleo → filtro pcd deve retornar planilha sem linhas de dados.
+        resp = self.client.get(reverse("cadastro:rel_base"), {"pcd": "1"})
+        self.assertEqual(resp.status_code, 200)
+
+    def test_recibo_duas_vias_e_ficha_checklist(self):
+        from io import BytesIO
+
+        try:
+            from pypdf import PdfReader
+        except ImportError:  # pragma: no cover
+            self.skipTest("pypdf não instalado")
+
+        from . import relatorios
+
+        self.insc.protocolo = "MCMV-2026-000999"
+        # Recibo: uma folha com as duas vias.
+        r = PdfReader(BytesIO(relatorios.recibo_pdf(self.insc).content))
+        self.assertEqual(len(r.pages), 1)
+        txt = r.pages[0].extract_text() or ""
+        self.assertIn("1ª VIA", txt)
+        self.assertIn("2ª VIA", txt)
+        self.assertIn("corte aqui", txt)
+        self.assertIn("Documenta", txt)  # resumo da documentação
+        # Ficha: contém o checklist da documentação (item 4).
+        f = PdfReader(BytesIO(relatorios.ficha_pdf(self.insc).content))
+        ftxt = "".join((p.extract_text() or "") for p in f.pages)
+        self.assertIn("Checklist da documenta", ftxt)
+        self.assertIn("4.1.1", ftxt)
+
+
+class AcessoFluxoTest(TestCase):
+    def _inscricao_apta(self, cpf="fx1"):
+        req = Pessoa.objects.create(nome="Fx", cpf=cpf, data_nascimento=nasc(40), sexo="M")
+        insc = Inscricao.objects.create(
+            requerente=req, data_referencia=REF, status=Inscricao.Status.RECEBIDA,
+            habitacao_precaria_ou_risco=True, matricula_comprovada=True,
+            residencia_5anos_comprovada=True, nao_proprietario_declarado=True,
+            nao_beneficiado_declarado=True, bloqueada=True,
+        )
+        m = MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal("3000"))
+        f = Pessoa.objects.create(nome="Fi", cpf=cpf + "f", data_nascimento=nasc(5))
+        MembroNucleo.objects.create(inscricao=insc, pessoa=f, parentesco="FILHO")
+        services.calcular_e_salvar(insc)
+        return insc
+
+    def test_consulta_nao_cria_inscricao(self):
+        self.client.force_login(_com_perfil("cons", "Consulta"))
+        resp = self.client.get(reverse("cadastro:inscricao_nova"))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_atendente_nao_gera_classificacao(self):
+        self.client.force_login(_com_perfil("at", "Atendente"))
+        resp = self.client.post(reverse("cadastro:classificacao"))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_analista_inicia_e_valida_analise(self):
+        insc = self._inscricao_apta("fx2")
+        self.client.force_login(_com_perfil("an", "Analista"))
+        self.client.post(reverse("cadastro:transicionar", args=[insc.pk]),
+                         {"destino": Inscricao.Status.EM_ANALISE})
+        insc.refresh_from_db(); self.assertEqual(insc.status, Inscricao.Status.EM_ANALISE)
+        self.client.post(reverse("cadastro:transicionar", args=[insc.pk]),
+                         {"destino": Inscricao.Status.DOC_VALIDADA})
+        insc.refresh_from_db(); self.assertEqual(insc.status, Inscricao.Status.DOC_VALIDADA)
+
+    def test_analista_nao_homologa(self):
+        insc = self._inscricao_apta("fx3")
+        insc.status = Inscricao.Status.APTO
+        insc._alteracao_autorizada = True
+        insc.save()
+        self.client.force_login(_com_perfil("an2", "Analista"))
+        self.client.post(reverse("cadastro:transicionar", args=[insc.pk]),
+                         {"destino": Inscricao.Status.HOMOLOGADO})
+        insc.refresh_from_db()
+        self.assertEqual(insc.status, Inscricao.Status.APTO)  # não mudou
+
+    def test_comissao_homologa(self):
+        insc = self._inscricao_apta("fx4")
+        insc.status = Inscricao.Status.APTO
+        insc._alteracao_autorizada = True
+        insc.save()
+        self.client.force_login(_com_perfil("com", "Comissao"))
+        self.client.post(reverse("cadastro:transicionar", args=[insc.pk]),
+                         {"destino": Inscricao.Status.HOMOLOGADO})
+        insc.refresh_from_db()
+        self.assertEqual(insc.status, Inscricao.Status.HOMOLOGADO)
+
+    def test_apto_bloqueado_se_requisito_pendente(self):
+        # Núcleo sem os flags documentais → não apto → transição para APTO barrada.
+        req = Pessoa.objects.create(nome="Z", cpf="fx5", data_nascimento=nasc(40))
+        insc = Inscricao.objects.create(
+            requerente=req, data_referencia=REF, status=Inscricao.Status.DOC_VALIDADA
+        )
+        m = MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal("3000"))
+        self.client.force_login(_com_perfil("an3", "Analista"))
+        self.client.post(reverse("cadastro:transicionar", args=[insc.pk]),
+                         {"destino": Inscricao.Status.APTO})
+        insc.refresh_from_db()
+        self.assertEqual(insc.status, Inscricao.Status.DOC_VALIDADA)  # barrado
+
+
+class InjecaoPlanilhaTest(TestCase):
+    def test_neutraliza_formula(self):
+        from io import BytesIO
+        from openpyxl import load_workbook
+        from cadastro.relatorios import planilha_response
+
+        resp = planilha_response(
+            "t.xlsx", ["Nome"], [["=HYPERLINK(\"http://x\")"], ["+1"], ["João"]]
+        )
+        wb = load_workbook(BytesIO(resp.content))
+        ws = wb.active
+        # Linha 1 é cabeçalho; dados começam na linha 2.
+        self.assertEqual(ws.cell(row=2, column=1).value, "'=HYPERLINK(\"http://x\")")
+        self.assertEqual(ws.cell(row=3, column=1).value, "'+1")
+        self.assertEqual(ws.cell(row=4, column=1).value, "João")
+        # Nenhuma célula de dado é do tipo fórmula.
+        for r in (2, 3, 4):
+            self.assertNotEqual(ws.cell(row=r, column=1).data_type, "f")
+
+
+class WizardTest(TestCase):
+    def setUp(self):
+        self.user = _com_perfil("at_wiz", "Atendente")
+        self.client.force_login(self.user)
+        self.cpf = gera_cpf("222333444")
+        resp = self.client.post(reverse("cadastro:inscricao_nova"), {
+            "nome": "Assistente Teste", "cpf": self.cpf,
+            "data_nascimento": "1986-01-01", "sexo": "M", "brasileiro": "on",
+        })
+        self.insc = Inscricao.objects.get(requerente__cpf=self.cpf)
+
+    def test_nova_entra_no_wizard(self):
+        resp = self.client.post(reverse("cadastro:inscricao_nova"), {
+            "nome": "Outro", "cpf": gera_cpf("333444555"),
+            "data_nascimento": "1986-01-01", "sexo": "F", "brasileiro": "on",
+        })
+        self.assertIn("/cadastro/requerente/", resp.url)
+
+    def test_data_nascimento_aparece_no_assistente(self):
+        # A data informada na criação deve vir preenchida (value ISO) no assistente.
+        url = reverse("cadastro:wizard", args=[self.insc.pk, "requerente"])
+        html = self.client.get(url).content.decode()
+        self.assertIn('value="1986-01-01"', html)
+
+    def test_todas_etapas_respondem(self):
+        for etapa in ["requerente", "nucleo", "renda", "documentos", "avaliacao", "revisao"]:
+            url = reverse("cadastro:wizard", args=[self.insc.pk, etapa])
+            self.assertEqual(self.client.get(url).status_code, 200, etapa)
+
+    def test_salvar_e_avancar(self):
+        url = reverse("cadastro:wizard", args=[self.insc.pk, "requerente"])
+        resp = self.client.post(url, {
+            "nome": "Assistente Teste", "cpf": self.cpf, "data_nascimento": "1986-01-01",
+            "sexo": "M", "estado_civil": "SOLTEIRO", "brasileiro": "on", "acao": "avancar",
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/cadastro/nucleo/", resp.url)
+
+    def test_revisao_lista_pendencias(self):
+        from cadastro.wizard import pendencias
+        pend = pendencias(self.insc)
+        # Recém-criada: deve haver pendências (contato, núcleo, documentos...).
+        self.assertTrue(pend)
+        resp = self.client.get(reverse("cadastro:wizard", args=[self.insc.pk, "revisao"]))
+        self.assertContains(resp, "Pendências")
+
+    def test_etapa_invalida_404(self):
+        resp = self.client.get(reverse("cadastro:wizard", args=[self.insc.pk, "inexistente"]))
+        self.assertEqual(resp.status_code, 404)
+
+
+class ExclusaoTest(TestCase):
+    def _inscricao(self, cpf="ex1"):
+        req = Pessoa.objects.create(nome="Excluir", cpf=cpf, data_nascimento=nasc(40))
+        insc = Inscricao.objects.create(requerente=req)
+        MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        return insc
+
+    def test_admin_exclui(self):
+        from django.contrib.auth.models import Group
+        insc = self._inscricao("ex_admin")
+        u = User.objects.create_user("adm", password="x")
+        u.groups.add(Group.objects.get(name="Administrador"))
+        self.client.force_login(u)
+        resp = self.client.post(reverse("cadastro:inscricao_excluir", args=[insc.pk]))
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(Inscricao.objects.filter(pk=insc.pk).exists())
+
+    def test_exclusao_libera_cpf(self):
+        # Após excluir, a pessoa órfã é removida e o CPF fica livre para novo cadastro.
+        from django.contrib.auth.models import Group
+        insc = self._inscricao("07065903680")
+        u = User.objects.create_user("adm3", password="x")
+        u.groups.add(Group.objects.get(name="Administrador"))
+        self.client.force_login(u)
+        self.client.post(reverse("cadastro:inscricao_excluir", args=[insc.pk]))
+        self.assertFalse(Pessoa.objects.filter(cpf="07065903680").exists())
+        # Recriar com o mesmo CPF deve funcionar (sem erro de duplicidade).
+        resp = self.client.post(reverse("cadastro:inscricao_nova"), {
+            "nome": "Novo Cadastro", "cpf": "07065903680",
+            "data_nascimento": "1984-08-08", "sexo": "M", "brasileiro": "on",
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(Pessoa.objects.filter(cpf="07065903680").exists())
+
+    def test_pessoa_compartilhada_nao_e_removida(self):
+        # Pessoa que também é membro de OUTRO núcleo não deve ser apagada.
+        from django.contrib.auth.models import Group
+        compartilhada = Pessoa.objects.create(nome="Comum", cpf="comum1", data_nascimento=nasc(30))
+        insc1 = self._inscricao("dono1")
+        MembroNucleo.objects.create(inscricao=insc1, pessoa=compartilhada, parentesco="OUTRO")
+        outra = self._inscricao("dono2")
+        MembroNucleo.objects.create(inscricao=outra, pessoa=compartilhada, parentesco="OUTRO")
+        u = User.objects.create_user("adm4", password="x")
+        u.groups.add(Group.objects.get(name="Administrador"))
+        self.client.force_login(u)
+        self.client.post(reverse("cadastro:inscricao_excluir", args=[insc1.pk]))
+        self.assertTrue(Pessoa.objects.filter(cpf="comum1").exists())  # ainda em 'outra'
+
+    def test_atendente_nao_exclui(self):
+        insc = self._inscricao("ex_at")
+        self.client.force_login(_com_perfil("at_del", "Atendente"))
+        resp = self.client.post(reverse("cadastro:inscricao_excluir", args=[insc.pk]))
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(Inscricao.objects.filter(pk=insc.pk).exists())
+
+    def test_botao_excluir_so_para_admin_na_lista(self):
+        from django.contrib.auth.models import Group
+        insc = self._inscricao("ex_lista")
+        url_excluir = reverse("cadastro:inscricao_excluir", args=[insc.pk])
+        # Atendente não vê o formulário de exclusão
+        self.client.force_login(_com_perfil("at_lista", "Atendente"))
+        html = self.client.get(reverse("cadastro:inscricao_list")).content.decode()
+        self.assertNotIn(url_excluir, html)
+        # Admin vê o formulário de exclusão
+        u = User.objects.create_user("adm2", password="x")
+        u.groups.add(Group.objects.get(name="Administrador"))
+        self.client.force_login(u)
+        html = self.client.get(reverse("cadastro:inscricao_list")).content.decode()
+        self.assertIn(url_excluir, html)
+
+
+class ReciboTest(TestCase):
+    def setUp(self):
+        self.user = _com_perfil("at_rec", "Atendente")
+        self.client.force_login(self.user)
+        self.req = Pessoa.objects.create(nome="Recibo", cpf="55501", data_nascimento=nasc(40))
+        self.insc = Inscricao.objects.create(requerente=self.req)
+        MembroNucleo.objects.create(inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE")
+
+    def test_recibo_indisponivel_antes_de_finalizar(self):
+        resp = self.client.get(reverse("cadastro:rel_recibo_pdf", args=[self.insc.pk]))
+        self.assertEqual(resp.status_code, 302)  # redireciona com aviso
+
+    def test_finalizar_gera_protocolo_e_recibo(self):
+        self.client.post(reverse("cadastro:finalizar", args=[self.insc.pk]))
+        self.insc.refresh_from_db()
+        self.assertTrue(self.insc.protocolo)
+        self.assertTrue(self.insc.protocolo.startswith("MCMV-"))
+        self.assertIn(self.insc.numero_inscricao, self.insc.protocolo)
+        resp = self.client.get(reverse("cadastro:rel_recibo_pdf", args=[self.insc.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "application/pdf")
+        self.assertTrue(resp.content[:5] == b"%PDF-")
+
+
+class CpfValidacaoTest(TestCase):
+    def setUp(self):
+        self.client.force_login(_com_perfil("at_cpf", "Atendente"))
+
+    def test_cpf_invalido_rejeitado(self):
+        resp = self.client.post(reverse("cadastro:inscricao_nova"), {
+            "nome": "Teste", "cpf": "12345678900",  # dígitos verificadores errados
+            "data_nascimento": "1986-01-01", "sexo": "M", "brasileiro": "on",
+        })
+        self.assertEqual(resp.status_code, 200)  # reexibe o form
+        self.assertContains(resp, "CPF inválido")
+        self.assertFalse(Inscricao.objects.filter(requerente__cpf="12345678900").exists())
+
+    def test_cpf_valido_aceito_e_normalizado(self):
+        cpf = gera_cpf("529982247")  # gera dígitos válidos
+        formatado = f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
+        resp = self.client.post(reverse("cadastro:inscricao_nova"), {
+            "nome": "Teste", "cpf": formatado,  # com pontuação
+            "data_nascimento": "1986-01-01", "sexo": "M", "brasileiro": "on",
+        })
+        self.assertEqual(resp.status_code, 302)
+        # Deve ter sido salvo só com dígitos.
+        self.assertTrue(Inscricao.objects.filter(requerente__cpf=cpf).exists())
+
+    def test_algoritmo_cpf(self):
+        from cadastro.validadores import cpf_valido
+        self.assertTrue(cpf_valido("070.659.036-80"))
+        self.assertFalse(cpf_valido("111.111.111-11"))
+        self.assertFalse(cpf_valido("123"))
+
+
+class UnicidadeNucleoTest(TestCase):
+    def setUp(self):
+        self.client.force_login(_com_perfil("at_un", "Atendente"))
+        self.req = Pessoa.objects.create(nome="Requerente A", cpf=gera_cpf("529982247"), data_nascimento=nasc(40))
+        self.insc = Inscricao.objects.create(requerente=self.req)
+        MembroNucleo.objects.create(inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE")
+        self.membro = Pessoa.objects.create(nome="Membro B", cpf=gera_cpf("111444777"), data_nascimento=nasc(30))
+        MembroNucleo.objects.create(inscricao=self.insc, pessoa=self.membro, parentesco="FILHO")
+
+    def test_membro_nao_pode_criar_nova_inscricao(self):
+        resp = self.client.post(reverse("cadastro:inscricao_nova"), {
+            "nome": "Membro B", "cpf": self.membro.cpf,
+            "data_nascimento": "1996-01-01", "sexo": "F", "brasileiro": "on",
+        })
+        self.assertEqual(resp.status_code, 200)  # bloqueado, reexibe form
+        self.assertContains(resp, self.insc.numero_inscricao)
+        self.assertContains(resp, "Requerente A")
+
+    def test_membro_de_outro_nucleo_bloqueado(self):
+        rc = Pessoa.objects.create(nome="Req C", cpf=gera_cpf("390533447"), data_nascimento=nasc(40))
+        outra = Inscricao.objects.create(requerente=rc)
+        MembroNucleo.objects.create(inscricao=outra, pessoa=rc, parentesco="REQUERENTE")
+        resp = self.client.post(reverse("cadastro:membro_novo", args=[outra.pk]), {
+            "nome": "Membro B", "cpf": self.membro.cpf,
+            "data_nascimento": "1996-01-01", "sexo": "F", "parentesco": "OUTRO",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "apenas um núcleo")
+
+
+class DocumentoSemAnexoTest(TestCase):
+    def setUp(self):
+        self.client.force_login(_com_perfil("at_doc", "Atendente"))
+        self.req = Pessoa.objects.create(nome="Doc", cpf=gera_cpf("246813579"), data_nascimento=nasc(40))
+        self.insc = Inscricao.objects.create(requerente=self.req)
+        MembroNucleo.objects.create(inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE")
+
+    def test_salva_documento_sem_arquivo(self):
+        url = reverse("cadastro:wizard", args=[self.insc.pk, "documentos"])
+        resp = self.client.post(url, {"tipo": "RG", "status": "RECEBIDO", "observacao": ""})
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(self.insc.documentos.filter(tipo="RG").exists())
+
+
+class LGPDTests(TestCase):
+    def test_pagina_privacidade_publica(self):
+        # Acessível sem login (página pública).
+        resp = self.client.get(reverse("privacidade"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Política de Privacidade")
+        self.assertContains(resp, "LGPD")
+
+    def test_ciencia_lgpd_carimba_data(self):
+        req = Pessoa.objects.create(nome="Ciente", cpf="770", data_nascimento=nasc(35), sexo="M")
+        insc = Inscricao.objects.create(requerente=req, data_referencia=REF)
+        self.assertIsNone(insc.ciencia_lgpd_em)
+        insc.ciencia_lgpd = True
+        insc.save()
+        insc.refresh_from_db()
+        self.assertIsNotNone(insc.ciencia_lgpd_em)
+        # Revogar limpa a data.
+        insc.ciencia_lgpd = False
+        insc.save()
+        insc.refresh_from_db()
+        self.assertIsNone(insc.ciencia_lgpd_em)
+
+
+class BackupTests(TestCase):
+    def test_backup_gera_zip_com_banco_e_manifesto(self):
+        import tempfile
+        import zipfile
+        from pathlib import Path
+
+        from django.core.management import call_command
+
+        with tempfile.TemporaryDirectory() as destino:
+            call_command("backup", destino=destino, reter=0)
+            zips = list(Path(destino).glob("mcmv-backup-*.zip"))
+            self.assertEqual(len(zips), 1)
+            with zipfile.ZipFile(zips[0]) as z:
+                nomes = z.namelist()
+                self.assertIn("db.sqlite3", nomes)
+                self.assertIn("manifesto.json", nomes)
+
+
+class AdminBackupWebTests(TestCase):
+    def test_acesso_restrito_ao_admin(self):
+        self.client.force_login(_com_perfil("an_bk", "Analista"))
+        self.assertEqual(self.client.get(reverse("cadastro:admin_backup")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("cadastro:backup_baixar")).status_code, 403)
+        self.assertEqual(self.client.post(reverse("cadastro:backup_restaurar")).status_code, 403)
+
+    def test_admin_baixa_backup_zip(self):
+        # Patch de gerar_zip: evita o snapshot real do SQLite (que trava sob o
+        # banco de testes em memória com transação aberta); testa o roteamento
+        # da view e o download.
+        import tempfile
+        import zipfile
+        from pathlib import Path
+        from unittest import mock
+
+        from django.test import override_settings
+
+        def _fake_zip(alvo):
+            alvo = Path(alvo)
+            alvo.parent.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(alvo, "w") as z:
+                z.writestr("db.sqlite3", b"conteudo")
+            return alvo
+
+        self.client.force_login(_com_perfil("adm_bk", "Administrador"))
+        with tempfile.TemporaryDirectory() as d:
+            with override_settings(MCMV_BACKUP_DIR=Path(d)), \
+                    mock.patch("cadastro.backup_utils.gerar_zip", side_effect=_fake_zip):
+                resp = self.client.get(reverse("cadastro:backup_baixar"))
+                self.assertEqual(resp.status_code, 200)
+                self.assertEqual(resp["Content-Type"], "application/zip")
+                conteudo = b"".join(resp.streaming_content)
+                self.assertTrue(conteudo[:2] == b"PK", "não parece um .zip")
+
+    def test_reiniciar_numeracao_pelo_botao(self):
+        # Não-admin é bloqueado.
+        analista = self.client_class()
+        analista.force_login(_com_perfil("an_num", "Analista"))
+        self.assertEqual(
+            analista.post(reverse("cadastro:numeracao_resetar")).status_code, 403)
+        # Com inscrição existente, o botão recusa (mensagem de erro, sem reiniciar).
+        self.client.force_login(_com_perfil("adm_num", "Administrador"))
+        p0 = Pessoa.objects.create(nome="X", cpf="btn0", data_nascimento=nasc(30))
+        i0 = Inscricao.objects.create(requerente=p0)
+        self.client.post(reverse("cadastro:numeracao_resetar"))
+        self.assertTrue(Inscricao.objects.filter(pk=i0.pk).exists())
+        i0.delete()
+        # Banco vazio: reinicia; próxima inscrição = 000001.
+        resp = self.client.post(reverse("cadastro:numeracao_resetar"))
+        self.assertEqual(resp.status_code, 302)
+        p = Pessoa.objects.create(nome="N", cpf="btn1", data_nascimento=nasc(30))
+        i = Inscricao.objects.create(requerente=p)
+        self.assertEqual(i.numero_inscricao, "000001")
+
+    def test_liberar_cpf_pelo_botao(self):
+        # Não-admin bloqueado.
+        analista = self.client_class()
+        analista.force_login(_com_perfil("an_cpf", "Analista"))
+        self.assertEqual(
+            analista.post(reverse("cadastro:cpf_liberar"), {"cpf": "12345678909"}).status_code, 403)
+        # Admin libera um CPF órfão.
+        self.client.force_login(_com_perfil("adm_cpf", "Administrador"))
+        Pessoa.objects.create(nome="Órfão", cpf="15145092610", data_nascimento=nasc(30))
+        resp = self.client.post(reverse("cadastro:cpf_liberar"), {"cpf": "151.450.926-10"})
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(Pessoa.objects.filter(cpf="15145092610").exists())
+
+    def test_validacao_de_backup_invalido(self):
+        import sqlite3
+        import tempfile
+        from pathlib import Path
+
+        from . import backup_utils
+
+        with tempfile.TemporaryDirectory() as d:
+            # Banco SQLite válido e compatível (tem cadastro_inscricao).
+            bom = Path(d) / "ok.sqlite3"
+            con = sqlite3.connect(str(bom))
+            con.execute("CREATE TABLE cadastro_inscricao (id integer primary key)")
+            con.commit()
+            con.close()
+            backup_utils._validar_sqlite(bom)  # não levanta
+
+            # Arquivo que não é SQLite.
+            ruim = Path(d) / "ruim.sqlite3"
+            ruim.write_bytes(b"conteudo qualquer, nao e sqlite")
+            with self.assertRaises(ValueError):
+                backup_utils._validar_sqlite(ruim)
+
+            # SQLite válido mas sem as tabelas do sistema.
+            incompat = Path(d) / "incompat.sqlite3"
+            con = sqlite3.connect(str(incompat))
+            con.execute("CREATE TABLE outra (id integer primary key)")
+            con.commit()
+            con.close()
+            with self.assertRaises(ValueError):
+                backup_utils._validar_sqlite(incompat)
+
+
+class DocumentacaoTests(TestCase):
+    def setUp(self):
+        from .models import Documento
+        self.Documento = Documento
+        self.req = Pessoa.objects.create(
+            nome="Requerente F", cpf="700", data_nascimento=nasc(40), sexo="F",
+            estado_civil="SOLTEIRO",
+        )
+        self.insc = Inscricao.objects.create(requerente=self.req, data_referencia=REF)
+        MembroNucleo.objects.create(
+            inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE", arrimo=True
+        )
+
+    def _codigos_faltantes(self):
+        from . import documentos
+        return {e.rotulo for e in documentos.faltantes(self.insc)}
+
+    def test_lista_exigidos_base(self):
+        from . import documentos
+        rotulos = {e.rotulo for e in documentos.exigidos(self.insc)}
+        # Base do item 4
+        self.assertTrue(any("RG" in r for r in rotulos))
+        self.assertTrue(any("CPF" in r for r in rotulos))
+        self.assertTrue(any("renda" in r.lower() for r in rotulos))
+        self.assertTrue(any("residência no município" in r.lower() for r in rotulos))
+        self.assertTrue(any("(Anexo II)" in r for r in rotulos))
+        self.assertTrue(any("(Anexo III)" in r for r in rotulos))
+        # Solteiro -> exige Certidão de Nascimento
+        self.assertTrue(any("Nascimento" in r for r in rotulos))
+        # Mulher responsável (arrimo F) -> CadÚnico
+        self.assertTrue(any("CadÚnico" in r for r in rotulos))
+
+    def test_documento_satisfaz_exigencia(self):
+        T = self.Documento.Tipo
+        antes = self._codigos_faltantes()
+        self.assertTrue(any("(Anexo II)" in r for r in antes))
+        self.Documento.objects.create(inscricao=self.insc, tipo=T.ANEXO_II, status="RECEBIDO")
+        depois = self._codigos_faltantes()
+        self.assertFalse(any("(Anexo II)" in r for r in depois))
+
+    def test_documento_rejeitado_nao_satisfaz(self):
+        T = self.Documento.Tipo
+        self.Documento.objects.create(inscricao=self.insc, tipo=T.RG, status="REJEITADO")
+        self.assertTrue(any("RG" in r for r in self._codigos_faltantes()))
+
+    def test_condicional_pcd_e_aluguel(self):
+        from . import documentos
+        # Sem PcD e sem aluguel: não exige laudo.
+        rot = {e.rotulo for e in documentos.exigidos(self.insc)}
+        self.assertFalse(any("Laudo" in r for r in rot))
+        # A declaração de moradia aparece sempre no checklist, mas como opcional
+        # (não obrigatória) e portanto não é pendência sem aluguel/cedido.
+        decl = [e for e in documentos.exigidos(self.insc) if "Declaração de moradia" in e.rotulo]
+        self.assertEqual(len(decl), 1)
+        self.assertFalse(decl[0].obrigatoria)
+        self.assertFalse(any("Declaração de moradia" in e.rotulo for e in documentos.faltantes(self.insc)))
+        # Marca PcD no núcleo e aluguel
+        self.req.pcd = True
+        self.req.save()
+        self.insc.aluguel_cedido = True
+        self.insc.save()
+        rot2 = {e.rotulo for e in documentos.exigidos(self.insc)}
+        self.assertTrue(any("Laudo" in r for r in rot2))
+        self.assertTrue(any("moradia" in r.lower() for r in rot2))
+        # Com aluguel/cedido, a declaração passa a ser obrigatória (vira pendência).
+        decl2 = [e for e in documentos.exigidos(self.insc) if "Declaração de moradia" in e.rotulo]
+        self.assertTrue(decl2[0].obrigatoria)
+        self.assertTrue(any("Declaração de moradia" in e.rotulo for e in documentos.faltantes(self.insc)))
+
+
+class ChecklistMarcavelTests(TestCase):
+    def setUp(self):
+        from .models import Documento
+        self.Documento = Documento
+        self.user = _com_perfil("chk", "Atendente")
+        self.req = Pessoa.objects.create(
+            nome="Req", cpf="600", data_nascimento=nasc(40), sexo="M", estado_civil="SOLTEIRO")
+        self.insc = Inscricao.objects.create(requerente=self.req, data_referencia=REF)
+        MembroNucleo.objects.create(
+            inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE")
+
+    def test_marcar_cria_e_desmarcar_remove(self):
+        from . import documentos
+        rg = f"RG:{self.req.id}"
+        documentos.marcar_entregues(self.insc, [rg, "ANEXO_II"], usuario=self.user)
+        tipos = set(self.insc.documentos.values_list("tipo", flat=True))
+        self.assertIn("RG", tipos)
+        self.assertIn("ANEXO_II", tipos)
+        # Desmarca RG (mantém ANEXO_II)
+        documentos.marcar_entregues(self.insc, ["ANEXO_II"], usuario=self.user)
+        tipos = set(self.insc.documentos.values_list("tipo", flat=True))
+        self.assertNotIn("RG", tipos)
+        self.assertIn("ANEXO_II", tipos)
+
+    def test_nao_remove_documento_com_anexo(self):
+        d = self.Documento.objects.create(
+            inscricao=self.insc, tipo="ANEXO_III", status="RECEBIDO", observacao="upload real")
+        d.arquivo.name = "documentos/2026/x.pdf"
+        d.save()
+        from . import documentos
+        # Desmarca tudo: o documento real (com anexo) deve permanecer.
+        documentos.marcar_entregues(self.insc, [], usuario=self.user)
+        self.assertTrue(self.insc.documentos.filter(pk=d.pk).exists())
+
+    def test_view_checklist_post(self):
+        self.client.force_login(self.user)
+        url = reverse("cadastro:wizard", args=[self.insc.pk, "documentos"])
+        resp = self.client.post(url, {"acao": "checklist", "entregue": [f"RG:{self.req.id}", f"CPF:{self.req.id}"]})
+        self.assertEqual(resp.status_code, 302)
+        tipos = set(self.insc.documentos.values_list("tipo", flat=True))
+        self.assertEqual(tipos, {"RG", "CPF"})
+
+
+from django.test import override_settings  # noqa: E402
+
+
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    MCMV_EMAIL_ATIVO=True,
+    DEFAULT_FROM_EMAIL="mcmv@teste.gov.br",
+)
+class EmailReciboTests(TestCase):
+    def setUp(self):
+        self.user = _com_perfil("mail", "Atendente")
+        self.client.force_login(self.user)
+        self.req = Pessoa.objects.create(
+            nome="Maria", cpf="800", data_nascimento=nasc(40), sexo="F")
+        self.insc = Inscricao.objects.create(
+            requerente=self.req, data_referencia=REF, email="maria@exemplo.com",
+            protocolo="MCMV-2026-000777")
+        MembroNucleo.objects.create(inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE")
+
+    def test_enviar_recibo_anexa_pdf(self):
+        from django.core import mail
+        from . import emails
+        destino = emails.enviar_recibo(self.insc)
+        self.assertEqual(destino, "maria@exemplo.com")
+        self.assertEqual(len(mail.outbox), 1)
+        msg = mail.outbox[0]
+        self.assertIn("Comprovante de inscrição", msg.subject)
+        self.assertEqual(msg.to, ["maria@exemplo.com"])
+        self.assertEqual(len(msg.attachments), 1)
+        nome, conteudo, mime = msg.attachments[0]
+        self.assertTrue(nome.endswith(".pdf"))
+        self.assertEqual(mime, "application/pdf")
+
+    def test_view_envia_e_redireciona(self):
+        from django.core import mail
+        url = reverse("cadastro:rel_recibo_email", args=[self.insc.pk])
+        resp = self.client.post(url)
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_sem_email_nao_envia(self):
+        from . import emails
+        self.insc.email = ""
+        self.insc.save()
+        with self.assertRaises(ValueError):
+            emails.enviar_recibo(self.insc)
+
+
+class BackupCopiaTests(TestCase):
+    def test_backup_faz_copia_adicional(self):
+        import tempfile
+        from pathlib import Path
+        from django.core.management import call_command
+
+        with tempfile.TemporaryDirectory() as destino, tempfile.TemporaryDirectory() as copia:
+            call_command("backup", destino=destino, copia=copia, reter=0)
+            self.assertEqual(len(list(Path(destino).glob("mcmv-backup-*.zip"))), 1)
+            self.assertEqual(len(list(Path(copia).glob("mcmv-backup-*.zip"))), 1)
+
+
+class MembroEditarExcluirTests(TestCase):
+    def setUp(self):
+        self.user = _com_perfil("mem", "Atendente")
+        self.client.force_login(self.user)
+        self.req = Pessoa.objects.create(
+            nome="Titular", cpf=gera_cpf("111222333"), data_nascimento=nasc(40), sexo="M")
+        self.insc = Inscricao.objects.create(requerente=self.req, data_referencia=REF)
+        self.m_req = MembroNucleo.objects.create(
+            inscricao=self.insc, pessoa=self.req, parentesco="REQUERENTE")
+        self.f = Pessoa.objects.create(
+            nome="Filho", cpf=gera_cpf("444555666"), data_nascimento=nasc(8), sexo="F")
+        self.m_f = MembroNucleo.objects.create(
+            inscricao=self.insc, pessoa=self.f, parentesco="FILHO")
+
+    def test_marcar_arrimo_do_requerente(self):
+        url = reverse("cadastro:membro_editar", args=[self.m_req.pk])
+        resp = self.client.post(url, {
+            "nome": "Titular", "cpf": self.req.cpf, "data_nascimento": "1985-01-01",
+            "sexo": "M", "arrimo": "on", "considerado_apuracao_renda": "on",
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.m_req.refresh_from_db()
+        self.assertTrue(self.m_req.arrimo)
+
+    def test_editar_integrante_muda_parentesco_e_nome(self):
+        url = reverse("cadastro:membro_editar", args=[self.m_f.pk])
+        resp = self.client.post(url, {
+            "nome": "Filho Editado", "cpf": self.f.cpf, "data_nascimento": "2016-01-01",
+            "sexo": "F", "parentesco": "ENTEADO",
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.m_f.refresh_from_db(); self.f.refresh_from_db()
+        self.assertEqual(self.f.nome, "Filho Editado")
+        self.assertEqual(self.m_f.parentesco, "ENTEADO")
+
+    def test_excluir_integrante(self):
+        url = reverse("cadastro:membro_excluir", args=[self.m_f.pk])
+        resp = self.client.post(url)
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(MembroNucleo.objects.filter(pk=self.m_f.pk).exists())
+        self.assertFalse(Pessoa.objects.filter(pk=self.f.pk).exists())  # órfã removida
+
+    def test_nao_exclui_requerente(self):
+        url = reverse("cadastro:membro_excluir", args=[self.m_req.pk])
+        self.client.post(url)
+        self.assertTrue(MembroNucleo.objects.filter(pk=self.m_req.pk).exists())

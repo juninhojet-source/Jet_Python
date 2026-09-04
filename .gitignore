@@ -216,3 +216,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Projeto MCMV — artefatos locais
+/media_protegida/
+/staticfiles/
+
+# Projeto MCMV — segredos e logs
+.env
+/logs/
+
+# Pasta protegida e backups (nunca versionar dados reais)
+/backups/
+db.sqlite3.pre-restauracao

@@ -1,0 +1,44 @@
+{% extends "cadastro/wizard_base.html" %}
+{% block etapa %}
+<div class="card">
+  <h2>6. Revisão e finalização</h2>
+
+  <div class="grid2">
+    <div>
+      <strong>Pontuação</strong>
+      <p>CL = {{ inscricao.pontos_legais|default:"—" }} ·
+         CC = {{ inscricao.pontos_complementares|default:"—" }} →
+         <span class="pontos-total">{{ inscricao.pontuacao_total|default:"—" }}</span> pts</p>
+      <strong>Requisitos</strong>
+      {% if apto %}<p class="ok">🟢 APTO</p>{% else %}<p class="nao">🔴 NÃO APTO</p>{% endif %}
+    </div>
+    <div>
+      <strong>Pendências de cadastro</strong>
+      {% if pendencias %}
+      <ul>
+        {% for p in pendencias %}<li class="pend">⚠ {{ p }}</li>{% endfor %}
+      </ul>
+      <p class="trilha">As pendências não impedem finalizar, mas ficam registradas na ficha (relatório).</p>
+      {% else %}
+      <p class="ok">Nenhuma pendência — cadastro completo.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <p>Ao finalizar, a inscrição é <strong>bloqueada</strong> (Anexo II): alterações só por
+  procedimento administrativo autorizado.</p>
+  <a class="btn secundario" href="{% url 'cadastro:rel_ficha_pdf' inscricao.pk %}" target="_blank">Ver ficha (PDF)</a>
+  {% if inscricao.protocolo %}
+  <a class="btn" href="{% url 'cadastro:rel_recibo_pdf' inscricao.pk %}" target="_blank">🖨 Imprimir recibo</a>
+  <p class="trilha">Protocolo: <strong>{{ inscricao.protocolo }}</strong> — inscrição já finalizada.</p>
+  {% else %}
+  <form method="post" action="{% url 'cadastro:finalizar' inscricao.pk %}" style="display:inline"
+    onsubmit="return confirm('Finalizar e BLOQUEAR a inscrição? Será gerado o protocolo e o recibo.');">
+    {% csrf_token %}
+    <button class="btn perigo" type="submit">Finalizar e gerar protocolo/recibo</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

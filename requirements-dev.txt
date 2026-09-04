@@ -1,0 +1,4 @@
+# Dependências de desenvolvimento/testes
+-r requirements.txt
+pytest>=8.0
+pypdf>=4.0        # inspeção de PDFs nos testes (recibo em duas vias, checklist)
