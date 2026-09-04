@@ -238,29 +238,53 @@ def lista_ordem_cadastro_pdf(inscricoes) -> HttpResponse:
     Lista simples, ordenada pela data/hora da inscrição (item 2.1 do edital),
     independentemente da pontuação — útil para conferência do protocolo.
     """
+    from reportlab.lib.pagesizes import landscape
+
     from django.utils import timezone
 
     estilos = getSampleStyleSheet()
+    # Estilo compacto para células com texto que pode quebrar (nome, e-mail).
+    cel = estilos["Normal"].clone("cel_ordem")
+    cel.fontSize = 7.5
+    cel.leading = 9
+
     e = [
         Paragraph("Relação de inscrições por ordem de cadastro", estilos["Title"]),
         Paragraph("MCMV — Barão de Cocais/MG · Edital 001/2026", estilos["Normal"]),
         Spacer(1, 8),
     ]
-    linhas = [["#", "Nº", "Data/hora do cadastro", "Requerente", "CPF", "Situação"]]
+    linhas = [["#", "Nº", "Data/hora", "Requerente", "CPF", "Telefone", "E-mail", "Situação"]]
     for ordem, i in enumerate(inscricoes, start=1):
         dt = timezone.localtime(i.data_inscricao).strftime("%d/%m/%Y %H:%M")
         linhas.append([
             str(ordem), i.numero_inscricao, dt,
-            i.requerente.nome, i.requerente.cpf_fmt, i.get_status_display(),
+            Paragraph(i.requerente.nome, cel), i.requerente.cpf_fmt,
+            i.telefone or "—", Paragraph(i.email or "—", cel),
+            i.get_status_display(),
         ])
-    t = Table(linhas, colWidths=[10 * mm, 24 * mm, 34 * mm, 55 * mm, 32 * mm, 30 * mm], repeatRows=1)
+    t = Table(
+        linhas,
+        colWidths=[10 * mm, 20 * mm, 30 * mm, 58 * mm, 28 * mm, 28 * mm, 62 * mm, 28 * mm],
+        repeatRows=1,
+    )
     t.setStyle(_estilo_tabela())
     e.append(t)
     e.append(Spacer(1, 8))
     e.append(Paragraph(
         f"Total de inscrições: {len(linhas) - 1}. A ordem de cadastro não é "
         "critério de classificação (item 7.2 do edital).", estilos["Normal"]))
-    return _pdf_response("inscricoes_ordem_cadastro.pdf", e)
+
+    # Documento em paisagem para acomodar telefone e e-mail.
+    buf = BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=landscape(A4), topMargin=14 * mm, bottomMargin=14 * mm,
+        leftMargin=12 * mm, rightMargin=12 * mm, title="inscricoes_ordem_cadastro.pdf",
+    )
+    doc.build(e)
+    buf.seek(0)
+    resp = HttpResponse(buf.getvalue(), content_type="application/pdf")
+    resp["Content-Disposition"] = 'inline; filename="inscricoes_ordem_cadastro.pdf"'
+    return resp
 
 
 def _recibo_via(inscricao, titulo_via: str, estilos) -> list:
