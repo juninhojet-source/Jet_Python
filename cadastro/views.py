@@ -760,7 +760,7 @@ def rel_classificacao_pdf(request):
 def rel_ordem_cadastro_pdf(request):
     """Relação geral das inscrições por ordem de cadastro (PDF)."""
     inscricoes = (
-        Inscricao.objects.select_related("requerente").order_by("data_inscricao")
+        Inscricao.objects.select_related("requerente").order_by("numero_inscricao")
     )
     return relatorios.lista_ordem_cadastro_pdf(inscricoes)
 

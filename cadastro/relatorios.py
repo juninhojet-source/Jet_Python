@@ -253,18 +253,18 @@ def lista_ordem_cadastro_pdf(inscricoes) -> HttpResponse:
         Paragraph("MCMV — Barão de Cocais/MG · Edital 001/2026", estilos["Normal"]),
         Spacer(1, 8),
     ]
-    linhas = [["#", "Nº", "Data/hora", "Requerente", "CPF", "Telefone", "E-mail", "Situação"]]
-    for ordem, i in enumerate(inscricoes, start=1):
+    linhas = [["Nº", "Data/hora", "Requerente", "CPF", "Telefone", "E-mail", "Situação"]]
+    for i in inscricoes:
         dt = timezone.localtime(i.data_inscricao).strftime("%d/%m/%Y %H:%M")
         linhas.append([
-            str(ordem), i.numero_inscricao, dt,
+            i.numero_inscricao, dt,
             Paragraph(i.requerente.nome, cel), i.requerente.cpf_fmt,
             i.telefone or "—", Paragraph(i.email or "—", cel),
             i.get_status_display(),
         ])
     t = Table(
         linhas,
-        colWidths=[10 * mm, 20 * mm, 30 * mm, 58 * mm, 28 * mm, 28 * mm, 62 * mm, 28 * mm],
+        colWidths=[22 * mm, 32 * mm, 62 * mm, 30 * mm, 30 * mm, 66 * mm, 30 * mm],
         repeatRows=1,
     )
     t.setStyle(_estilo_tabela())
