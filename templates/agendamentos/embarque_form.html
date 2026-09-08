@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Embarque — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Registrar embarque</h1>
+    <div class="sub">{{ ag.paciente.nome }} · {{ ag.data|date:"d/m/Y" }} às {{ ag.horario|time:"H:i" }}</div>
+  </div>
+  <a href="{{ ag.get_absolute_url }}" class="btn btn-ghost">Voltar</a>
+</div>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  <div class="card"><div class="card-body">
+    <div class="form-grid">
+      {% with full_width="observacoes" %}
+        {% include "includes/_form_fields.html" %}
+      {% endwith %}
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Salvar</button>
+      <a href="{{ ag.get_absolute_url }}" class="btn btn-ghost">Cancelar</a>
+    </div>
+  </div></div>
+</form>
+{% endblock %}

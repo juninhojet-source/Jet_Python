@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Relatório BPA — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Relatório para o BPA</h1>
+    <div class="sub">{{ total }} registro(s) · campos para digitação no BPA</div>
+  </div>
+  <a href="{% url 'relatorios:index' %}" class="btn btn-ghost">Voltar</a>
+</div>
+
+<div class="card" style="margin-bottom:16px"><div class="card-body">
+  <form method="get">
+    <div class="rel-grid">
+      <div class="field"><label>Mês</label><input type="month" name="mes" value="{{ params.mes }}" class="campo"></div>
+      <div class="field"><label>De</label><input type="date" name="data_inicio" value="{{ params.data_inicio }}" class="campo"></div>
+      <div class="field"><label>Até</label><input type="date" name="data_fim" value="{{ params.data_fim }}" class="campo"></div>
+      <div class="field"><label>Município</label>
+        <select name="municipio" class="campo"><option value="">Todos</option>
+          {% for m in municipios %}<option value="{{ m.id }}" {% if params.municipio == m.id|stringformat:'s' %}selected{% endif %}>{{ m }}</option>{% endfor %}
+        </select></div>
+      <div class="field"><label>Estabelecimento</label>
+        <select name="destino" class="campo"><option value="">Todos</option>
+          {% for d in destinos %}<option value="{{ d.id }}" {% if params.destino == d.id|stringformat:'s' %}selected{% endif %}>{{ d.nome }}</option>{% endfor %}
+        </select></div>
+      <div class="field"><label>Procedimento</label><input type="text" name="procedimento" value="{{ params.procedimento }}" class="campo"></div>
+    </div>
+    <div class="form-actions" style="margin-top:14px">
+      <button type="submit" class="btn btn-primary">Filtrar</button>
+      <a href="?" class="btn btn-ghost">Limpar</a>
+      <span style="flex:1"></span>
+      <button type="submit" name="export" value="pdf" class="btn btn-ghost">⬇ PDF</button>
+      <button type="submit" name="export" value="xlsx" class="btn btn-ghost">⬇ Excel</button>
+    </div>
+  </form>
+</div></div>
+
+<div class="card"><div class="card-body">
+  {% if agendamentos %}
+  <div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Paciente</th><th>CNS</th><th>CPF</th><th>Nasc.</th><th>Raça/Cor</th><th>Município (IBGE)</th><th>Data atend.</th><th>Procedimento</th><th>Acompanhante</th></tr></thead>
+      <tbody>
+        {% for a in agendamentos %}
+        <tr>
+          <td>{{ a.paciente.nome }}</td>
+          <td class="muted">{{ a.paciente.cns|default:"—" }}</td>
+          <td class="muted">{{ a.paciente.cpf|default:"—" }}</td>
+          <td>{{ a.paciente.data_nascimento|date:"d/m/Y" }}</td>
+          <td>{{ a.paciente.get_raca_cor_display }}</td>
+          <td>{{ a.paciente.municipio|default:a.destino.municipio }}{% if a.paciente.municipio %} ({{ a.paciente.municipio.codigo_ibge }}){% endif %}</td>
+          <td>{{ a.data|date:"d/m/Y" }}</td>
+          <td>{{ a.procedimento|default:"—" }}</td>
+          <td class="muted">{{ a.acompanhante|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if total > 300 %}<p class="muted" style="margin-top:12px">Exibindo os primeiros 300. Use a exportação para o total ({{ total }}).</p>{% endif %}
+  {% else %}
+  <div class="empty">Nenhum registro para os filtros informados.</div>
+  {% endif %}
+</div></div>
+{% endblock %}

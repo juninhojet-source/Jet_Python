@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Indicadores — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Indicadores</h1>
+    <div class="sub">Mês de referência: {{ hoje|date:"m/Y" }}</div>
+  </div>
+  <a href="{% url 'relatorios:index' %}" class="btn btn-ghost">Voltar</a>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="ico blue">📅</div>
+    <div><div class="num">{{ total_dia }}</div><div class="lbl">Atendimentos hoje</div></div></div>
+  <div class="stat"><div class="ico gold">🗓️</div>
+    <div><div class="num">{{ total_mes }}</div><div class="lbl">Atendimentos no mês</div></div></div>
+  <div class="stat"><div class="ico red">⚠️</div>
+    <div><div class="num">{{ faltas_mes }}</div><div class="lbl">Faltas no mês</div></div></div>
+</div>
+
+<div class="senha-grid">
+  <div class="card"><div class="card-body">
+    <div class="section-title" style="margin-top:0">Por município (mês)</div>
+    <table class="data">
+      <thead><tr><th>Município</th><th class="right">Total</th></tr></thead>
+      <tbody>
+        {% for r in por_municipio %}<tr><td>{{ r.destino__municipio__nome|default:"—" }}</td><td class="right">{{ r.t }}</td></tr>
+        {% empty %}<tr><td colspan="2" class="muted">Sem dados.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+
+  <div class="card"><div class="card-body">
+    <div class="section-title" style="margin-top:0">Por destino (mês)</div>
+    <table class="data">
+      <thead><tr><th>Destino</th><th class="right">Total</th></tr></thead>
+      <tbody>
+        {% for r in por_destino %}<tr><td>{{ r.destino__nome }}</td><td class="right">{{ r.t }}</td></tr>
+        {% empty %}<tr><td colspan="2" class="muted">Sem dados.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+</div>
+
+<div class="card" style="margin-top:16px"><div class="card-body">
+  <div class="section-title" style="margin-top:0">Por status (mês)</div>
+  <div class="chamadas-row">
+    {% for r in por_status %}
+    <div class="chamada-chip"><div class="c-num">{{ r.t }}</div><div class="c-gui">{{ r.status }}</div></div>
+    {% empty %}<div class="muted">Sem dados.</div>{% endfor %}
+  </div>
+</div></div>
+{% endblock %}

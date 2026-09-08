@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Destinos — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Destinos</h1>
+    <div class="sub">{{ page_obj.paginator.count }} registro(s)</div>
+  </div>
+  <div class="toolbar">
+    <form class="search" method="get">
+      <input type="text" name="q" value="{{ q }}" class="campo" placeholder="Nome ou município">
+      <button class="btn btn-ghost" type="submit">Buscar</button>
+    </form>
+    {% if user.pode_editar %}
+    <a href="{% url 'destinos:create' %}" class="btn btn-primary">+ Novo</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card"><div class="card-body">
+  {% if destinos %}
+  <div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Nome</th><th>Tipo</th><th>Município</th><th>Telefone</th><th>Situação</th><th></th></tr></thead>
+      <tbody>
+        {% for d in destinos %}
+        <tr>
+          <td>{{ d.nome }}</td>
+          <td>{{ d.get_tipo_display }}</td>
+          <td>{{ d.municipio }}</td>
+          <td class="muted">{{ d.telefone|default:"—" }}</td>
+          <td>{% if d.ativo %}<span class="badge on">Ativo</span>{% else %}<span class="badge off">Inativo</span>{% endif %}</td>
+          <td class="right">
+            {% if user.pode_editar %}<a class="btn btn-ghost btn-sm" href="{% url 'destinos:update' d.pk %}">Editar</a>{% endif %}
+            {% if user.is_admin %}<a class="btn btn-perigo btn-sm" href="{% url 'destinos:delete' d.pk %}">Excluir</a>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">Nenhum destino encontrado{% if q %} para “{{ q }}”{% endif %}.</div>
+  {% endif %}
+</div></div>
+
+{% include "includes/_pagination.html" %}
+{% endblock %}

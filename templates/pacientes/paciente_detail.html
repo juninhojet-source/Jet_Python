@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ paciente.nome }} — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ paciente.nome }}</h1>
+    <div class="sub">
+      {% if paciente.ativo %}<span class="badge on">Ativo</span>{% else %}<span class="badge off">Inativo</span>{% endif %}
+      · Cadastrado em {{ paciente.criado_em|date:"d/m/Y H:i" }}
+    </div>
+  </div>
+  <div class="toolbar">
+    {% if user.pode_editar %}<a href="{% url 'pacientes:update' paciente.pk %}" class="btn btn-primary">Editar</a>{% endif %}
+    <a href="{% url 'pacientes:list' %}" class="btn btn-ghost">Voltar</a>
+  </div>
+</div>
+
+<div class="card"><div class="card-body">
+  <div class="section-title">Identificação</div>
+  <div class="dl">
+    <div class="item"><div class="k">CPF</div><div class="v">{{ paciente.cpf|default:"—" }}</div></div>
+    <div class="item"><div class="k">Cartão SUS (CNS)</div><div class="v">{{ paciente.cns|default:"—" }}</div></div>
+    <div class="item"><div class="k">Nascimento</div><div class="v">{{ paciente.data_nascimento|date:"d/m/Y" }} ({{ paciente.idade }} anos)</div></div>
+    <div class="item"><div class="k">Sexo</div><div class="v">{{ paciente.get_sexo_display }}</div></div>
+    <div class="item"><div class="k">Raça/Cor</div><div class="v">{{ paciente.get_raca_cor_display }}</div></div>
+    <div class="item"><div class="k">Nacionalidade</div><div class="v">{{ paciente.nacionalidade }}{% if paciente.etnia %} · {{ paciente.etnia }}{% endif %}</div></div>
+  </div>
+
+  <div class="section-title">Endereço</div>
+  <div class="dl">
+    <div class="item"><div class="k">Logradouro</div><div class="v">{{ paciente.logradouro|default:"—" }}{% if paciente.numero %}, {{ paciente.numero }}{% endif %}{% if paciente.complemento %} — {{ paciente.complemento }}{% endif %}</div></div>
+    <div class="item"><div class="k">Bairro</div><div class="v">{{ paciente.bairro|default:"—" }}</div></div>
+    <div class="item"><div class="k">Município</div><div class="v">{{ paciente.municipio|default:"—" }}</div></div>
+    <div class="item"><div class="k">CEP</div><div class="v">{{ paciente.cep|default:"—" }}</div></div>
+  </div>
+
+  <div class="section-title">Contato</div>
+  <div class="dl">
+    <div class="item"><div class="k">Telefone principal</div><div class="v">{{ paciente.telefone_principal }}</div></div>
+    <div class="item"><div class="k">Telefone secundário</div><div class="v">{{ paciente.telefone_secundario|default:"—" }}</div></div>
+  </div>
+
+  {% if paciente.observacoes %}
+  <div class="section-title">Observações</div>
+  <p>{{ paciente.observacoes|linebreaksbr }}</p>
+  {% endif %}
+</div></div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Início — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Bem-vindo(a), {{ user.first_name|default:user.username }}</h1>
+    <div class="sub">Painel do {{ ORGAO.SISTEMA_NOME }}</div>
+  </div>
+  {% if user.pode_editar %}
+  <a href="{% url 'agendamentos:create' %}" class="btn btn-primary">+ Novo agendamento</a>
+  {% endif %}
+</div>
+
+<div class="stats">
+  <div class="stat">
+    <div class="ico blue">📅</div>
+    <div><div class="num">{{ total_agenda_hoje }}</div><div class="lbl">Agendamentos hoje</div></div>
+  </div>
+  <div class="stat">
+    <div class="ico gold">👥</div>
+    <div><div class="num">{{ total_pacientes }}</div><div class="lbl">Pacientes ativos</div></div>
+  </div>
+  <div class="stat">
+    <div class="ico red">📍</div>
+    <div><div class="num">{{ total_destinos }}</div><div class="lbl">Destinos cadastrados</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="page-head" style="margin-bottom:12px">
+      <h1 style="font-size:16px">Agenda de hoje — {{ hoje|date:"d/m/Y" }}</h1>
+      <a href="{% url 'agendamentos:agenda' %}" class="btn btn-ghost btn-sm">Ver agenda</a>
+    </div>
+    {% if agenda_hoje %}
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Horário</th><th>Paciente</th><th>Destino</th><th>Situação</th></tr></thead>
+        <tbody>
+          {% for ag in agenda_hoje %}
+          <tr>
+            <td><strong>{{ ag.horario|time:"H:i" }}</strong></td>
+            <td><a href="{{ ag.get_absolute_url }}">{{ ag.paciente.nome }}</a></td>
+            <td>{{ ag.destino }}</td>
+            <td>{{ ag.get_status_display }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty">Nenhum agendamento para hoje.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

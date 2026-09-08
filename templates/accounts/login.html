@@ -1,0 +1,38 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar — {{ ORGAO.SISTEMA_NOME }}</title>
+  <link rel="stylesheet" href="{% static 'css/sigtrans.css' %}">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      {% static ORGAO.LOGO as logo_url %}
+      <img class="logo" src="{{ logo_url }}" alt="Brasão" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+      <div class="logo-fallback" style="display:none">BC</div>
+      <h1>{{ ORGAO.SISTEMA_NOME }}</h1>
+      <div class="desc">{{ ORGAO.SISTEMA_DESCRICAO }}</div>
+
+      {% if form.non_field_errors %}
+      <ul class="messages"><li class="error">{{ form.non_field_errors|join:" " }}</li></ul>
+      {% endif %}
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="field">
+          <label for="{{ form.username.id_for_label }}">Usuário</label>
+          {{ form.username }}
+        </div>
+        <div class="field">
+          <label for="{{ form.password.id_for_label }}">Senha</label>
+          {{ form.password }}
+        </div>
+        <button type="submit" class="btn btn-primary">Entrar</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

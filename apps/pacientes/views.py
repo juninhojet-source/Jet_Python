@@ -1,0 +1,111 @@
+"""Views de cadastro e consulta de pacientes."""
+from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Q
+from django.urls import reverse_lazy
+from django.views.generic import (
+    CreateView, DeleteView, DetailView, ListView, UpdateView,
+)
+
+from django.http import JsonResponse
+from django.views import View
+
+from apps.accounts.mixins import AdminRequiredMixin, EditorRequiredMixin
+from apps.core.mixins import ExclusaoProtegidaMixin, SalvarAutorMixin
+from apps.core.validators import apenas_digitos
+
+from .forms import PacienteForm, PacienteRapidoForm
+from .models import Paciente
+
+
+class PacienteListView(LoginRequiredMixin, ListView):
+    model = Paciente
+    template_name = "pacientes/paciente_list.html"
+    context_object_name = "pacientes"
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related("municipio")
+        termo = self.request.GET.get("q", "").strip()
+        if termo:
+            digitos = apenas_digitos(termo)
+            filtro = Q(nome__icontains=termo) | Q(telefone_principal__icontains=termo)
+            if digitos:
+                filtro |= Q(cpf__icontains=digitos) | Q(cns__icontains=digitos)
+            qs = qs.filter(filtro)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["q"] = self.request.GET.get("q", "")
+        return ctx
+
+
+class PacienteDetailView(LoginRequiredMixin, DetailView):
+    model = Paciente
+    template_name = "pacientes/paciente_detail.html"
+    context_object_name = "paciente"
+
+
+class PacienteCreateView(EditorRequiredMixin, SalvarAutorMixin, CreateView):
+    model = Paciente
+    form_class = PacienteForm
+    template_name = "pacientes/paciente_form.html"
+
+    def form_valid(self, form):
+        messages.success(self.request, "Paciente cadastrado com sucesso.")
+        return super().form_valid(form)
+
+
+class PacienteUpdateView(EditorRequiredMixin, SalvarAutorMixin, UpdateView):
+    model = Paciente
+    form_class = PacienteForm
+    template_name = "pacientes/paciente_form.html"
+
+    def form_valid(self, form):
+        messages.success(self.request, "Cadastro atualizado com sucesso.")
+        return super().form_valid(form)
+
+
+class PacienteDeleteView(AdminRequiredMixin, ExclusaoProtegidaMixin, DeleteView):
+    model = Paciente
+    template_name = "includes/confirmar_exclusao.html"
+    success_url = reverse_lazy("pacientes:list")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["cancelar_url"] = self.object.get_absolute_url()
+        return ctx
+
+    def form_valid(self, form):
+        messages.success(self.request, "Paciente excluído.")
+        return super().form_valid(form)
+
+
+class PacienteVerificarCpfView(LoginRequiredMixin, View):
+    """Verifica se um CPF já está cadastrado (para aviso imediato no formulário)."""
+
+    def get(self, request):
+        cpf = apenas_digitos(request.GET.get("cpf", ""))
+        if len(cpf) != 11:
+            return JsonResponse({"existe": False})
+        qs = Paciente.objects.filter(cpf=cpf)
+        excluir = request.GET.get("excluir", "")
+        if excluir.isdigit():
+            qs = qs.exclude(pk=int(excluir))
+        p = qs.first()
+        return JsonResponse({"existe": bool(p), "nome": p.nome if p else ""})
+
+
+class PacienteQuickCreateView(EditorRequiredMixin, View):
+    """Cadastro rápido de paciente (via modal do agendamento). Retorna JSON."""
+
+    def post(self, request):
+        form = PacienteRapidoForm(request.POST)
+        if form.is_valid():
+            paciente = form.save(commit=False)
+            paciente.criado_por = request.user
+            paciente.atualizado_por = request.user
+            paciente.save()
+            return JsonResponse({"ok": True, "id": paciente.pk, "texto": str(paciente)})
+        return JsonResponse({"ok": False, "errors": form.errors.get_json_data()}, status=400)

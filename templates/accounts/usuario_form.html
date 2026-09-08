@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{% if form.instance.pk %}Editar usuário{% else %}Novo usuário{% endif %} — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>{% if form.instance.pk %}Editar usuário{% else %}Novo usuário{% endif %}</h1>
+  <a href="{% url 'accounts:usuario_list' %}" class="btn btn-ghost">Voltar</a>
+</div>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<ul class="messages"><li class="error">{{ form.non_field_errors|join:" " }}</li></ul>{% endif %}
+  <div class="card"><div class="card-body">
+    <div class="form-grid">
+      {% include "includes/_form_fields.html" %}
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Salvar</button>
+      <a href="{% url 'accounts:usuario_list' %}" class="btn btn-ghost">Cancelar</a>
+    </div>
+  </div></div>
+</form>
+{% endblock %}

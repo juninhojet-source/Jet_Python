@@ -1,0 +1,165 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel de Senhas — {{ ORGAO.SISTEMA_NOME }}</title>
+  <link rel="stylesheet" href="{% static 'css/sigtrans.css' %}">
+</head>
+<body class="tv">
+  <header class="tv-head">
+    {% static ORGAO.LOGO as logo_url %}
+    <img src="{{ logo_url }}" alt="" class="tv-logo" onerror="this.style.display='none'">
+    <div>
+      <div class="tv-title">{{ ORGAO.SECRETARIA }}</div>
+      <div class="tv-sub">Painel de Senhas</div>
+    </div>
+  </header>
+
+  <main id="filas" class="tv-filas"></main>
+
+  <footer class="tv-foot">
+    <span>{{ ORGAO.PREFEITURA }}</span>
+    <span id="relogio"></span>
+  </footer>
+
+  <div id="som-hint" class="som-hint">🔊 Clique na tela para ativar o som das chamadas</div>
+
+  <script>
+    const ESTADO_URL = "{% url 'senhas:estado' %}";
+    const VOZ = {{ voz|yesno:"true,false" }};
+    const seqPorFila = {};   // tipo -> última sequência conhecida
+    let audioCtx = null;
+    let somAtivo = false;
+    let vozPt = null;
+
+    // ---- Toque de aviso (chime) ----
+    function beep() {
+      try {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        [0, 0.18].forEach((t, i) => {
+          const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+          o.connect(g); g.connect(audioCtx.destination);
+          o.type = "sine"; o.frequency.value = i ? 1046 : 784;
+          const s = audioCtx.currentTime + t;
+          g.gain.setValueAtTime(0.0001, s);
+          g.gain.exponentialRampToValueAtTime(0.35, s + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, s + 0.16);
+          o.start(s); o.stop(s + 0.17);
+        });
+      } catch (e) {}
+    }
+
+    // ---- Voz (Web Speech API) ----
+    function carregarVozes() {
+      try {
+        const vs = window.speechSynthesis.getVoices();
+        vozPt = vs.find(v => /pt[-_]?br/i.test(v.lang)) || vs.find(v => /^pt/i.test(v.lang)) || null;
+      } catch (e) {}
+    }
+    if ("speechSynthesis" in window) {
+      carregarVozes();
+      window.speechSynthesis.onvoiceschanged = carregarVozes;
+    }
+
+    function falar(codigo, salaLabel, sala) {
+      if (!VOZ || !("speechSynthesis" in window)) return;
+      const partes = String(codigo).split("-");
+      const letras = (partes[0] || "").split("").join(" ");        // "MT" -> "M T"
+      const digitos = (partes[1] || "").split("").join(" ");       // "01" -> "0 1"
+      const texto = `Senha ${letras}, ${digitos}. ${salaLabel} ${sala}.`;
+      const u = new SpeechSynthesisUtterance(texto);
+      u.lang = "pt-BR";
+      if (vozPt) u.voice = vozPt;
+      u.rate = 0.95;
+      window.speechSynthesis.cancel();   // interrompe anúncio anterior
+      window.speechSynthesis.speak(u);
+    }
+
+    function anunciar(f, salaLabel) {
+      beep();
+      flashColuna(f.tipo);
+      // Fala logo após o toque de aviso.
+      setTimeout(() => falar(f.atual.codigo, salaLabel, f.sala), 350);
+    }
+
+    function ativarSom() {
+      if (somAtivo) return;
+      somAtivo = true;
+      beep();
+      // "Aquece" a voz (alguns navegadores exigem gesto do usuário).
+      try {
+        if ("speechSynthesis" in window) {
+          window.speechSynthesis.speak(new SpeechSynthesisUtterance(" "));
+        }
+      } catch (e) {}
+      const hint = document.getElementById("som-hint");
+      if (hint) hint.style.display = "none";
+    }
+
+    function pad2(n) { return String(n == null ? "" : n).padStart(2, "0"); }
+
+    function render(d) {
+      const sala = (d.sala_label || "Sala");
+      const cont = document.getElementById("filas");
+      if (cont.children.length !== d.filas.length) {
+        cont.innerHTML = "";
+        d.filas.forEach(f => {
+          const col = document.createElement("section");
+          col.className = "tv-fila";
+          col.dataset.tipo = f.tipo;
+          col.innerHTML =
+            `<div class="tv-fila-head">${sala.toUpperCase()} ${pad2(f.sala)}<span>${f.nome}</span></div>` +
+            `<div class="tv-senha js-senha">—</div>` +
+            `<ul class="tv-mini js-ultimas"></ul>`;
+          cont.appendChild(col);
+        });
+      }
+      d.filas.forEach(f => {
+        const col = cont.querySelector(`[data-tipo="${f.tipo}"]`);
+        if (!col) return;
+        col.querySelector(".js-senha").textContent = f.atual ? f.atual.codigo : "—";
+        const ul = col.querySelector(".js-ultimas");
+        ul.innerHTML = "";
+        f.ultimas.slice(0, 4).forEach(s => {
+          const li = document.createElement("li");
+          li.textContent = s.codigo;
+          ul.appendChild(li);
+        });
+      });
+    }
+
+    function flashColuna(tipo) {
+      const col = document.querySelector(`.tv-fila[data-tipo="${tipo}"]`);
+      if (!col) return;
+      col.classList.remove("flash"); void col.offsetWidth; col.classList.add("flash");
+    }
+
+    async function atualizar() {
+      try {
+        const r = await fetch(ESTADO_URL, { cache: "no-store" });
+        const d = await r.json();
+        render(d);
+        const salaLabel = d.sala_label || "Sala";
+        d.filas.forEach(f => {
+          const anterior = seqPorFila[f.tipo];
+          if (anterior !== undefined && f.sequencia !== anterior && f.atual) {
+            anunciar(f, salaLabel);
+          }
+          seqPorFila[f.tipo] = f.sequencia;
+        });
+      } catch (e) {}
+    }
+
+    function relogio() {
+      document.getElementById("relogio").textContent =
+        new Date().toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    document.body.addEventListener("click", ativarSom);
+    atualizar(); setInterval(atualizar, 3500);
+    relogio(); setInterval(relogio, 1000);
+  </script>
+</body>
+</html>

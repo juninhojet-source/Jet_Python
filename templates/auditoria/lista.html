@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Auditoria — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Trilha de Auditoria</h1>
+    <div class="sub">{{ page_obj.paginator.count }} registro(s) · imutável (LGPD)</div>
+  </div>
+  <form class="search" method="get">
+    <select name="acao" class="campo" onchange="this.form.submit()">
+      <option value="">Todas as ações</option>
+      {% for v, l in acoes %}<option value="{{ v }}" {% if v == acao_sel %}selected{% endif %}>{{ l }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="card"><div class="card-body">
+  {% if registros %}
+  <div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Data/hora</th><th>Ação</th><th>Usuário</th><th>IP</th><th>Detalhe</th></tr></thead>
+      <tbody>
+        {% for r in registros %}
+        <tr>
+          <td>{{ r.criado_em|date:"d/m/Y H:i:s" }}</td>
+          <td>{{ r.get_acao_display }}</td>
+          <td>{{ r.usuario_nome|default:"—" }}</td>
+          <td class="muted">{{ r.ip|default:"—" }}</td>
+          <td class="muted">{{ r.detalhe|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">Nenhum registro.</div>
+  {% endif %}
+</div></div>
+{% include "includes/_pagination.html" %}
+{% endblock %}

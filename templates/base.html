@@ -1,0 +1,72 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ ORGAO.SISTEMA_NOME }}{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/sigtrans.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="{% url 'core:dashboard' %}">
+        {% static ORGAO.LOGO as logo_url %}
+        <img src="{{ logo_url }}" alt="Brasão" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+        <span class="logo-fallback" style="display:none">BC</span>
+        <span class="brand-text">
+          <b>{{ ORGAO.SISTEMA_NOME }}</b>
+          <span>{{ ORGAO.SISTEMA_DESCRICAO }}</span>
+        </span>
+      </a>
+      <div class="spacer"></div>
+      <div class="user-box">
+        <div><strong>{{ user.get_full_name|default:user.username }}</strong> · {{ user.get_perfil_display }}</div>
+        <form method="post" action="{% url 'accounts:logout' %}" class="logout-form">
+          {% csrf_token %}
+          <button type="submit" class="logout-link">Sair</button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  <nav class="nav">
+    <div class="nav-inner">
+      {% block nav %}
+      {% if user.so_senhas %}
+      <a href="{% url 'senhas:operador' %}" class="active">Senhas</a>
+      {% else %}
+      <a href="{% url 'core:dashboard' %}" class="{% if request.resolver_match.namespace == 'core' %}active{% endif %}">Início</a>
+      <a href="{% url 'agendamentos:agenda' %}" class="{% if request.resolver_match.namespace == 'agendamentos' %}active{% endif %}">Agenda</a>
+      <a href="{% url 'pacientes:list' %}" class="{% if request.resolver_match.namespace == 'pacientes' %}active{% endif %}">Pacientes</a>
+      <a href="{% url 'destinos:list' %}" class="{% if request.resolver_match.namespace == 'destinos' %}active{% endif %}">Destinos</a>
+      <a href="{% url 'veiculos:list' %}" class="{% if request.resolver_match.namespace == 'veiculos' %}active{% endif %}">Veículos</a>
+      <a href="{% url 'senhas:operador' %}" class="{% if request.resolver_match.namespace == 'senhas' %}active{% endif %}">Senhas</a>
+      <a href="{% url 'relatorios:index' %}" class="{% if request.resolver_match.namespace == 'relatorios' %}active{% endif %}">Relatórios</a>
+      {% if user.is_admin %}
+      <a href="{% url 'accounts:usuario_list' %}" class="{% if request.resolver_match.namespace == 'accounts' %}active{% endif %}">Usuários</a>
+      <a href="{% url 'auditoria:lista' %}" class="{% if request.resolver_match.namespace == 'auditoria' %}active{% endif %}">Auditoria</a>
+      <a href="{% url 'core:configuracoes' %}" class="{% if request.resolver_match.url_name == 'configuracoes' or request.resolver_match.url_name == 'backup' or request.resolver_match.url_name == 'lgpd' %}active{% endif %}">Configurações</a>
+      {% endif %}
+      {% endif %}
+      {% endblock %}
+    </div>
+  </nav>
+
+  <main class="container">
+    {% if messages %}
+    <ul class="messages">
+      {% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>{{ ORGAO.PREFEITURA }} · {{ ORGAO.SECRETARIA }}</span>
+      <span>{{ ORGAO.DEPARTAMENTO }} · {{ ORGAO.RESPONSAVEL }} · {{ ORGAO.RESPONSAVEL_TELEFONE }}</span>
+    </div>
+  </footer>
+</body>
+</html>

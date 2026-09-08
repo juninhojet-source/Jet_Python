@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Agendamentos — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Agendamentos</h1>
+    <div class="sub">{{ page_obj.paginator.count }} registro(s)</div>
+  </div>
+  <div class="toolbar">
+    {% if user.pode_editar %}<a href="{% url 'agendamentos:create' %}" class="btn btn-primary">+ Novo</a>{% endif %}
+    <a href="{% url 'agendamentos:agenda' %}" class="btn btn-ghost">Agenda do dia</a>
+  </div>
+</div>
+
+<div class="card"><div class="card-body">
+  <form class="search" method="get" style="margin-bottom:16px; flex-wrap:wrap">
+    <input type="text" name="q" value="{{ q }}" class="campo" placeholder="Paciente ou destino">
+    <input type="date" name="data" value="{{ data_sel }}" class="campo">
+    <select name="status" class="campo" style="min-width:160px">
+      <option value="">Todos os status</option>
+      {% for val, label in status_choices %}
+      <option value="{{ val }}" {% if val == status_sel %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-ghost" type="submit">Filtrar</button>
+  </form>
+
+  {% if agendamentos %}
+  <div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Nº</th><th>Data</th><th>Horário</th><th>Paciente</th><th>Destino</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for ag in agendamentos %}
+        <tr>
+          <td class="muted">{{ ag.numero }}</td>
+          <td>{{ ag.data|date:"d/m/Y" }}</td>
+          <td>{{ ag.horario|time:"H:i" }}</td>
+          <td><a href="{{ ag.get_absolute_url }}">{{ ag.paciente.nome }}</a></td>
+          <td>{{ ag.destino }}</td>
+          <td>{{ ag.get_status_display }}</td>
+          <td class="right">
+            {% if user.pode_editar %}<a class="btn btn-ghost btn-sm" href="{% url 'agendamentos:update' ag.pk %}">Editar</a>{% endif %}
+            {% if user.is_admin %}<a class="btn btn-perigo btn-sm" href="{% url 'agendamentos:delete' ag.pk %}">Excluir</a>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">Nenhum agendamento encontrado.</div>
+  {% endif %}
+</div></div>
+
+{% include "includes/_pagination.html" %}
+{% endblock %}
