@@ -54,6 +54,32 @@ e com certificado:
 
 Detalhes e alternativa com nginx: `docs\MANUAL_PUBLICACAO_DOMINIO_HTTPS.md`.
 
+## Backup automático diário (para outro servidor)
+
+O script `scripts\windows\backup-automatico.bat` gera o backup e o copia para o
+compartilhamento de rede `\\172.16.64.2\ti\Sigtrans` (mantém 30 dias local e 90
+na rede). Para mudar o destino/retenção, edite as linhas de configuração no topo
+do arquivo.
+
+Teste manual (uma vez):
+```
+scripts\windows\backup-automatico.bat
+```
+Confira se o arquivo `sigtrans_AAAAMMDD_HHMMSS.json.gz` apareceu na pasta de rede
+e veja o log em `backups\backup-automatico.log`.
+
+Agendar para rodar todo dia (ex.: 22:00) — no Prompt como Administrador:
+```
+schtasks /Create /TN "SIGTRANS Backup Diario" /SC DAILY /ST 22:00 ^
+  /TR "C:\SIGTRANS\scripts\windows\backup-automatico.bat" ^
+  /RU "DOMINIO\usuario_com_acesso_a_rede" /RP * /RL HIGHEST /F
+```
+(ajuste o caminho `C:\SIGTRANS` e a conta). A conta usada (`/RU`) **precisa ter
+permissão de escrita** em `\\172.16.64.2\ti\Sigtrans`. O `/RP *` pede a senha.
+Como alternativa, dá para criar pela interface (Agendador de Tarefas →
+*Criar Tarefa* → gatilho Diário → ação: iniciar o `.bat` → "Executar estando o
+usuário conectado ou não").
+
 ## Observações
 
 - Sem arquivo `.env`, o sistema usa **SQLite** — ótimo para testes, sem instalar
