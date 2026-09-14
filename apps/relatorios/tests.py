@@ -51,6 +51,15 @@ class FiltroTest(BaseDados):
         qs, _ = filtrar({}, incluir_cancelados=False)
         self.assertEqual(qs.count(), 1)
 
+    def test_filtra_por_horario(self):
+        # BaseDados tem um agendamento as 07:00 e outro (cancelado) as 08:00.
+        qs, _ = filtrar({"hora_inicio": "07:00", "hora_fim": "07:30"}, incluir_cancelados=True)
+        self.assertEqual(qs.count(), 1)
+        qs2, _ = filtrar({"hora_inicio": "07:30"}, incluir_cancelados=True)
+        self.assertEqual(qs2.count(), 1)  # so o das 08:00
+        qs3, _ = filtrar({"hora_fim": "06:59"}, incluir_cancelados=True)
+        self.assertEqual(qs3.count(), 0)
+
     def test_filtra_por_nome_e_procedimento(self):
         qs, _ = filtrar({"q": "mar", "procedimento": "cardio"}, incluir_cancelados=True)
         self.assertEqual(qs.count(), 1)

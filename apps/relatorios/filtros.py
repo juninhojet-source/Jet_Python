@@ -13,6 +13,13 @@ def _data(texto):
         return None
 
 
+def _hora(texto):
+    try:
+        return datetime.strptime(texto, "%H:%M").time()
+    except (TypeError, ValueError):
+        return None
+
+
 def _mes(texto):
     try:
         return datetime.strptime(texto, "%Y-%m").date()
@@ -53,6 +60,15 @@ def filtrar(params, incluir_cancelados=False):
     if nome:
         qs = qs.filter(paciente__nome__icontains=nome)
         resumo.append(("Nome", nome))
+
+    hora_ini = _hora(params.get("hora_inicio", ""))
+    hora_fim = _hora(params.get("hora_fim", ""))
+    if hora_ini:
+        qs = qs.filter(horario__gte=hora_ini)
+        resumo.append(("Horário de", hora_ini.strftime("%H:%M")))
+    if hora_fim:
+        qs = qs.filter(horario__lte=hora_fim)
+        resumo.append(("Horário até", hora_fim.strftime("%H:%M")))
 
     municipio = params.get("municipio", "").strip()
     if municipio.isdigit():
