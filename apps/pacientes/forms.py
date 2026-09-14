@@ -89,6 +89,6 @@ class PacienteRapidoForm(PacienteForm):
 
     class Meta(PacienteForm.Meta):
         fields = [
-            "nome", "data_nascimento", "sexo", "raca_cor",
-            "telefone_principal", "municipio",
+            "nome", "cns", "cpf", "data_nascimento", "sexo", "raca_cor",
+            "telefone_principal", "municipio", "cep",
         ]

@@ -116,6 +116,8 @@ class PacienteRapidoTest(TestCase):
         p = Paciente.objects.get()
         self.assertEqual(dados["id"], p.pk)
         self.assertEqual(p.criado_por, self.atendente)
+        # O CPF informado no cadastro rápido precisa ser realmente salvo.
+        self.assertEqual(p.cpf, "52998224725")
 
     def test_sem_identificador_retorna_erro_json(self):
         self.client.force_login(self.atendente)
