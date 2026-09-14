@@ -34,7 +34,7 @@ class IndexView(LoginRequiredMixin, View):
 # ------------------------------------------------------------------ Agendamentos
 COLUNAS_AGEND = [
     "Nº", "Data", "Horário", "Paciente", "CPF", "CNS",
-    "Município", "Destino", "Procedimento", "Status", "Embarque",
+    "Município", "Destino", "Procedimento", "KM", "Status", "Embarque",
 ]
 
 
@@ -44,6 +44,7 @@ def _linhas_agend(qs):
             a.numero, a.data.strftime("%d/%m/%Y"), a.horario.strftime("%H:%M"),
             a.paciente.nome, a.paciente.cpf or "", a.paciente.cns or "",
             str(a.destino.municipio), a.destino.nome, a.procedimento,
+            a.km_rodado if a.km_rodado is not None else "",
             a.get_status_display(), a.get_embarque_display(),
         ]
 
@@ -78,7 +79,8 @@ class AgendamentosView(LoginRequiredMixin, View):
 # --------------------------------------------------------------------------- BPA
 COLUNAS_BPA = [
     "Paciente", "CNS", "CPF", "Sexo", "Nascimento", "Raça/Cor",
-    "Município", "IBGE", "Bairro", "Data atend.", "Procedimento", "Acompanhante",
+    "Município", "IBGE", "Bairro", "Data atend.", "Procedimento",
+    "Cidade destino", "Acompanhante", "CPF acompanhante",
 ]
 
 
@@ -86,11 +88,13 @@ def _linhas_bpa(qs):
     for a in qs:
         p = a.paciente
         mun = p.municipio or a.destino.municipio
+        cidade_destino = a.destino.municipio.nome if a.destino.municipio_id else ""
         yield [
             p.nome, p.cns or "", p.cpf or "", p.get_sexo_display(),
             p.data_nascimento.strftime("%d/%m/%Y"), p.get_raca_cor_display(),
             str(mun) if mun else "", mun.codigo_ibge if mun else "", p.bairro,
-            a.data.strftime("%d/%m/%Y"), a.procedimento, a.acompanhante,
+            a.data.strftime("%d/%m/%Y"), a.procedimento,
+            cidade_destino, a.acompanhante, a.acompanhante_cpf or "",
         ]
 
 

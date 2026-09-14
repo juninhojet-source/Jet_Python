@@ -1,19 +1,22 @@
 """Formulários de agendamento e do controle de embarque."""
 from django import forms
 
-from apps.core.validators import formatar_telefone
+from apps.core.validators import apenas_digitos, formatar_telefone, validar_cpf
 
 from .models import Agendamento, Embarque, StatusAgendamento
 
 
 class AgendamentoForm(forms.ModelForm):
+    # Aceita máscara; normalizado para dígitos no clean.
+    acompanhante_cpf = forms.CharField(label="CPF do acompanhante", required=False, max_length=14)
+
     class Meta:
         model = Agendamento
         fields = [
-            "paciente", "acompanhante", "contato", "data", "horario",
+            "paciente", "acompanhante", "acompanhante_cpf", "contato", "data", "horario",
             "destino", "local_consulta", "procedimento",
             "veiculo", "tipo_veiculo", "local_embarque", "hora_embarque",
-            "status", "observacoes",
+            "km_rodado", "status", "observacoes",
         ]
         widgets = {
             "data": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
@@ -39,6 +42,12 @@ class AgendamentoForm(forms.ModelForm):
     def clean_contato(self):
         return formatar_telefone(self.cleaned_data.get("contato"))
 
+    def clean_acompanhante_cpf(self):
+        cpf = apenas_digitos(self.cleaned_data.get("acompanhante_cpf"))
+        if cpf:
+            validar_cpf(cpf)  # valida dígitos verificadores (Receita)
+        return cpf
+
     def clean(self):
         cleaned = super().clean()
         # Preenche o contato a partir do telefone do paciente, se vazio.
@@ -50,7 +59,7 @@ class AgendamentoForm(forms.ModelForm):
 class EmbarqueForm(forms.ModelForm):
     class Meta:
         model = Agendamento
-        fields = ["embarque", "hora_embarque_real", "hora_desembarque_real", "observacoes"]
+        fields = ["embarque", "hora_embarque_real", "hora_desembarque_real", "km_rodado", "observacoes"]
         widgets = {
             "hora_embarque_real": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
             "hora_desembarque_real": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),

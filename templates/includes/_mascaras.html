@@ -47,7 +47,7 @@ O CEP preenche automaticamente logradouro, bairro e município (editáveis).
     var urlVerif = "{% url 'pacientes:verificar_cpf' %}";
     var excluir = (location.pathname.match(/\/pacientes\/(\d+)\/editar/) || [])[1] || "";
 
-    document.querySelectorAll('input[name="cpf"]').forEach(function (el) {
+    function wire(el, comDuplicidade) {
       var msg = document.createElement("div");
       msg.className = "erro-cliente";
       msg.hidden = true;
@@ -55,55 +55,46 @@ O CEP preenche automaticamente logradouro, bairro e município (editáveis).
 
       function erro(txt) { el.classList.add("campo-invalido"); msg.textContent = txt; msg.hidden = false; }
       function limpar() { el.classList.remove("campo-invalido"); msg.hidden = true; el.dataset.dup = ""; }
-
       function estrutura() {
         var d = so(el.value, 11);
-        if (d.length === 11 && !cpfValido(d)) {
-          erro("CPF inválido — confira os números digitados.");
-          return false;
-        }
+        if (d.length === 11 && !cpfValido(d)) { erro("CPF inválido — confira os números digitados."); return false; }
         return true;
       }
 
-      function verificarDuplicado() {
+      el.dataset.cpfCheck = "1";
+      el._cpfOk = function () {
+        var d = so(el.value, 11);
+        return !(d.length && !cpfValido(d)) && el.dataset.dup !== "1";
+      };
+
+      el.addEventListener("input", function () { el.dataset.dup = ""; if (estrutura()) limpar(); });
+      el.addEventListener("blur", function () {
+        if (!estrutura() || !comDuplicidade) return;
         var d = so(el.value, 11);
         if (d.length !== 11 || !cpfValido(d)) return;
         var url = urlVerif + "?cpf=" + d + (excluir ? "&excluir=" + excluir : "");
         fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } })
           .then(function (r) { return r.json(); })
           .then(function (j) {
-            if (j.existe) {
-              el.dataset.dup = "1";
-              erro("CPF já cadastrado" + (j.nome ? " (" + j.nome + ")" : "") + ".");
-            } else {
-              el.dataset.dup = "";
-              if (estrutura()) limpar();
-            }
+            if (j.existe) { el.dataset.dup = "1"; erro("CPF já cadastrado" + (j.nome ? " (" + j.nome + ")" : "") + "."); }
+            else { el.dataset.dup = ""; if (estrutura()) limpar(); }
           })
           .catch(function () { /* sem rede: o servidor valida no envio */ });
-      }
-
-      el.addEventListener("input", function () {
-        el.dataset.dup = "";
-        if (estrutura()) limpar();
       });
-      el.addEventListener("blur", function () {
-        if (estrutura()) verificarDuplicado();
-      });
+    }
 
-      // Bloqueia o envio do formulário (página cheia) com CPF inválido ou duplicado.
-      var form = el.closest("form");
-      if (form && !form.dataset.cpfGuard) {
-        form.dataset.cpfGuard = "1";
-        form.addEventListener("submit", function (ev) {
-          var d = so(el.value, 11);
-          if ((d.length && !cpfValido(d)) || el.dataset.dup === "1") {
-            ev.preventDefault();
-            estrutura();
-            el.focus();
-          }
-        });
-      }
+    document.querySelectorAll('input[name="cpf"]').forEach(function (el) { wire(el, true); });
+    document.querySelectorAll('input[name="acompanhante_cpf"]').forEach(function (el) { wire(el, false); });
+
+    // Um guarda por formulário: bloqueia o envio se algum CPF estiver inválido/duplicado.
+    document.querySelectorAll("form").forEach(function (form) {
+      var campos = form.querySelectorAll('input[data-cpf-check="1"]');
+      if (!campos.length) return;
+      form.addEventListener("submit", function (ev) {
+        for (var i = 0; i < campos.length; i++) {
+          if (!campos[i]._cpfOk()) { ev.preventDefault(); campos[i].focus(); return; }
+        }
+      });
     });
   }
 
@@ -139,7 +130,7 @@ O CEP preenche automaticamente logradouro, bairro e município (editáveis).
 
   document.addEventListener("DOMContentLoaded", function () {
     aplicar('input[name*="telefone"], input[name="contato"]', fmtTelefone);
-    aplicar('input[name="cpf"]', fmtCpf);
+    aplicar('input[name="cpf"], input[name="acompanhante_cpf"]', fmtCpf);
     aplicar('input[name="cns"]', function (v) { return so(v, 15); });
     aplicar('input[name="cep"]', fmtCep);
     ligarValidacaoCpf();

@@ -37,6 +37,7 @@ class Agendamento(TimeStampedModel):
         related_name="agendamentos",
     )
     acompanhante = models.CharField("Acompanhante", max_length=150, blank=True)
+    acompanhante_cpf = models.CharField("CPF do acompanhante", max_length=11, blank=True)
     contato = models.CharField("Contato", max_length=40, blank=True)
 
     # --- Agenda ---
@@ -82,6 +83,10 @@ class Agendamento(TimeStampedModel):
     )
     hora_embarque_real = models.TimeField("Embarque realizado às", null=True, blank=True)
     hora_desembarque_real = models.TimeField("Desembarque às", null=True, blank=True)
+    km_rodado = models.PositiveIntegerField(
+        "KM rodado", null=True, blank=True,
+        help_text="Quilômetros rodados na viagem (pode ser preenchido no retorno).",
+    )
 
     history = HistoricalRecords()
 

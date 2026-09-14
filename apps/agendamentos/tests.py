@@ -156,3 +156,45 @@ class AgendamentoFluxoTest(TestCase):
         # Ordenados por nome.
         nomes = [d.nome for d in destinos]
         self.assertEqual(nomes, sorted(nomes))
+
+
+class CamposAcompanhanteKmTest(TestCase):
+    """CPF do acompanhante (validado) e KM rodado."""
+
+    def setUp(self):
+        from apps.core.models import Municipio
+        from apps.destinos.models import Destino
+        from apps.pacientes.models import Paciente
+        self.user = User.objects.create_user(username="at", password="x", perfil="ATENDENTE")
+        self.client.force_login(self.user)
+        mun = Municipio.objects.create(codigo_ibge="3106200", nome="Belo Horizonte")
+        self.paciente = Paciente.objects.create(
+            nome="Maria", cpf="52998224725", data_nascimento=date(1980, 1, 1),
+            sexo="F", telefone_principal="31999990000",
+        )
+        self.destino = Destino.objects.create(nome="Hospital X", municipio=mun)
+
+    def _dados(self, **extra):
+        base = {
+            "paciente": self.paciente.pk, "data": proxima_sexta().strftime("%Y-%m-%d"),
+            "horario": "07:30", "destino": self.destino.pk,
+            "status": StatusAgendamento.AGENDADO,
+        }
+        base.update(extra)
+        return base
+
+    def test_acompanhante_cpf_valido_e_km(self):
+        resp = self.client.post(reverse("agendamentos:create"), self._dados(
+            acompanhante="José Acompanhante", acompanhante_cpf="529.982.247-25", km_rodado="120",
+        ))
+        self.assertEqual(resp.status_code, 302)
+        ag = Agendamento.objects.get()
+        self.assertEqual(ag.acompanhante_cpf, "52998224725")  # só dígitos
+        self.assertEqual(ag.km_rodado, 120)
+
+    def test_acompanhante_cpf_invalido_rejeitado(self):
+        resp = self.client.post(reverse("agendamentos:create"), self._dados(
+            acompanhante_cpf="111.111.111-11",
+        ))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Agendamento.objects.count(), 0)

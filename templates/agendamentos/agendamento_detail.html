@@ -33,6 +33,7 @@
   <div class="dl">
     <div class="item"><div class="k">Paciente</div><div class="v"><a href="{{ ag.paciente.get_absolute_url }}">{{ ag.paciente.nome }}</a></div></div>
     <div class="item"><div class="k">Acompanhante</div><div class="v">{{ ag.acompanhante|default:"—" }}</div></div>
+    <div class="item"><div class="k">CPF do acompanhante</div><div class="v">{{ ag.acompanhante_cpf|default:"—" }}</div></div>
     <div class="item"><div class="k">Contato</div><div class="v">{{ ag.contato|default:ag.paciente.telefone_principal }}</div></div>
     <div class="item"><div class="k">Data / Horário</div><div class="v">{{ ag.data|date:"d/m/Y" }} às {{ ag.horario|time:"H:i" }}</div></div>
   </div>
@@ -52,6 +53,7 @@
     <div class="item"><div class="k">Situação do embarque</div><div class="v">{{ ag.get_embarque_display }}
       {% if ag.hora_embarque_real %} · saiu {{ ag.hora_embarque_real|time:"H:i" }}{% endif %}
       {% if ag.hora_desembarque_real %} · retornou {{ ag.hora_desembarque_real|time:"H:i" }}{% endif %}</div></div>
+    <div class="item"><div class="k">KM rodado</div><div class="v">{{ ag.km_rodado|default:"—" }}</div></div>
   </div>
 
   {% if ag.observacoes %}
