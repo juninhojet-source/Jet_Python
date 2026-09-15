@@ -54,6 +54,23 @@ e com certificado:
 
 Detalhes e alternativa com nginx: `docs\MANUAL_PUBLICACAO_DOMINIO_HTTPS.md`.
 
+## Instalar nos computadores que acessam o sistema
+
+Para o navegador abrir o HTTPS **sem aviso de segurança**, cada computador
+precisa confiar no certificado da Prefeitura (uma vez). Use o script:
+
+1. Copie do servidor o arquivo **`C:\certs\prefeitura-ca.crt`**.
+2. Coloque `prefeitura-ca.crt` **na mesma pasta** que `scripts\windows\instalar-cliente.bat`.
+3. Em cada computador (ou por uma pasta de rede), rode **`instalar-cliente.bat`**
+   (ele pede permissão de administrador). Ele:
+   - instala o certificado como **Autoridade Raiz Confiável** (Chrome/Edge);
+   - habilita o **Firefox** a confiar no certificado do Windows;
+   - cria um **atalho "SIGTRANS Saúde"** na área de trabalho.
+
+> Em rede com Active Directory, dá para distribuir a CA por **GPO** de uma vez
+> (ver `docs\MANUAL_PUBLICACAO_DOMINIO_HTTPS.md`, seção 6) — o script acima é a
+> forma manual, máquina por máquina.
+
 ## Backup automático diário (para outro servidor)
 
 O script `scripts\windows\backup-automatico.bat` gera o backup e o copia para o
