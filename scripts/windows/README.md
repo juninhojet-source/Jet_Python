@@ -54,6 +54,21 @@ e com certificado:
 
 Detalhes e alternativa com nginx: `docs\MANUAL_PUBLICACAO_DOMINIO_HTTPS.md`.
 
+## Iniciar sozinho quando a VM/servidor ligar
+
+Para não precisar abrir o `iniciar-producao.bat` manualmente após cada reinício:
+
+1. Rode **`scripts\windows\instalar-servico.bat`** (pede administrador).
+2. Ele cria uma tarefa do Windows que sobe o sistema **no boot** (como SYSTEM) e
+   já inicia agora. O IIS (proxy/HTTPS) já é serviço nativo e também sobe sozinho.
+
+- Log do serviço: `backups\servico.log`.
+- Para desligar a inicialização automática:
+  `schtasks /Delete /TN "SIGTRANS Servidor" /F`
+
+> Depois de instalar o serviço, **não** use mais o `iniciar-producao.bat` no
+> dia a dia (evita dois servidores na porta 8000). Ele fica só para testes.
+
 ## Instalar nos computadores que acessam o sistema
 
 Para o navegador abrir o HTTPS **sem aviso de segurança**, cada computador
