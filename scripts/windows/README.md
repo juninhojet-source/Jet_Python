@@ -59,8 +59,9 @@ Detalhes e alternativa com nginx: `docs\MANUAL_PUBLICACAO_DOMINIO_HTTPS.md`.
 Para não precisar abrir o `iniciar-producao.bat` manualmente após cada reinício:
 
 1. Rode **`scripts\windows\instalar-servico.bat`** (pede administrador).
-2. Ele cria uma tarefa do Windows que sobe o sistema **no boot** (como SYSTEM) e
-   já inicia agora. O IIS (proxy/HTTPS) já é serviço nativo e também sobe sozinho.
+2. Ele cria uma tarefa do Windows que sobe o sistema **no boot** (como SYSTEM),
+   **em segundo plano, sem janela** (via `iniciar-servico-oculto.vbs`), e já
+   inicia agora. O IIS (proxy/HTTPS) já é serviço nativo e também sobe sozinho.
 
 - Log do serviço: `backups\servico.log`.
 - Para desligar a inicialização automática:

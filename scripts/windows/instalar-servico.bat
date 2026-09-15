@@ -13,10 +13,10 @@ if %errorlevel% neq 0 (
   exit /b
 )
 
-set "RUNNER=%~dp0iniciar-servico.bat"
+set "VBS=%~dp0iniciar-servico-oculto.vbs"
 
 echo Criando a tarefa de inicializacao "SIGTRANS Servidor"...
-schtasks /Create /TN "SIGTRANS Servidor" /SC ONSTART /RL HIGHEST /RU SYSTEM /TR "\"%RUNNER%\"" /F
+schtasks /Create /TN "SIGTRANS Servidor" /SC ONSTART /RL HIGHEST /RU SYSTEM /TR "wscript.exe \"%VBS%\"" /F
 if errorlevel 1 (
   echo [ERRO] Nao foi possivel criar a tarefa.
   pause & exit /b 1
