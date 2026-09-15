@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Alterar senha — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Alterar senha</h1>
+  <a href="{% url 'core:dashboard' %}" class="btn btn-ghost">Voltar</a>
+</div>
+
+<div class="card" style="max-width:520px"><div class="card-body">
+  {% if form.non_field_errors %}<ul class="messages"><li class="error">{{ form.non_field_errors|join:" " }}</li></ul>{% endif %}
+  <p class="muted" style="margin-top:0">Informe sua senha atual e escolha uma nova. A senha
+     deve ter no mínimo 8 caracteres, com letras e números.</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <div class="field">
+      <label for="{{ form.old_password.id_for_label }}">Senha atual</label>
+      {{ form.old_password }}
+      {% if form.old_password.errors %}<ul class="errorlist">{% for e in form.old_password.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+    </div>
+    <div class="field" style="margin-top:14px">
+      <label for="{{ form.new_password1.id_for_label }}">Nova senha</label>
+      {{ form.new_password1 }}
+      {% if form.new_password1.errors %}<ul class="errorlist">{% for e in form.new_password1.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+    </div>
+    <div class="field" style="margin-top:14px">
+      <label for="{{ form.new_password2.id_for_label }}">Confirmar nova senha</label>
+      {{ form.new_password2 }}
+      {% if form.new_password2.errors %}<ul class="errorlist">{% for e in form.new_password2.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Salvar nova senha</button>
+      <a href="{% url 'core:dashboard' %}" class="btn btn-ghost">Cancelar</a>
+    </div>
+  </form>
+</div></div>
+{% endblock %}

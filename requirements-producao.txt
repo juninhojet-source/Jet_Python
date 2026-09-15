@@ -1,0 +1,4 @@
+# SIGTRANS Saúde — dependências adicionais de produção (PostgreSQL)
+# Uso: pip install -r requirements-producao.txt
+-r requirements.txt
+psycopg2-binary>=2.9      # driver do PostgreSQL

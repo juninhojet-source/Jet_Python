@@ -1,0 +1,141 @@
+{% comment %}
+Cadastro rápido de município. Inclua este arquivo em qualquer página que tenha
+um <select name="municipio">. Ele adiciona um botão "＋ Município" ao lado de
+cada seletor de município e um modal para cadastrar sem sair da tela. Ao salvar,
+a nova opção é inserida em todos os seletores de município da página.
+{% endcomment %}
+<div class="modal-overlay" id="modal-municipio" style="z-index:200" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-municipio-titulo" style="max-width:520px">
+    <div class="modal-head">
+      <h2 id="modal-municipio-titulo">Cadastrar município</h2>
+      <button type="button" class="modal-fechar" data-fechar aria-label="Fechar">&times;</button>
+    </div>
+    <div class="modal-erros" hidden></div>
+    <div class="modal-body form-grid">
+      <div class="field full" data-campo="nome">
+        <label for="id_mun_nome">Nome</label>
+        <input type="text" name="nome" id="id_mun_nome" class="campo" maxlength="120">
+        <ul class="errorlist" hidden></ul>
+      </div>
+      <div class="field" data-campo="uf">
+        <label for="id_mun_uf">UF</label>
+        <input type="text" name="uf" id="id_mun_uf" class="campo" maxlength="2" value="MG">
+        <ul class="errorlist" hidden></ul>
+      </div>
+      <div class="field" data-campo="codigo_ibge">
+        <label for="id_mun_codigo_ibge">Código IBGE</label>
+        <input type="text" name="codigo_ibge" id="id_mun_codigo_ibge" class="campo" maxlength="7" inputmode="numeric">
+        <div class="help">7 dígitos. Necessário para o BPA.</div>
+        <ul class="errorlist" hidden></ul>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-primary" data-salvar
+              data-url="{% url 'core:municipio_quick_create' %}">Salvar município</button>
+      <button type="button" class="btn btn-ghost" data-fechar>Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  function csrf() {
+    var el = document.querySelector('input[name=csrfmiddlewaretoken]');
+    return el ? el.value : "";
+  }
+  function selects() {
+    return document.querySelectorAll('select[name="municipio"]');
+  }
+
+  var modal = document.getElementById("modal-municipio");
+  var alvo = null;  // select que disparou a abertura
+
+  function abrir(select) {
+    alvo = select;
+    limparErros();
+    modal.hidden = false;
+    document.getElementById("id_mun_nome").focus();
+  }
+  function fechar() {
+    modal.hidden = true;
+    alvo = null;
+  }
+  function limparErros() {
+    var box = modal.querySelector(".modal-erros");
+    box.hidden = true; box.textContent = "";
+    modal.querySelectorAll(".errorlist").forEach(function (u) { u.hidden = true; u.innerHTML = ""; });
+  }
+  function mostrarErros(errors) {
+    var geral = [];
+    Object.keys(errors).forEach(function (campo) {
+      var msgs = errors[campo].map(function (e) { return e.message; });
+      var div = modal.querySelector('[data-campo="' + campo + '"] .errorlist');
+      if (div) { div.hidden = false; div.innerHTML = msgs.map(function (m) { return "<li>" + m + "</li>"; }).join(""); }
+      else { geral = geral.concat(msgs); }
+    });
+    if (geral.length) {
+      var box = modal.querySelector(".modal-erros");
+      box.hidden = false; box.textContent = geral.join(" ");
+    }
+  }
+
+  function salvar(btn) {
+    limparErros();
+    btn.disabled = true;
+    var dados = new FormData();
+    modal.querySelectorAll(".modal-body input").forEach(function (el) {
+      if (el.name) dados.append(el.name, el.value);
+    });
+    fetch(btn.getAttribute("data-url"), {
+      method: "POST",
+      headers: { "X-CSRFToken": csrf(), "X-Requested-With": "XMLHttpRequest" },
+      body: dados,
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.j.ok) {
+          selects().forEach(function (sel) {
+            var opt = document.createElement("option");
+            opt.value = res.j.id; opt.textContent = res.j.texto;
+            if (sel === alvo) opt.selected = true;
+            sel.appendChild(opt);
+          });
+          fechar();
+          modal.querySelectorAll(".modal-body input").forEach(function (el) {
+            el.value = el.id === "id_mun_uf" ? "MG" : "";
+          });
+        } else {
+          mostrarErros((res.j && res.j.errors) || {});
+        }
+      })
+      .catch(function () {
+        var box = modal.querySelector(".modal-erros");
+        box.hidden = false;
+        box.textContent = "Não foi possível salvar. Verifique a conexão e tente novamente.";
+      })
+      .finally(function () { btn.disabled = false; });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    selects().forEach(function (sel) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-ghost btn-inline";
+      btn.textContent = "＋ Município";
+      btn.addEventListener("click", function () { abrir(sel); });
+      sel.insertAdjacentElement("afterend", btn);
+    });
+    modal.querySelectorAll("[data-fechar]").forEach(function (b) {
+      b.addEventListener("click", fechar);
+    });
+    modal.addEventListener("click", function (ev) { if (ev.target === modal) fechar(); });
+    var salvarBtn = modal.querySelector("[data-salvar]");
+    if (salvarBtn) salvarBtn.addEventListener("click", function () { salvar(salvarBtn); });
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape" && !modal.hidden) fechar();
+    });
+  });
+})();
+</script>

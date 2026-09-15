@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Backup dos dados — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Backup dos dados</h1>
+    <div class="sub">Cópia de segurança do banco de dados</div>
+  </div>
+  <a href="{% url 'core:configuracoes' %}" class="btn btn-ghost">Voltar</a>
+</div>
+
+<div class="card"><div class="card-body">
+  <p>Gere uma cópia de segurança completa dos dados do sistema (pacientes, destinos,
+     veículos, agendamentos, usuários e trilha de auditoria). O arquivo é baixado
+     compactado (<code>.json.gz</code>) para o seu computador.</p>
+
+  <form method="post" action="{% url 'core:backup' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">💾 Gerar e baixar backup</button>
+  </form>
+
+  <p class="muted" style="margin-top:14px">
+    Guarde o arquivo em local seguro (de preferência fora do servidor). Cada geração
+    de backup fica registrada na trilha de auditoria.
+  </p>
+</div></div>
+
+<div class="card" style="margin-top:16px"><div class="card-body">
+  <h2 style="margin-top:0">Como restaurar</h2>
+  <p>A restauração é feita pela equipe de TI, no servidor, a partir do arquivo gerado:</p>
+  <pre class="code-block">.venv\Scripts\python.exe manage.py restore caminho\do\arquivo.json.gz</pre>
+  <p class="muted">A restauração <b>sobrescreve os dados atuais</b>. Faça um backup antes e
+     execute em ambiente controlado.</p>
+</div></div>
+
+<div class="card" style="margin-top:16px"><div class="card-body">
+  <h2 style="margin-top:0">Recomendações</h2>
+  <ul class="lista-check">
+    <li>Faça backup com frequência (diário ou a cada expediente).</li>
+    <li>Mantenha cópias em mais de um local (pendrive/rede), fora do servidor.</li>
+    <li>Em produção com PostgreSQL, este backup lógico <b>complementa</b> — não substitui —
+        o <code>pg_dump</code> feito pela TI (ver manual de backup).</li>
+  </ul>
+</div></div>
+{% endblock %}
