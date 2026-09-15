@@ -17,6 +17,7 @@ class Acao(models.TextChoices):
     EXPORTACAO = "EXPORTACAO", "Exportação de relatório"
     IMPRESSAO = "IMPRESSAO", "Impressão de documento"
     BACKUP = "BACKUP", "Backup do banco de dados"
+    SENHA = "SENHA", "Alteração de senha"
 
 
 class RegistroAuditoria(models.Model):

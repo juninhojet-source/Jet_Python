@@ -2,14 +2,15 @@
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import LoginView, LogoutView, PasswordChangeView
 from django.core.cache import cache
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView, UpdateView
 
 from apps.auditoria.services import Acao, get_ip, registrar
 
-from .forms import LoginForm, UsuarioCreateForm, UsuarioUpdateForm
+from .forms import AlterarSenhaForm, LoginForm, UsuarioCreateForm, UsuarioUpdateForm
 from .mixins import AdminRequiredMixin
 
 User = get_user_model()
@@ -58,6 +59,20 @@ class SigtransLoginView(LoginView):
 
 class SigtransLogoutView(LogoutView):
     pass
+
+
+class AlterarSenhaView(LoginRequiredMixin, PasswordChangeView):
+    """Permite ao usuário logado trocar a própria senha."""
+
+    template_name = "accounts/alterar_senha.html"
+    form_class = AlterarSenhaForm
+    success_url = reverse_lazy("core:dashboard")
+
+    def form_valid(self, form):
+        resp = super().form_valid(form)
+        registrar(Acao.SENHA, detalhe="Senha alterada pelo próprio usuário", request=self.request)
+        messages.success(self.request, "Senha alterada com sucesso.")
+        return resp
 
 
 class UsuarioListView(AdminRequiredMixin, ListView):

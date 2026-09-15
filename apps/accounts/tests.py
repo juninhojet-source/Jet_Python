@@ -76,3 +76,51 @@ class LogoutTest(TestCase):
         self.client.force_login(recep)
         r = self.client.post(reverse("accounts:logout"))
         self.assertEqual(r.status_code, 302)
+
+
+class AlterarSenhaTest(TestCase):
+    """Usuário troca a própria senha dentro do sistema."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="u", password="Sigtrans@2026", perfil="ATENDENTE"
+        )
+        self.client.force_login(self.user)
+
+    def test_pagina_carrega(self):
+        self.assertEqual(self.client.get(reverse("accounts:alterar_senha")).status_code, 200)
+
+    def test_troca_senha_com_sucesso(self):
+        resp = self.client.post(reverse("accounts:alterar_senha"), {
+            "old_password": "Sigtrans@2026",
+            "new_password1": "NovaSenha#2027",
+            "new_password2": "NovaSenha#2027",
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("NovaSenha#2027"))
+        from apps.auditoria.models import Acao, RegistroAuditoria
+        self.assertTrue(RegistroAuditoria.objects.filter(acao=Acao.SENHA).exists())
+
+    def test_senha_atual_errada_rejeitada(self):
+        resp = self.client.post(reverse("accounts:alterar_senha"), {
+            "old_password": "errada",
+            "new_password1": "NovaSenha#2027",
+            "new_password2": "NovaSenha#2027",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("Sigtrans@2026"))  # não mudou
+
+    def test_senha_fraca_rejeitada(self):
+        resp = self.client.post(reverse("accounts:alterar_senha"), {
+            "old_password": "Sigtrans@2026",
+            "new_password1": "12345678", "new_password2": "12345678",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("Sigtrans@2026"))
+
+    def test_exige_login(self):
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse("accounts:alterar_senha")).status_code, 302)

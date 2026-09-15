@@ -1,11 +1,22 @@
 """Formulários de autenticação e gestão de usuários."""
 from django import forms
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import (
+    AuthenticationForm, PasswordChangeForm, UserCreationForm,
+)
 
 User = get_user_model()
 
 CAMPO = "campo"
+
+
+class AlterarSenhaForm(PasswordChangeForm):
+    """Troca da própria senha (senha atual + nova, com política de senha forte)."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for campo in self.fields.values():
+            campo.widget.attrs.setdefault("class", CAMPO)
 
 
 class LoginForm(AuthenticationForm):
