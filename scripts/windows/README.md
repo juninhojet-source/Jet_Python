@@ -119,4 +119,6 @@ usuário conectado ou não").
   banco de dados. Para **produção** (PostgreSQL + Waitress + HTTPS), veja
   `docs/MANUAL_INSTALACAO.md` e `docs/MANUAL_PUBLICACAO_DOMINIO_HTTPS.md`.
 - Backup a qualquer momento: `.venv\Scripts\python.exe manage.py backup`.
-- Atualizar para a versão mais nova: `git pull` e rode `instalar.bat` de novo.
+- Atualizar para a versão mais nova: rode **`scripts\windows\atualizar.bat`**
+  (baixa novidades e, se houver mudança, aplica migração/estáticos e reinicia o
+  servidor sozinho). Ou, manualmente: `git pull` e rode `instalar.bat` de novo.
