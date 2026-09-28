@@ -101,7 +101,21 @@ scripts\windows\backup-automatico.bat
 Confira se o arquivo `sigtrans_AAAAMMDD_HHMMSS.json.gz` apareceu na pasta de rede
 e veja o log em `backups\backup-automatico.log`.
 
-Agendar para rodar todo dia (ex.: 22:00) — no Prompt como Administrador:
+Agendar para rodar todo dia — jeito fácil (recomendado):
+```
+scripts\windows\instalar-backup.bat
+```
+Ele pede a conta que roda o backup (precisa ter acesso à pasta de rede), cria a
+tarefa diária (padrão 20:00) e já roda um backup de teste. **Rode este script
+sempre que reinstalar o sistema em outro servidor** — a tarefa de backup não vem
+junto no `git`, é configurada por máquina.
+
+Conferir se está agendado / última execução:
+```
+schtasks /Query /TN "SIGTRANS Backup Diario" /V /FO LIST
+```
+
+Agendar manualmente (alternativa) — no Prompt como Administrador:
 ```
 schtasks /Create /TN "SIGTRANS Backup Diario" /SC DAILY /ST 22:00 ^
   /TR "C:\SIGTRANS\scripts\windows\backup-automatico.bat" ^
