@@ -1,9 +1,10 @@
 """Testes do núcleo operacional (agenda, agendamento, embarque, cartão)."""
 from datetime import date, time, timedelta
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.core.models import Municipio
@@ -39,7 +40,15 @@ class ValidadoresAgendaTest(TestCase):
         validar_horario_agenda(time(5, 0))   # ok
         validar_horario_agenda(time(18, 0))  # ok
 
-    def test_dia_nao_util(self):
+    def test_fim_de_semana_liberado_por_padrao(self):
+        # Padrão agora inclui todos os dias (sábado e domingo liberados).
+        validar_dia_util(proximo_domingo())  # não deve levantar
+        validar_dia_util(proxima_sexta())    # ok
+
+    @override_settings(
+        SIGTRANS={**settings.SIGTRANS, "AGENDA_DIAS_UTEIS": [0, 1, 2, 3, 4]}
+    )
+    def test_dia_pode_ser_restringido_por_config(self):
         with self.assertRaises(ValidationError):
             validar_dia_util(proximo_domingo())
         validar_dia_util(proxima_sexta())  # ok
@@ -82,13 +91,14 @@ class AgendamentoFluxoTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(Agendamento.objects.count(), 0)
 
-    def test_fim_de_semana_rejeitado(self):
+    def test_fim_de_semana_permitido(self):
+        # Sábado/domingo agora são liberados: o agendamento deve ser criado.
         resp = self.client.post(
             reverse("agendamentos:create"),
             self._dados(data=proximo_domingo().strftime("%Y-%m-%d")),
         )
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(Agendamento.objects.count(), 0)
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Agendamento.objects.count(), 1)
 
     def test_registrar_embarque_muda_status(self):
         ag = Agendamento.objects.create(

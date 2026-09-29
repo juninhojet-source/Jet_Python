@@ -35,9 +35,17 @@ LEGENDA = [
 ]
 
 COLUNAS = [
-    "Veículo", "Nome do paciente", "Telefone", "Horário",
+    "Veículo", "Nome do paciente", "CPF", "Telefone", "Horário",
     "Embarque", "Destino", "Local", "Horário saída",
 ]
+
+
+def _cpf(valor):
+    """Formata CPF (11 dígitos) como NNN.NNN.NNN-NN. Aceita vazio/None."""
+    d = re.sub(r"\D", "", valor or "")
+    if len(d) == 11:
+        return f"{d[:3]}.{d[3:6]}.{d[6:9]}-{d[9:]}"
+    return valor or ""
 
 # Caracteres que iniciam uma fórmula no Excel/LibreOffice.
 _GATILHOS_FORMULA = ("=", "+", "-", "@", "\t", "\r")
@@ -85,6 +93,7 @@ def agrupar_por_veiculo(qs):
 
         grupo["linhas"].append({
             "nome": a.paciente.nome,
+            "cpf": _cpf(a.paciente.cpf),
             "telefone": a.contato or a.paciente.telefone_principal or "",
             "horario": _hhmm(a.horario),
             "embarque": a.local_embarque or "",
@@ -95,6 +104,7 @@ def agrupar_por_veiculo(qs):
         if a.acompanhante.strip():
             grupo["linhas"].append({
                 "nome": f"AC. {a.acompanhante.strip()}",
+                "cpf": _cpf(getattr(a, "acompanhante_cpf", "")),
                 "telefone": "", "horario": "", "embarque": "",
                 "destino": "", "local": "", "ac": True,
             })
@@ -167,14 +177,14 @@ def gerar_mapa_xlsx(dia, grupos, motorista=""):
         for linha in grupo["linhas"]:
             valores = [
                 "",  # A (veículo) — mesclado ao final do grupo
-                linha["nome"], linha["telefone"], linha["horario"],
+                linha["nome"], linha["cpf"], linha["telefone"], linha["horario"],
                 linha["embarque"], linha["destino"], linha["local"],
-                "",  # H (saída) — mesclado ao final do grupo
+                "",  # I (saída) — mesclado ao final do grupo
             ]
             for c, v in enumerate(valores, start=1):
                 cel = ws.cell(row=r, column=c, value=_sanitizar(v))
                 cel.border = borda
-                cel.alignment = esq if c in (2, 5, 7) else centro
+                cel.alignment = esq if c in (2, 6, 8) else centro
                 fonte_kwargs = {"name": "Arial", "size": 10}
                 if linha["ac"]:
                     fonte_kwargs.update(italic=True, color="5B6B7B")
@@ -213,7 +223,7 @@ def gerar_mapa_xlsx(dia, grupos, motorista=""):
         ws.cell(row=r, column=1, value=texto).font = Font(name="Arial", size=9, color="5B6B7B")
 
     # Larguras
-    larguras = {1: 15, 2: 34, 3: 14, 4: 9, 5: 34, 6: 13, 7: 40, 8: 10}
+    larguras = {1: 15, 2: 32, 3: 16, 4: 14, 5: 9, 6: 32, 7: 13, 8: 38, 9: 10}
     for c, w in larguras.items():
         ws.column_dimensions[get_column_letter(c)].width = w
 
@@ -276,7 +286,8 @@ def gerar_mapa_pdf(dia, grupos, motorista=""):
             est = cel_ac if lin["ac"] else cel
             dados.append([
                 Paragraph("", cel),  # veículo — preenchido via SPAN
-                Paragraph(lin["nome"], est), Paragraph(lin["telefone"], est),
+                Paragraph(lin["nome"], est), Paragraph(lin["cpf"], est),
+                Paragraph(lin["telefone"], est),
                 Paragraph(lin["horario"], est), Paragraph(lin["embarque"], est),
                 Paragraph(lin["destino"], est), Paragraph(lin["local"], est),
                 Paragraph("", cel),  # saída — preenchido via SPAN
@@ -286,10 +297,10 @@ def gerar_mapa_pdf(dia, grupos, motorista=""):
         if fim < inicio:
             continue
         dados[inicio][0] = Paragraph(f"<b>{grupo['veiculo']}</b>", cel)
-        dados[inicio][7] = Paragraph(f"<b>{_hhmm(grupo['saida'])}</b>", cel)
+        dados[inicio][8] = Paragraph(f"<b>{_hhmm(grupo['saida'])}</b>", cel)
         estilo_cmds += [
             ("SPAN", (0, inicio), (0, fim)),
-            ("SPAN", (7, inicio), (7, fim)),
+            ("SPAN", (8, inicio), (8, fim)),
             ("LINEABOVE", (0, inicio), (-1, inicio), 0.8, colors.HexColor("#" + NAVY)),
         ]
 
@@ -297,7 +308,7 @@ def gerar_mapa_pdf(dia, grupos, motorista=""):
         dados.append([Paragraph("Nenhum agendamento para a data selecionada.", cel)] + [""] * (len(COLUNAS) - 1))
         estilo_cmds.append(("SPAN", (0, 1), (-1, 1)))
 
-    larguras = [58, 150, 62, 40, 150, 58, 175, 45]
+    larguras = [52, 132, 74, 58, 34, 128, 52, 148, 40]
     tabela = Table(dados, repeatRows=1, colWidths=larguras)
     tabela.setStyle(TableStyle(estilo_cmds))
     elementos.append(tabela)

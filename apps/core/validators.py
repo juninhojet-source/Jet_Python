@@ -26,10 +26,22 @@ def validar_horario_agenda(valor):
         )
 
 
+_DIAS_NOME = [
+    "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira",
+    "sexta-feira", "sábado", "domingo",
+]
+
+
 def validar_dia_util(valor):
-    """Garante que a data caia em um dia útil configurado (seg–sex)."""
-    if valor.weekday() not in settings.SIGTRANS["AGENDA_DIAS_UTEIS"]:
-        raise ValidationError("A agenda funciona apenas de segunda a sexta-feira.")
+    """Garante que a data caia em um dia de funcionamento configurado.
+
+    Os dias liberados vêm de settings.SIGTRANS["AGENDA_DIAS_UTEIS"]
+    (0=segunda ... 6=domingo). Por padrão, todos os dias são liberados.
+    """
+    dias = settings.SIGTRANS["AGENDA_DIAS_UTEIS"]
+    if valor.weekday() not in dias:
+        nomes = ", ".join(_DIAS_NOME[d] for d in sorted(dias))
+        raise ValidationError(f"A agenda funciona apenas em: {nomes}.")
 
 
 def apenas_digitos(valor):

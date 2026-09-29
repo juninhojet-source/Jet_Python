@@ -152,6 +152,20 @@ class MapaViagemTest(TestCase):
         self.assertEqual(carro2["linhas"][1]["nome"], "AC. Maria Acompanhante")
         self.assertEqual(carro2["saida"], time(5, 0))
 
+    def test_cpf_do_paciente_sai_formatado_no_mapa(self):
+        grupos = {g["veiculo"]: g for g in self._grupos()}
+        linha_paciente = grupos["CARRO 2"]["linhas"][0]
+        self.assertEqual(linha_paciente["cpf"], "529.982.247-25")
+
+    def test_mapa_xlsx_e_pdf_geram_com_coluna_cpf(self):
+        from .mapa import COLUNAS, gerar_mapa_pdf, gerar_mapa_xlsx
+        self.assertIn("CPF", COLUNAS)
+        grupos = self._grupos()
+        xlsx = gerar_mapa_xlsx(self.dia, grupos, motorista="João")
+        pdf = gerar_mapa_pdf(self.dia, grupos, motorista="João")
+        self.assertTrue(xlsx and pdf)
+        self.assertTrue(pdf[:4] == b"%PDF")
+
     def test_cancelado_nao_entra(self):
         total = sum(1 for g in self._grupos() for lin in g["linhas"] if not lin["ac"])
         self.assertEqual(total, 3)  # 4 agendamentos, 1 cancelado

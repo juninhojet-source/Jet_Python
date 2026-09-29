@@ -218,10 +218,29 @@ REST_FRAMEWORK = {
 
 # --- Parâmetros do SIGTRANS (usados a partir da Fase 2) ----------------------
 # Janela de atendimento da agenda e dias úteis.
+def _dias_agenda(env_valor, padrao):
+    """Lê os dias de funcionamento da agenda de uma lista tipo "0,1,2,3,4,5,6".
+
+    0=segunda ... 6=domingo. Aceita vazio/None (usa o padrão) e ignora
+    valores inválidos.
+    """
+    if not env_valor:
+        return list(padrao)
+    dias = []
+    for parte in str(env_valor).split(","):
+        parte = parte.strip()
+        if parte.isdigit() and 0 <= int(parte) <= 6 and int(parte) not in dias:
+            dias.append(int(parte))
+    return dias or list(padrao)
+
+
 SIGTRANS = {
     "AGENDA_HORA_INICIO": os.getenv("AGENDA_HORA_INICIO", "05:00"),
     "AGENDA_HORA_FIM": os.getenv("AGENDA_HORA_FIM", "18:00"),
-    "AGENDA_DIAS_UTEIS": [0, 1, 2, 3, 4],  # 0=segunda ... 4=sexta
+    # 0=segunda ... 6=domingo. Padrão: todos os dias (inclui sábado e domingo).
+    "AGENDA_DIAS_UTEIS": _dias_agenda(
+        os.getenv("AGENDA_DIAS_UTEIS"), [0, 1, 2, 3, 4, 5, 6]
+    ),
     "AGENDA_LIMITE_DIARIO": None,  # None = sem limite diário de agendamentos
     "SENHA_MAX": 50,          # senhas de 01 a 50, reiniciando em seguida
     "SENHA_SALA_LABEL": "Sala",
