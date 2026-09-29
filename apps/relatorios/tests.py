@@ -166,6 +166,21 @@ class MapaViagemTest(TestCase):
         self.assertTrue(xlsx and pdf)
         self.assertTrue(pdf[:4] == b"%PDF")
 
+    def test_embarque_cai_no_endereco_do_paciente_quando_vazio(self):
+        pac = Paciente.objects.create(
+            nome="Pedro Endereço", cpf="11144477735",
+            data_nascimento=date(1970, 5, 5), sexo="M",
+            telefone_principal="31955554444", municipio=self.mun,
+            logradouro="Rua das Flores", numero="123", bairro="Centro",
+        )
+        Agendamento.objects.create(
+            paciente=pac, destino=self.dst, data=self.dia, horario=time(7, 0),
+            tipo_veiculo="VAN BH",  # sem local_embarque
+        )
+        grupos = {g["veiculo"]: g for g in self._grupos()}
+        linha = grupos["VAN BH"]["linhas"][0]
+        self.assertEqual(linha["embarque"], "Rua das Flores, 123, Centro")
+
     def test_cancelado_nao_entra(self):
         total = sum(1 for g in self._grupos() for lin in g["linhas"] if not lin["ac"])
         self.assertEqual(total, 3)  # 4 agendamentos, 1 cancelado

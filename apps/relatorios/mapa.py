@@ -96,7 +96,9 @@ def agrupar_por_veiculo(qs):
             "cpf": _cpf(a.paciente.cpf),
             "telefone": a.contato or a.paciente.telefone_principal or "",
             "horario": _hhmm(a.horario),
-            "embarque": a.local_embarque or "",
+            # Ponto de embarque: usa o local informado no agendamento e, se
+            # estiver vazio, cai no endereço cadastrado do paciente.
+            "embarque": a.local_embarque or a.paciente.endereco_resumido or "",
             "destino": a.destino.municipio.nome if a.destino.municipio_id else "",
             "local": _local_destino(a.destino),
             "ac": False,
