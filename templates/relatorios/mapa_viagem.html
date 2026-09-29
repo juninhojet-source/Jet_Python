@@ -21,7 +21,8 @@
         </select>
         <small class="muted">Segure Ctrl para escolher várias. Vazio = todas.</small></div>
       <div class="field"><label>Veículos</label>
-        <select name="veiculo" class="campo" multiple size="4">
+        <select name="veiculo" class="campo" multiple size="5">
+          <option value="sem" {% if sem_veiculo_sel %}selected{% endif %}>— A definir / sem veículo —</option>
           {% for v in veiculos %}<option value="{{ v.id }}" {% if v.id|stringformat:'s' in veiculos_sel %}selected{% endif %}>{{ v.nome }}</option>{% endfor %}
         </select>
         <small class="muted">Segure Ctrl para escolher vários. Vazio = todos.</small></div>

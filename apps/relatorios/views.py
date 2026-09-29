@@ -157,15 +157,28 @@ class MapaViagemView(LoginRequiredMixin, View):
         if municipios_sel:
             qs = qs.filter(destino__municipio_id__in=[int(x) for x in municipios_sel])
 
-        veiculos_sel = [x for x in request.GET.getlist("veiculo") if x.isdigit()]
+        raw_veiculos = request.GET.getlist("veiculo")
+        veiculos_sel = [x for x in raw_veiculos if x.isdigit()]
+        sem_veiculo = "sem" in raw_veiculos  # opção "A definir / sem veículo"
+        condicoes = []
         if veiculos_sel:
             escolhidos = list(Veiculo.objects.filter(pk__in=[int(x) for x in veiculos_sel]))
             if escolhidos:
                 # Pega o vínculo por cadastro (FK) e o nome no texto (tipo_veiculo).
-                cond = Q(veiculo_id__in=[v.id for v in escolhidos])
+                c = Q(veiculo_id__in=[v.id for v in escolhidos])
                 for v in escolhidos:
-                    cond |= Q(tipo_veiculo__iexact=v.nome)
-                qs = qs.filter(cond)
+                    c |= Q(tipo_veiculo__iexact=v.nome)
+                condicoes.append(c)
+        if sem_veiculo:
+            # "A DEFINIR": sem veículo do cadastro e sem nome no texto.
+            condicoes.append(
+                Q(veiculo__isnull=True) & (Q(tipo_veiculo="") | Q(tipo_veiculo__regex=r"^\s+$"))
+            )
+        if condicoes:
+            cond = condicoes[0]
+            for c in condicoes[1:]:
+                cond |= c
+            qs = qs.filter(cond)
 
         grupos = agrupar_por_veiculo(qs)
 
@@ -192,6 +205,7 @@ class MapaViagemView(LoginRequiredMixin, View):
             "veiculos": Veiculo.objects.filter(ativo=True),
             "municipios_sel": municipios_sel,
             "veiculos_sel": veiculos_sel,
+            "sem_veiculo_sel": sem_veiculo,
             "params": request.GET,
         }
         return render(request, self.template_name, ctx)

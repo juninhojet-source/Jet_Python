@@ -274,6 +274,33 @@ class MapaViagemTest(TestCase):
         self.assertContains(r, "CARRO 2")
         self.assertContains(r, "CARRO 10")
 
+    def test_filtro_sem_veiculo_mostra_a_definir(self):
+        from apps.veiculos.models import Veiculo
+        self.client.force_login(self.user)
+        v2 = Veiculo.objects.create(nome="CARRO 2", tipo="UTILITARIO")
+        # Paciente distinto num agendamento sem veiculo (grupo A DEFINIR).
+        sem_carro = Paciente.objects.create(
+            nome="Paciente Sem Carro", cpf="11144477735",
+            data_nascimento=date(1980, 3, 3), sexo="M",
+            telefone_principal="31955550000", municipio=self.mun,
+        )
+        Agendamento.objects.create(
+            paciente=sem_carro, destino=self.dst, data=self.dia, horario=time(7, 0),
+        )
+        # Filtrando só por CARRO 2, o paciente sem carro NAO aparece...
+        r1 = self.client.get(
+            reverse("relatorios:mapa_viagem"),
+            {"data": self.dia.strftime("%Y-%m-%d"), "veiculo": str(v2.id)},
+        )
+        self.assertNotContains(r1, "Paciente Sem Carro")
+        # ...mas marcando também "sem", ele volta a aparecer (junto com CARRO 2).
+        r2 = self.client.get(
+            reverse("relatorios:mapa_viagem"),
+            {"data": self.dia.strftime("%Y-%m-%d"), "veiculo": [str(v2.id), "sem"]},
+        )
+        self.assertContains(r2, "Paciente Sem Carro")
+        self.assertContains(r2, "CARRO 2")
+
     def test_cpf_e_a_ultima_coluna_do_mapa(self):
         from .mapa import COLUNAS
         self.assertEqual(COLUNAS[-1], "CPF")
