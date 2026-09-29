@@ -247,6 +247,19 @@ class MapaViagemTest(TestCase):
         self.assertIn("spreadsheet", r["Content-Type"])
         self.assertEqual(r.content[:2], b"PK")
 
+    def test_filtro_por_veiculo_no_mapa(self):
+        from apps.veiculos.models import Veiculo
+        self.client.force_login(self.user)
+        v = Veiculo.objects.create(nome="CARRO 2", tipo="UTILITARIO")
+        r = self.client.get(
+            reverse("relatorios:mapa_viagem"),
+            {"data": self.dia.strftime("%Y-%m-%d"), "veiculo": str(v.id)},
+        )
+        self.assertEqual(r.status_code, 200)
+        # So o grupo CARRO 2 (por texto) deve sair; CARRO 10 fica de fora.
+        self.assertContains(r, "CARRO 2")
+        self.assertNotContains(r, "CARRO 10")
+
     def test_export_pdf(self):
         self.client.force_login(self.user)
         r = self.client.get(

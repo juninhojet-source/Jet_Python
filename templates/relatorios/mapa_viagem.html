@@ -15,6 +15,14 @@
     <div class="rel-grid">
       <div class="field"><label>Data</label>
         <input type="date" name="data" value="{{ dia|date:'Y-m-d' }}" class="campo"></div>
+      <div class="field"><label>Cidade (destino)</label>
+        <select name="municipio" class="campo"><option value="">Todas</option>
+          {% for m in municipios %}<option value="{{ m.id }}" {% if params.municipio == m.id|stringformat:'s' %}selected{% endif %}>{{ m }}</option>{% endfor %}
+        </select></div>
+      <div class="field"><label>Veículo</label>
+        <select name="veiculo" class="campo"><option value="">Todos</option>
+          {% for v in veiculos %}<option value="{{ v.id }}" {% if params.veiculo == v.id|stringformat:'s' %}selected{% endif %}>{{ v.nome }}</option>{% endfor %}
+        </select></div>
       <div class="field"><label>Motorista (opcional)</label>
         <input type="text" name="motorista" value="{{ motorista }}" class="campo"
                placeholder="Nome do motorista"></div>
@@ -33,7 +41,7 @@
   <div class="table-wrap">
     <table class="data mapa">
       <thead><tr>
-        <th>Veículo</th><th>Nome do paciente</th><th>Telefone</th><th>Horário</th>
+        <th>Veículo</th><th>Nome do paciente</th><th>CPF</th><th>Telefone</th><th>Horário</th>
         <th>Embarque</th><th>Destino</th><th>Local</th><th>Saída</th>
       </tr></thead>
       <tbody>
@@ -44,6 +52,7 @@
             <td rowspan="{{ g.linhas|length }}" class="veiculo">{{ g.veiculo }}</td>
           {% endif %}
           <td>{{ lin.nome }}</td>
+          <td class="c">{{ lin.cpf }}</td>
           <td>{{ lin.telefone }}</td>
           <td class="c">{{ lin.horario }}</td>
           <td>{{ lin.embarque }}</td>

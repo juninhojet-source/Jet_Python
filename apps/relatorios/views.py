@@ -2,7 +2,7 @@
 from datetime import date, datetime
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -147,9 +147,21 @@ class MapaViagemView(LoginRequiredMixin, View):
         qs = (
             Agendamento.objects.filter(data=dia)
             .exclude(status=StatusAgendamento.CANCELADO)
-            .select_related("paciente", "destino", "destino__municipio", "veiculo")
+            .select_related("paciente", "paciente__municipio", "destino",
+                            "destino__municipio", "veiculo")
             .order_by("horario")
         )
+
+        municipio = request.GET.get("municipio", "").strip()
+        if municipio.isdigit():
+            qs = qs.filter(destino__municipio_id=int(municipio))
+
+        veiculo_sel = request.GET.get("veiculo", "").strip()
+        if veiculo_sel.isdigit():
+            v = Veiculo.objects.filter(pk=int(veiculo_sel)).first()
+            if v:
+                qs = qs.filter(Q(veiculo_id=v.id) | Q(tipo_veiculo__iexact=v.nome))
+
         grupos = agrupar_por_veiculo(qs)
 
         export = request.GET.get("export")
@@ -171,6 +183,9 @@ class MapaViagemView(LoginRequiredMixin, View):
         ctx = {
             "dia": dia, "motorista": motorista, "grupos": grupos,
             "total": total, "colunas": None,
+            "municipios": Municipio.objects.all(),
+            "veiculos": Veiculo.objects.filter(ativo=True),
+            "params": request.GET,
         }
         return render(request, self.template_name, ctx)
 
