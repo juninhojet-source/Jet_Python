@@ -260,6 +260,25 @@ class MapaViagemTest(TestCase):
         self.assertContains(r, "CARRO 2")
         self.assertNotContains(r, "CARRO 10")
 
+    def test_filtro_multiplos_veiculos_no_mapa(self):
+        from apps.veiculos.models import Veiculo
+        self.client.force_login(self.user)
+        v2 = Veiculo.objects.create(nome="CARRO 2", tipo="UTILITARIO")
+        v10 = Veiculo.objects.create(nome="CARRO 10", tipo="UTILITARIO")
+        # getlist: vários valores com o mesmo nome de parâmetro.
+        r = self.client.get(
+            reverse("relatorios:mapa_viagem"),
+            {"data": self.dia.strftime("%Y-%m-%d"), "veiculo": [str(v2.id), str(v10.id)]},
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "CARRO 2")
+        self.assertContains(r, "CARRO 10")
+
+    def test_cpf_e_a_ultima_coluna_do_mapa(self):
+        from .mapa import COLUNAS
+        self.assertEqual(COLUNAS[-1], "CPF")
+        self.assertEqual(COLUNAS[-2], "Horário saída")
+
     def test_export_pdf(self):
         self.client.force_login(self.user)
         r = self.client.get(

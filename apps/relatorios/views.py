@@ -152,15 +152,20 @@ class MapaViagemView(LoginRequiredMixin, View):
             .order_by("horario")
         )
 
-        municipio = request.GET.get("municipio", "").strip()
-        if municipio.isdigit():
-            qs = qs.filter(destino__municipio_id=int(municipio))
+        # Filtros com seleção múltipla (vários municípios e/ou veículos).
+        municipios_sel = [x for x in request.GET.getlist("municipio") if x.isdigit()]
+        if municipios_sel:
+            qs = qs.filter(destino__municipio_id__in=[int(x) for x in municipios_sel])
 
-        veiculo_sel = request.GET.get("veiculo", "").strip()
-        if veiculo_sel.isdigit():
-            v = Veiculo.objects.filter(pk=int(veiculo_sel)).first()
-            if v:
-                qs = qs.filter(Q(veiculo_id=v.id) | Q(tipo_veiculo__iexact=v.nome))
+        veiculos_sel = [x for x in request.GET.getlist("veiculo") if x.isdigit()]
+        if veiculos_sel:
+            escolhidos = list(Veiculo.objects.filter(pk__in=[int(x) for x in veiculos_sel]))
+            if escolhidos:
+                # Pega o vínculo por cadastro (FK) e o nome no texto (tipo_veiculo).
+                cond = Q(veiculo_id__in=[v.id for v in escolhidos])
+                for v in escolhidos:
+                    cond |= Q(tipo_veiculo__iexact=v.nome)
+                qs = qs.filter(cond)
 
         grupos = agrupar_por_veiculo(qs)
 
@@ -185,6 +190,8 @@ class MapaViagemView(LoginRequiredMixin, View):
             "total": total, "colunas": None,
             "municipios": Municipio.objects.all(),
             "veiculos": Veiculo.objects.filter(ativo=True),
+            "municipios_sel": municipios_sel,
+            "veiculos_sel": veiculos_sel,
             "params": request.GET,
         }
         return render(request, self.template_name, ctx)
