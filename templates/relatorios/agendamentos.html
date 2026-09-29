@@ -20,13 +20,17 @@
       <div class="field"><label>Horário de</label><input type="time" name="hora_inicio" value="{{ params.hora_inicio }}" class="campo"></div>
       <div class="field"><label>Horário até</label><input type="time" name="hora_fim" value="{{ params.hora_fim }}" class="campo"></div>
       <div class="field"><label>Nome do paciente</label><input type="text" name="q" value="{{ params.q }}" class="campo"></div>
-      <div class="field"><label>Município (destino)</label>
-        <select name="municipio" class="campo"><option value="">Todos</option>
+      <div class="field"><label>Cidade (destino)</label>
+        <select name="municipio" class="campo"><option value="">Todas</option>
           {% for m in municipios %}<option value="{{ m.id }}" {% if params.municipio == m.id|stringformat:'s' %}selected{% endif %}>{{ m }}</option>{% endfor %}
         </select></div>
       <div class="field"><label>Destino</label>
         <select name="destino" class="campo"><option value="">Todos</option>
           {% for d in destinos %}<option value="{{ d.id }}" {% if params.destino == d.id|stringformat:'s' %}selected{% endif %}>{{ d.nome }}</option>{% endfor %}
+        </select></div>
+      <div class="field"><label>Veículo</label>
+        <select name="veiculo" class="campo"><option value="">Todos</option>
+          {% for v in veiculos %}<option value="{{ v.id }}" {% if params.veiculo == v.id|stringformat:'s' %}selected{% endif %}>{{ v.nome }}</option>{% endfor %}
         </select></div>
       <div class="field"><label>Procedimento</label><input type="text" name="procedimento" value="{{ params.procedimento }}" class="campo"></div>
       <div class="field"><label>Status</label>

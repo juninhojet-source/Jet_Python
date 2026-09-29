@@ -12,6 +12,7 @@ from apps.agendamentos.models import Agendamento, StatusAgendamento
 from apps.auditoria.services import Acao, registrar
 from apps.core.models import Municipio
 from apps.destinos.models import Destino
+from apps.veiculos.models import Veiculo
 
 from .exports import exportar_pdf, exportar_xlsx
 from .filtros import filtrar
@@ -71,6 +72,7 @@ class AgendamentosView(LoginRequiredMixin, View):
         ctx = {
             "agendamentos": qs[:300], "total": qs.count(), "resumo": resumo,
             "municipios": Municipio.objects.all(), "destinos": Destino.objects.filter(ativo=True),
+            "veiculos": Veiculo.objects.filter(ativo=True),
             "status_choices": StatusAgendamento.choices, "params": request.GET,
         }
         return render(request, self.template_name, ctx)
@@ -120,6 +122,7 @@ class BPAView(LoginRequiredMixin, View):
         ctx = {
             "agendamentos": qs[:300], "total": qs.count(), "resumo": resumo,
             "municipios": Municipio.objects.all(), "destinos": Destino.objects.filter(ativo=True),
+            "veiculos": Veiculo.objects.filter(ativo=True),
             "params": request.GET,
         }
         return render(request, self.template_name, ctx)

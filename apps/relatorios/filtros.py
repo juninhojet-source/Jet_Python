@@ -4,6 +4,9 @@ from datetime import datetime
 from django.db.models import Q
 
 from apps.agendamentos.models import Agendamento, StatusAgendamento
+from apps.core.models import Municipio
+from apps.destinos.models import Destino
+from apps.veiculos.models import Veiculo
 
 
 def _data(texto):
@@ -73,10 +76,24 @@ def filtrar(params, incluir_cancelados=False):
     municipio = params.get("municipio", "").strip()
     if municipio.isdigit():
         qs = qs.filter(destino__municipio_id=int(municipio))
+        m = Municipio.objects.filter(pk=int(municipio)).first()
+        resumo.append(("Cidade", str(m) if m else municipio))
 
     destino = params.get("destino", "").strip()
     if destino.isdigit():
         qs = qs.filter(destino_id=int(destino))
+        d = Destino.objects.filter(pk=int(destino)).first()
+        if d:
+            resumo.append(("Destino", d.nome))
+
+    veiculo = params.get("veiculo", "").strip()
+    if veiculo.isdigit():
+        v = Veiculo.objects.filter(pk=int(veiculo)).first()
+        if v:
+            # Pega tanto o agendamento ligado ao veículo do cadastro quanto os
+            # que guardam o nome do veículo no campo de texto (tipo_veiculo).
+            qs = qs.filter(Q(veiculo_id=v.id) | Q(tipo_veiculo__iexact=v.nome))
+            resumo.append(("Veículo", v.nome))
 
     procedimento = params.get("procedimento", "").strip()
     if procedimento:

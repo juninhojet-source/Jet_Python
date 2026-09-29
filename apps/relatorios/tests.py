@@ -64,6 +64,33 @@ class FiltroTest(BaseDados):
         qs, _ = filtrar({"q": "mar", "procedimento": "cardio"}, incluir_cancelados=True)
         self.assertEqual(qs.count(), 1)
 
+    def test_filtra_por_cidade_destino(self):
+        outra = Municipio.objects.create(codigo_ibge="3106200", nome="Belo Horizonte")
+        dst_bh = Destino.objects.create(nome="Hospital BH", municipio=outra)
+        Agendamento.objects.create(
+            paciente=self.pac, destino=dst_bh, data=self.dia, horario=time(9, 0),
+        )
+        qs, resumo = filtrar({"municipio": str(outra.id)}, incluir_cancelados=True)
+        self.assertEqual(qs.count(), 1)
+        self.assertTrue(any(k == "Cidade" and "Belo Horizonte" in v for k, v in resumo))
+
+    def test_filtra_por_veiculo_fk_e_texto(self):
+        from apps.veiculos.models import Veiculo
+        v = Veiculo.objects.create(nome="CARRO 1", tipo="UTILITARIO")
+        # Um agendamento ligado pelo cadastro (FK)...
+        Agendamento.objects.create(
+            paciente=self.pac, destino=self.dst, data=self.dia, horario=time(9, 0),
+            veiculo=v,
+        )
+        # ...e outro que guarda o nome do veiculo apenas no texto.
+        Agendamento.objects.create(
+            paciente=self.pac, destino=self.dst, data=self.dia, horario=time(9, 30),
+            tipo_veiculo="carro 1",
+        )
+        qs, resumo = filtrar({"veiculo": str(v.id)}, incluir_cancelados=True)
+        self.assertEqual(qs.count(), 2)
+        self.assertIn(("Veículo", "CARRO 1"), resumo)
+
 
 class ViewsTest(BaseDados):
     def setUp(self):
