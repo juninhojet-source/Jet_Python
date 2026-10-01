@@ -38,14 +38,14 @@ LEGENDA = [
 ]
 
 COLUNAS = [
-    "Veículo", "Nome do paciente", "Telefone", "Horário",
+    "Veículo", "Nº", "Nome do paciente", "Telefone", "Horário",
     "Embarque", "Destino", "Local", "Horário saída", "CPF",
 ]
 
 # Posições (1-based) das colunas com tratamento especial.
 COL_VEICULO = 1   # mesclada por grupo de veículo
-COL_SAIDA = 8     # mesclada por grupo (horário de saída da garagem)
-COL_CPF = 9       # por linha, sempre a última
+COL_SAIDA = 9     # mesclada por grupo (horário de saída da garagem)
+COL_CPF = 10      # por linha, sempre a última
 
 
 def _cpf(valor):
@@ -93,13 +93,19 @@ def agrupar_por_veiculo(qs):
             chave = a.veiculo.nome
         else:
             chave = (a.tipo_veiculo or "").strip() or SEM_VEICULO
-        grupo = grupos.setdefault(chave, {"veiculo": chave, "saida": None, "linhas": []})
+        grupo = grupos.setdefault(
+            chave, {"veiculo": chave, "saida": None, "linhas": [], "pacientes": 0}
+        )
 
         # Horário de saída da garagem = embarque mais cedo do grupo.
         if a.hora_embarque and (grupo["saida"] is None or a.hora_embarque < grupo["saida"]):
             grupo["saida"] = a.hora_embarque
 
+        # Numeração do paciente dentro do veículo (1, 2, 3...), na ordem do
+        # agendamento (data/horário). Acompanhante não recebe número.
+        grupo["pacientes"] += 1
         grupo["linhas"].append({
+            "ordem": grupo["pacientes"],
             "nome": a.paciente.nome,
             "cpf": _cpf(a.paciente.cpf),
             "telefone": a.contato or a.paciente.telefone_principal or "",
@@ -113,6 +119,7 @@ def agrupar_por_veiculo(qs):
         })
         if a.acompanhante.strip():
             grupo["linhas"].append({
+                "ordem": "",
                 "nome": f"AC. {a.acompanhante.strip()}",
                 "cpf": _cpf(getattr(a, "acompanhante_cpf", "")),
                 "telefone": "", "horario": "", "embarque": "",
@@ -208,18 +215,21 @@ def _preencher_planilha(ws, dia, grupos, motorista):
         for linha in grupo["linhas"]:
             valores = [
                 "",  # 1 (veículo) — mesclado ao final do grupo
+                linha.get("ordem", ""),  # 2 (Nº do paciente no veículo)
                 linha["nome"], linha["telefone"], linha["horario"],
                 linha["embarque"], linha["destino"], linha["local"],
-                "",  # 8 (saída) — mesclado ao final do grupo
-                linha["cpf"],  # 9 (CPF) — sempre a última coluna
+                "",  # 9 (saída) — mesclado ao final do grupo
+                linha["cpf"],  # 10 (CPF) — sempre a última coluna
             ]
             for c, v in enumerate(valores, start=1):
                 cel = ws.cell(row=r, column=c, value=_sanitizar(v))
                 cel.border = borda
-                cel.alignment = esq if c in (2, 5, 7) else centro
+                cel.alignment = esq if c in (3, 6, 8) else centro
                 fonte_kwargs = {"name": "Arial", "size": 10}
                 if linha["ac"]:
                     fonte_kwargs.update(italic=True, color="5B6B7B")
+                elif c == 2:
+                    fonte_kwargs.update(bold=True, color=NAVY)
                 cel.font = Font(**fonte_kwargs)
             if gi % 2 == 1:
                 for c in cols_dados:  # não pinta veículo/saída (mesclados)
@@ -255,7 +265,7 @@ def _preencher_planilha(ws, dia, grupos, motorista):
         ws.cell(row=r, column=1, value=texto).font = Font(name="Arial", size=9, color="5B6B7B")
 
     # Larguras
-    larguras = {1: 15, 2: 32, 3: 14, 4: 9, 5: 32, 6: 13, 7: 38, 8: 10, 9: 16}
+    larguras = {1: 15, 2: 5, 3: 32, 4: 14, 5: 9, 6: 32, 7: 13, 8: 38, 9: 10, 10: 16}
     for c, w in larguras.items():
         ws.column_dimensions[get_column_letter(c)].width = w
 
@@ -309,6 +319,8 @@ def _estilos_pdf():
         "sub": ParagraphStyle("sub", parent=estilos["Normal"], fontSize=9,
                               textColor=colors.HexColor("#5b6b7b")),
         "cel": cel,
+        "cel_c": ParagraphStyle("celc", parent=cel, alignment=1,
+                                textColor=colors.HexColor("#" + NAVY)),
         "cel_ac": ParagraphStyle("celac", parent=cel, textColor=colors.HexColor("#5b6b7b"),
                                  fontName="Helvetica-Oblique"),
     }
@@ -367,8 +379,10 @@ def _elementos_dia(dia, grupos, motorista, st):
             inicio = linha_atual
             for lin in bloco:
                 est = cel_ac if lin["ac"] else cel
+                ordem = lin.get("ordem", "")
                 dados.append([
                     Paragraph("", cel),  # veículo — preenchido via SPAN
+                    Paragraph(f"<b>{ordem}</b>", st["cel_c"]) if ordem else Paragraph("", cel),
                     _p(lin["nome"], est), _p(lin["telefone"], est),
                     _p(lin["horario"], est), _p(lin["embarque"], est),
                     _p(lin["destino"], est), _p(lin["local"], est),
@@ -378,11 +392,12 @@ def _elementos_dia(dia, grupos, motorista, st):
                 linha_atual += 1
             fim = linha_atual - 1
             nome_veiculo = escape(grupo["veiculo"]) + (" (cont.)" if bi else "")
+            saida = COL_SAIDA - 1  # índice 0-based no PDF
             dados[inicio][0] = Paragraph(f"<b>{nome_veiculo}</b>", cel)
-            dados[inicio][7] = Paragraph(f"<b>{_hhmm(grupo['saida'])}</b>", cel)
+            dados[inicio][saida] = Paragraph(f"<b>{_hhmm(grupo['saida'])}</b>", cel)
             estilo_cmds += [
                 ("SPAN", (0, inicio), (0, fim)),
-                ("SPAN", (7, inicio), (7, fim)),
+                ("SPAN", (saida, inicio), (saida, fim)),
             ]
             if bi == 0:
                 estilo_cmds.append(
@@ -393,7 +408,7 @@ def _elementos_dia(dia, grupos, motorista, st):
         dados.append([Paragraph("Nenhum agendamento para a data selecionada.", cel)] + [""] * (len(COLUNAS) - 1))
         estilo_cmds.append(("SPAN", (0, 1), (-1, 1)))
 
-    larguras = [52, 132, 58, 34, 128, 52, 148, 40, 74]
+    larguras = [52, 20, 128, 58, 34, 124, 52, 144, 40, 74]
     tabela = Table(dados, repeatRows=1, colWidths=larguras)
     tabela.setStyle(TableStyle(estilo_cmds))
     elementos.append(tabela)

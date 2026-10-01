@@ -57,7 +57,7 @@
   <div class="table-wrap">
     <table class="data mapa">
       <thead><tr>
-        <th>Veículo</th><th>Nome do paciente</th><th>Telefone</th><th>Horário</th>
+        <th>Veículo</th><th>Nº</th><th>Nome do paciente</th><th>Telefone</th><th>Horário</th>
         <th>Embarque</th><th>Destino</th><th>Local</th><th>Saída</th><th>CPF</th>
       </tr></thead>
       <tbody>
@@ -67,6 +67,7 @@
           {% if forloop.first %}
             <td rowspan="{{ g.linhas|length }}" class="veiculo">{{ g.veiculo }}</td>
           {% endif %}
+          <td class="c"><b>{{ lin.ordem }}</b></td>
           <td>{{ lin.nome }}</td>
           <td>{{ lin.telefone }}</td>
           <td class="c">{{ lin.horario }}</td>

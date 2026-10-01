@@ -301,6 +301,29 @@ class MapaViagemTest(TestCase):
         self.assertContains(r2, "Paciente Sem Carro")
         self.assertContains(r2, "CARRO 2")
 
+    def test_pacientes_numerados_por_veiculo_na_ordem_do_horario(self):
+        # Mais um paciente no CARRO 2, mais tarde que o das 08:00.
+        Agendamento.objects.create(
+            paciente=self.pac2, destino=self.dst, data=self.dia, horario=time(13, 0),
+            tipo_veiculo="CARRO 2",
+        )
+        grupos = {g["veiculo"]: g for g in self._grupos()}
+        carro2 = grupos["CARRO 2"]["linhas"]
+        # 08:00 (José) = 1, seu acompanhante sem número, 13:00 (Ana) = 2.
+        self.assertEqual([lin["ordem"] for lin in carro2], [1, "", 2])
+        self.assertEqual(carro2[0]["horario"], "08:00")
+        self.assertEqual(carro2[2]["horario"], "13:00")
+        # A numeração recomeça em cada veículo.
+        self.assertEqual(grupos["CARRO 10"]["linhas"][0]["ordem"], 1)
+
+    def test_excel_tem_coluna_numero(self):
+        from io import BytesIO
+        from openpyxl import load_workbook
+        from .mapa import gerar_mapa_xlsx
+        ws = load_workbook(BytesIO(gerar_mapa_xlsx(self.dia, self._grupos()))).active
+        self.assertEqual(ws.cell(row=6, column=2).value, "Nº")
+        self.assertEqual(ws.cell(row=7, column=2).value, 1)
+
     def test_cpf_e_a_ultima_coluna_do_mapa(self):
         from .mapa import COLUNAS
         self.assertEqual(COLUNAS[-1], "CPF")
