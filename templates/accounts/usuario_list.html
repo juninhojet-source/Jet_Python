@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Usuários — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Usuários</h1>
+    <div class="sub">Controle de acesso por perfil</div>
+  </div>
+  <a href="{% url 'accounts:usuario_create' %}" class="btn btn-primary">+ Novo usuário</a>
+</div>
+
+<div class="card"><div class="card-body">
+  <div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Usuário</th><th>Nome</th><th>Perfil</th><th>Situação</th><th></th></tr></thead>
+      <tbody>
+        {% for u in usuarios %}
+        <tr>
+          <td>{{ u.username }}</td>
+          <td>{{ u.get_full_name|default:"—" }}</td>
+          <td>{{ u.get_perfil_display }}</td>
+          <td>{% if u.is_active %}<span class="badge on">Ativo</span>{% else %}<span class="badge off">Inativo</span>{% endif %}</td>
+          <td class="right"><a class="btn btn-ghost btn-sm" href="{% url 'accounts:usuario_update' u.pk %}">Editar</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div></div>
+{% include "includes/_pagination.html" %}
+{% endblock %}

@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---- SIGTRANS Saúde ----
+.venv/
+db.sqlite3
+/staticfiles/
+/media/
+.env
+/backups/

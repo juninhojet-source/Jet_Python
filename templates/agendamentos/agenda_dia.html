@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Agenda — {{ ORGAO.SISTEMA_NOME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Agenda do dia</h1>
+    <div class="sub">{{ dia|date:"l, d \d\e F \d\e Y" }} · {{ agendamentos|length }} agendamento(s)</div>
+  </div>
+  <div class="toolbar">
+    <form class="search" method="get">
+      <input type="date" name="data" value="{{ dia|date:'Y-m-d' }}" class="campo" onchange="this.form.submit()">
+    </form>
+    {% if user.pode_editar %}
+    <a href="{% url 'agendamentos:create' %}?data={{ dia|date:'Y-m-d' }}" class="btn btn-primary">+ Novo agendamento</a>
+    {% endif %}
+    <a href="{% url 'agendamentos:list' %}" class="btn btn-ghost">Todos</a>
+  </div>
+</div>
+
+<div class="card"><div class="card-body">
+  {% if agendamentos %}
+  <div class="table-wrap">
+    <table class="data">
+      <thead>
+        <tr><th>Horário</th><th>Paciente</th><th>Acompanhante</th><th>Destino</th><th>Embarque</th><th>Situação</th><th class="right">Ações</th></tr>
+      </thead>
+      <tbody>
+        {% for ag in agendamentos %}
+        <tr>
+          <td><strong>{{ ag.horario|time:"H:i" }}</strong></td>
+          <td><a href="{{ ag.get_absolute_url }}">{{ ag.paciente.nome }}</a>
+            {% if ag.confirmado_em %}<span class="badge on">confirmado</span>{% endif %}</td>
+          <td class="muted">{{ ag.acompanhante|default:"—" }}</td>
+          <td>{{ ag.destino }}</td>
+          <td>{{ ag.get_embarque_display }}</td>
+          <td>{{ ag.get_status_display }}</td>
+          <td class="right nowrap">
+            <a class="btn btn-ghost btn-sm" href="{% url 'agendamentos:cartao_pdf' ag.pk %}" target="_blank">Cartão</a>
+            {% if user.pode_editar %}
+            <a class="btn btn-ghost btn-sm" href="{% url 'agendamentos:embarque' ag.pk %}">Embarque</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">Nenhum agendamento para esta data.</div>
+  {% endif %}
+</div></div>
+{% endblock %}
