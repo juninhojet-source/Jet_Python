@@ -5,7 +5,10 @@
 <div class="page-head">
   <div>
     <h1>Mapa de Viagem — Garagem</h1>
-    <div class="sub">{{ dia|date:"l, d/m/Y" }} · {{ total }} paciente(s) · agrupado por veículo</div>
+    <div class="sub">
+      {% if periodo %}{{ rotulo }} · {{ dias|length }} dia(s) com viagem{% else %}{{ ini|date:"l, d/m/Y" }}{% endif %}
+      · {{ total }} paciente(s) · agrupado por veículo
+    </div>
   </div>
   <a href="{% url 'relatorios:index' %}" class="btn btn-ghost">Voltar</a>
 </div>
@@ -13,8 +16,11 @@
 <div class="card" style="margin-bottom:16px"><div class="card-body">
   <form method="get" class="rel-filtros">
     <div class="rel-grid">
-      <div class="field"><label>Data</label>
-        <input type="date" name="data" value="{{ dia|date:'Y-m-d' }}" class="campo"></div>
+      <div class="field"><label>Data (de)</label>
+        <input type="date" name="data_inicio" value="{{ ini|date:'Y-m-d' }}" class="campo"></div>
+      <div class="field"><label>Até (opcional)</label>
+        <input type="date" name="data_fim" value="{% if periodo %}{{ fim|date:'Y-m-d' }}{% endif %}" class="campo">
+        <small class="muted">Deixe vazio para um dia só. Máx. {{ max_dias }} dias.</small></div>
       <div class="field"><label>Cidades (destino)</label>
         <select name="municipio" class="campo" multiple size="4">
           {% for m in municipios %}<option value="{{ m.id }}" {% if m.id|stringformat:'s' in municipios_sel %}selected{% endif %}>{{ m }}</option>{% endfor %}
@@ -32,15 +38,22 @@
     </div>
     <div class="form-actions" style="margin-top:14px">
       <button type="submit" class="btn btn-primary">Ver mapa</button>
+      <a href="?" class="btn btn-ghost">Limpar</a>
       <span style="flex:1"></span>
       <button type="submit" name="export" value="pdf" class="btn btn-ghost">⬇ PDF (imprimir)</button>
       <button type="submit" name="export" value="xlsx" class="btn btn-primary">⬇ Excel (modelo)</button>
     </div>
+    {% if periodo %}<p class="muted" style="margin-top:10px">No período, cada dia sai separado: uma <b>aba</b> por dia no Excel e uma <b>página</b> por dia no PDF.</p>{% endif %}
   </form>
 </div></div>
 
-<div class="card"><div class="card-body">
-  {% if grupos %}
+{% if limitado %}
+<ul class="messages"><li class="info">O período foi limitado a {{ max_dias }} dias ({{ rotulo }}).</li></ul>
+{% endif %}
+
+{% for d in dias %}
+<div class="card" style="margin-bottom:16px"><div class="card-body">
+  {% if periodo %}<h2 style="margin:0 0 10px">{{ d.dia|date:"l, d/m/Y" }} <span class="muted" style="font-size:.8em;font-weight:normal">· {{ d.total }} paciente(s)</span></h2>{% endif %}
   <div class="table-wrap">
     <table class="data mapa">
       <thead><tr>
@@ -48,9 +61,9 @@
         <th>Embarque</th><th>Destino</th><th>Local</th><th>Saída</th><th>CPF</th>
       </tr></thead>
       <tbody>
-        {% for g in grupos %}
+        {% for g in d.grupos %}
         {% for lin in g.linhas %}
-        <tr {% if lin.ac %}class="ac"{% endif %}{% if forloop.first %} class="grupo-inicio"{% endif %}>
+        <tr class="{% if lin.ac %}ac{% endif %}{% if forloop.first %} grupo-inicio{% endif %}">
           {% if forloop.first %}
             <td rowspan="{{ g.linhas|length }}" class="veiculo">{{ g.veiculo }}</td>
           {% endif %}
@@ -70,12 +83,17 @@
       </tbody>
     </table>
   </div>
-  <p class="muted" style="margin-top:12px">
-    <b>Legenda:</b> N = não compareceu · P = presente · D = desceu do veículo · R = retornou ao veículo.
-    O agrupamento usa o campo <b>Tipo de veículo</b> do agendamento; sem veículo definido fica em <b>A DEFINIR</b>.
-  </p>
-  {% else %}
-  <div class="empty">Nenhum agendamento para a data selecionada.</div>
-  {% endif %}
 </div></div>
+{% empty %}
+<div class="card"><div class="card-body">
+  <div class="empty">Nenhum agendamento para {% if periodo %}o período{% else %}a data{% endif %} selecionado(a).</div>
+</div></div>
+{% endfor %}
+
+{% if dias %}
+<p class="muted">
+  <b>Legenda:</b> N = não compareceu · P = presente · D = desceu do veículo · R = retornou ao veículo.
+  Sem veículo definido, o paciente fica no grupo <b>A DEFINIR</b>.
+</p>
+{% endif %}
 {% endblock %}

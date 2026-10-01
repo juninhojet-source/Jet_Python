@@ -1,5 +1,5 @@
 """Relatórios e consultas (Fase 4)."""
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Q
@@ -16,7 +16,7 @@ from apps.veiculos.models import Veiculo
 
 from .exports import exportar_pdf, exportar_xlsx
 from .filtros import filtrar
-from .mapa import agrupar_por_veiculo, gerar_mapa_pdf, gerar_mapa_xlsx
+from .mapa import agrupar_por_veiculo, gerar_mapa_pdf_periodo, gerar_mapa_xlsx_periodo
 
 
 def _resposta_arquivo(conteudo, nome, tipo, request=None, detalhe=""):
@@ -130,26 +130,44 @@ class BPAView(LoginRequiredMixin, View):
 
 # ---------------------------------------------------------------- Mapa de Viagem
 class MapaViagemView(LoginRequiredMixin, View):
-    """Mapa diário da Garagem: agendamentos do dia agrupados por veículo."""
+    """Mapa da Garagem: agendamentos agrupados por veículo, um dia ou um período.
+
+    Período: cada dia sai separado (uma aba no Excel, uma página no PDF).
+    """
 
     template_name = "relatorios/mapa_viagem.html"
+    MAX_DIAS = 31  # limite do período, para não gerar arquivos gigantes
 
-    def _dia(self, request):
-        texto = request.GET.get("data", "").strip()
+    @staticmethod
+    def _data(texto):
         try:
-            return datetime.strptime(texto, "%Y-%m-%d").date()
+            return datetime.strptime((texto or "").strip(), "%Y-%m-%d").date()
         except ValueError:
-            return timezone.localdate()
+            return None
+
+    def _periodo(self, request):
+        """(início, fim, limitado). Aceita também o parâmetro antigo `data`."""
+        ini = self._data(request.GET.get("data_inicio")) or self._data(request.GET.get("data"))
+        fim = self._data(request.GET.get("data_fim"))
+        ini = ini or fim or timezone.localdate()
+        fim = fim or ini
+        if fim < ini:
+            ini, fim = fim, ini
+        limitado = (fim - ini).days >= self.MAX_DIAS
+        if limitado:
+            fim = ini + timedelta(days=self.MAX_DIAS - 1)
+        return ini, fim, limitado
 
     def get(self, request):
-        dia = self._dia(request)
+        ini, fim, limitado = self._periodo(request)
+        periodo = fim != ini
         motorista = request.GET.get("motorista", "").strip()
         qs = (
-            Agendamento.objects.filter(data=dia)
+            Agendamento.objects.filter(data__range=(ini, fim))
             .exclude(status=StatusAgendamento.CANCELADO)
             .select_related("paciente", "paciente__municipio", "destino",
                             "destino__municipio", "veiculo")
-            .order_by("horario")
+            .order_by("data", "horario")
         )
 
         # Filtros com seleção múltipla (vários municípios e/ou veículos).
@@ -180,27 +198,45 @@ class MapaViagemView(LoginRequiredMixin, View):
                 cond |= c
             qs = qs.filter(cond)
 
-        grupos = agrupar_por_veiculo(qs)
+        # Um mapa por dia (só os dias que têm agendamento).
+        por_data = {}
+        for a in qs:
+            por_data.setdefault(a.data, []).append(a)
+        dias = [(d, agrupar_por_veiculo(lista)) for d, lista in sorted(por_data.items())]
+
+        if periodo:
+            rotulo = f"{ini:%d/%m/%Y} a {fim:%d/%m/%Y}"
+            sufixo = f"{ini:%Y%m%d}_a_{fim:%Y%m%d}"
+        else:
+            rotulo, sufixo = f"{ini:%d/%m/%Y}", f"{ini:%Y%m%d}"
 
         export = request.GET.get("export")
-        if export == "xlsx":
-            dados = gerar_mapa_xlsx(dia, grupos, motorista)
+        if export in ("xlsx", "pdf"):
+            # Sem agendamentos: gera a folha do 1º dia com o aviso "nenhum".
+            para_exportar = dias or [(ini, [])]
+            if export == "xlsx":
+                return _resposta_arquivo(
+                    gerar_mapa_xlsx_periodo(para_exportar, motorista),
+                    f"mapa_viagem_{sufixo}.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    request=request, detalhe=f"Mapa de Viagem {rotulo} (Excel)",
+                )
             return _resposta_arquivo(
-                dados, f"mapa_viagem_{dia:%Y%m%d}.xlsx",
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                request=request, detalhe=f"Mapa de Viagem {dia:%d/%m/%Y} (Excel)",
-            )
-        if export == "pdf":
-            dados = gerar_mapa_pdf(dia, grupos, motorista)
-            return _resposta_arquivo(
-                dados, f"mapa_viagem_{dia:%Y%m%d}.pdf", "application/pdf",
-                request=request, detalhe=f"Mapa de Viagem {dia:%d/%m/%Y} (PDF)",
+                gerar_mapa_pdf_periodo(para_exportar, motorista),
+                f"mapa_viagem_{sufixo}.pdf", "application/pdf",
+                request=request, detalhe=f"Mapa de Viagem {rotulo} (PDF)",
             )
 
-        total = sum(1 for g in grupos for lin in g["linhas"] if not lin["ac"])
+        dias_ctx = [
+            {"dia": d, "grupos": g,
+             "total": sum(1 for gr in g for lin in gr["linhas"] if not lin["ac"])}
+            for d, g in dias
+        ]
         ctx = {
-            "dia": dia, "motorista": motorista, "grupos": grupos,
-            "total": total, "colunas": None,
+            "ini": ini, "fim": fim, "periodo": periodo, "limitado": limitado,
+            "max_dias": self.MAX_DIAS, "rotulo": rotulo,
+            "motorista": motorista, "dias": dias_ctx,
+            "total": sum(d["total"] for d in dias_ctx),
             "municipios": Municipio.objects.all(),
             "veiculos": Veiculo.objects.filter(ativo=True),
             "municipios_sel": municipios_sel,

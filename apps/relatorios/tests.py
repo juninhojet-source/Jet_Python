@@ -323,6 +323,79 @@ class MapaViagemTest(TestCase):
             r = self.client.get(reverse("relatorios:mapa_viagem"), {"data": vazio, "export": exp})
             self.assertEqual(r.status_code, 200)
 
+    def test_pdf_com_grupo_grande_nao_da_erro_500(self):
+        # Regressao: um grupo com muitos pacientes (ex.: "A DEFINIR") gerava
+        # LayoutError no PDF (celula mesclada maior que a pagina) -> erro 500.
+        self.client.force_login(self.user)
+        for i in range(60):
+            Agendamento.objects.create(
+                paciente=self.pac, destino=self.dst, data=self.dia, horario=time(6, 0),
+                acompanhante="Acomp" if i % 2 else "",
+            )
+        r = self.client.get(
+            reverse("relatorios:mapa_viagem"),
+            {"data_inicio": self.dia.strftime("%Y-%m-%d"), "export": "pdf"},
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.content.startswith(b"%PDF"))
+
+    def _segundo_dia(self):
+        outro = self.dia + timedelta(days=1)
+        Agendamento.objects.create(
+            paciente=self.pac2, destino=self.dst, data=outro, horario=time(8, 0),
+            tipo_veiculo="VAN BH",
+        )
+        return outro
+
+    def test_periodo_mostra_os_dias_separados(self):
+        self.client.force_login(self.user)
+        outro = self._segundo_dia()
+        r = self.client.get(reverse("relatorios:mapa_viagem"), {
+            "data_inicio": self.dia.strftime("%Y-%m-%d"),
+            "data_fim": outro.strftime("%Y-%m-%d"),
+        })
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.context["dias"]), 2)
+        self.assertContains(r, "CARRO 2")   # 1º dia
+        self.assertContains(r, "VAN BH")    # 2º dia
+
+    def test_periodo_excel_tem_uma_aba_por_dia(self):
+        from io import BytesIO
+        from openpyxl import load_workbook
+        self.client.force_login(self.user)
+        outro = self._segundo_dia()
+        r = self.client.get(reverse("relatorios:mapa_viagem"), {
+            "data_inicio": self.dia.strftime("%Y-%m-%d"),
+            "data_fim": outro.strftime("%Y-%m-%d"), "export": "xlsx",
+        })
+        self.assertEqual(r.status_code, 200)
+        wb = load_workbook(BytesIO(r.content))
+        self.assertEqual(wb.sheetnames, [f"{self.dia:%d-%m-%Y}", f"{outro:%d-%m-%Y}"])
+        r2 = self.client.get(reverse("relatorios:mapa_viagem"), {
+            "data_inicio": self.dia.strftime("%Y-%m-%d"),
+            "data_fim": outro.strftime("%Y-%m-%d"), "export": "pdf",
+        })
+        self.assertEqual(r2.status_code, 200)
+        self.assertTrue(r2.content.startswith(b"%PDF"))
+
+    def test_periodo_invertido_e_limitado(self):
+        self.client.force_login(self.user)
+        # "Até" antes de "De": inverte automaticamente.
+        outro = self._segundo_dia()
+        r = self.client.get(reverse("relatorios:mapa_viagem"), {
+            "data_inicio": outro.strftime("%Y-%m-%d"),
+            "data_fim": self.dia.strftime("%Y-%m-%d"),
+        })
+        self.assertEqual(r.context["ini"], self.dia)
+        self.assertEqual(r.context["fim"], outro)
+        # Período maior que o máximo: limita.
+        r2 = self.client.get(reverse("relatorios:mapa_viagem"), {
+            "data_inicio": self.dia.strftime("%Y-%m-%d"),
+            "data_fim": (self.dia + timedelta(days=200)).strftime("%Y-%m-%d"),
+        })
+        self.assertTrue(r2.context["limitado"])
+        self.assertEqual((r2.context["fim"] - r2.context["ini"]).days, 30)
+
 
 class FormulaInjectionTest(TestCase):
     def test_sanitiza_gatilhos_de_formula(self):

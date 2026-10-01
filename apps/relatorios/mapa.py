@@ -10,6 +10,7 @@ veículo definido ficam no grupo "A DEFINIR", ao final.
 """
 import re
 from io import BytesIO
+from xml.sax.saxutils import escape
 
 from django.conf import settings
 from openpyxl import Workbook
@@ -19,7 +20,9 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import (
+    PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+)
 
 NAVY = "16386E"
 GOLD = "F2C230"
@@ -127,10 +130,27 @@ def agrupar_por_veiculo(qs):
 
 # --------------------------------------------------------------------- Excel
 def gerar_mapa_xlsx(dia, grupos, motorista=""):
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Mapa de Viagem"
+    """Mapa de um único dia (uma aba)."""
+    return gerar_mapa_xlsx_periodo([(dia, grupos)], motorista)
 
+
+def gerar_mapa_xlsx_periodo(dias, motorista=""):
+    """Mapa de um ou mais dias: uma aba por dia, cada uma no modelo da Garagem.
+
+    `dias` é uma lista de (data, grupos).
+    """
+    wb = Workbook()
+    varios = len(dias) > 1
+    for i, (dia, grupos) in enumerate(dias):
+        ws = wb.active if i == 0 else wb.create_sheet()
+        ws.title = f"{dia:%d-%m-%Y}" if varios else "Mapa de Viagem"
+        _preencher_planilha(ws, dia, grupos, motorista)
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def _preencher_planilha(ws, dia, grupos, motorista):
     n_cols = len(COLUNAS)
     ult = get_column_letter(n_cols)
     fina = Side(style="thin", color="B7C3D6")
@@ -248,34 +268,84 @@ def gerar_mapa_xlsx(dia, grupos, motorista=""):
     ws.sheet_properties.pageSetUpPr.fitToPage = True
     ws.print_title_rows = f"1:{linha_cab}"
 
-    buf = BytesIO()
-    wb.save(buf)
-    return buf.getvalue()
-
 
 # ----------------------------------------------------------------------- PDF
+# Máximo de linhas por bloco mesclado no PDF. Um bloco mesclado (célula do
+# veículo/saída) não pode ser quebrado entre páginas; grupos maiores que isso
+# são divididos em blocos, repetindo o veículo com "(cont.)".
+BLOCO_PDF = 15
+
+
+def _blocos(linhas, tamanho=BLOCO_PDF):
+    """Divide as linhas de um grupo em blocos de até `tamanho` linhas.
+
+    Nunca separa o acompanhante (linha "ac") do seu paciente: só corta antes
+    de uma linha de paciente.
+    """
+    blocos, atual = [], []
+    for lin in linhas:
+        if atual and not lin["ac"] and len(atual) >= tamanho - 1:
+            blocos.append(atual)
+            atual = []
+        atual.append(lin)
+    if atual:
+        blocos.append(atual)
+    return blocos
+
+
+def _p(texto, estilo):
+    """Paragraph com o texto escapado (evita erro com &, < e > nos dados)."""
+    return Paragraph(escape(str(texto or "")), estilo)
+
+
+def _estilos_pdf():
+    estilos = getSampleStyleSheet()
+    cel = ParagraphStyle("cel", parent=estilos["Normal"], fontSize=7.5, leading=9)
+    return {
+        "titulo": ParagraphStyle(
+            "titulo", parent=estilos["Title"], fontSize=14,
+            textColor=colors.HexColor("#" + NAVY), spaceAfter=2,
+        ),
+        "sub": ParagraphStyle("sub", parent=estilos["Normal"], fontSize=9,
+                              textColor=colors.HexColor("#5b6b7b")),
+        "cel": cel,
+        "cel_ac": ParagraphStyle("celac", parent=cel, textColor=colors.HexColor("#5b6b7b"),
+                                 fontName="Helvetica-Oblique"),
+    }
+
+
 def gerar_mapa_pdf(dia, grupos, motorista=""):
+    """Mapa de um único dia."""
+    return gerar_mapa_pdf_periodo([(dia, grupos)], motorista)
+
+
+def gerar_mapa_pdf_periodo(dias, motorista=""):
+    """Mapa de um ou mais dias: cada dia começa em uma página nova."""
     buf = BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=landscape(A4),
         leftMargin=10 * mm, rightMargin=10 * mm, topMargin=10 * mm, bottomMargin=10 * mm,
         title="Mapa de Viagem",
     )
-    estilos = getSampleStyleSheet()
-    titulo = ParagraphStyle(
-        "titulo", parent=estilos["Title"], fontSize=14,
-        textColor=colors.HexColor("#" + NAVY), spaceAfter=2,
-    )
-    sub = ParagraphStyle("sub", parent=estilos["Normal"], fontSize=9,
-                         textColor=colors.HexColor("#5b6b7b"))
-    cel = ParagraphStyle("cel", parent=estilos["Normal"], fontSize=7.5, leading=9)
-    cel_ac = ParagraphStyle("celac", parent=cel, textColor=colors.HexColor("#5b6b7b"),
-                            fontName="Helvetica-Oblique")
+    st = _estilos_pdf()
+    elementos = []
+    for i, (dia, grupos) in enumerate(dias):
+        if i:
+            elementos.append(PageBreak())
+        elementos += _elementos_dia(dia, grupos, motorista, st)
+    doc.build(elementos)
+    return buf.getvalue()
 
+
+def _elementos_dia(dia, grupos, motorista, st):
+    cel, cel_ac, sub = st["cel"], st["cel_ac"], st["sub"]
     elementos = [
-        Paragraph(settings.ORGAO["SECRETARIA"] + " de Barão de Cocais", titulo),
+        Paragraph(settings.ORGAO["SECRETARIA"] + " de Barão de Cocais", st["titulo"]),
         Paragraph("Agendamentos de transporte — GARAGEM", sub),
-        Paragraph(f"<b>DATA:</b> {dia:%d/%m/%Y} &nbsp;&nbsp; <b>MOTORISTA:</b> {motorista or '________________'}", sub),
+        Paragraph(
+            f"<b>DATA:</b> {dia:%d/%m/%Y} &nbsp;&nbsp; <b>MOTORISTA:</b> "
+            f"{escape(motorista) if motorista else '________________'}", sub,
+        ),
         Spacer(1, 8),
     ]
 
@@ -293,28 +363,31 @@ def gerar_mapa_pdf(dia, grupos, motorista=""):
 
     linha_atual = 1
     for grupo in grupos:
-        inicio = linha_atual
-        for lin in grupo["linhas"]:
-            est = cel_ac if lin["ac"] else cel
-            dados.append([
-                Paragraph("", cel),  # veículo — preenchido via SPAN
-                Paragraph(lin["nome"], est), Paragraph(lin["telefone"], est),
-                Paragraph(lin["horario"], est), Paragraph(lin["embarque"], est),
-                Paragraph(lin["destino"], est), Paragraph(lin["local"], est),
-                Paragraph("", cel),  # saída — preenchido via SPAN
-                Paragraph(lin["cpf"], est),  # CPF — sempre a última coluna
-            ])
-            linha_atual += 1
-        fim = linha_atual - 1
-        if fim < inicio:
-            continue
-        dados[inicio][0] = Paragraph(f"<b>{grupo['veiculo']}</b>", cel)
-        dados[inicio][7] = Paragraph(f"<b>{_hhmm(grupo['saida'])}</b>", cel)
-        estilo_cmds += [
-            ("SPAN", (0, inicio), (0, fim)),
-            ("SPAN", (7, inicio), (7, fim)),
-            ("LINEABOVE", (0, inicio), (-1, inicio), 0.8, colors.HexColor("#" + NAVY)),
-        ]
+        for bi, bloco in enumerate(_blocos(grupo["linhas"])):
+            inicio = linha_atual
+            for lin in bloco:
+                est = cel_ac if lin["ac"] else cel
+                dados.append([
+                    Paragraph("", cel),  # veículo — preenchido via SPAN
+                    _p(lin["nome"], est), _p(lin["telefone"], est),
+                    _p(lin["horario"], est), _p(lin["embarque"], est),
+                    _p(lin["destino"], est), _p(lin["local"], est),
+                    Paragraph("", cel),  # saída — preenchido via SPAN
+                    _p(lin["cpf"], est),  # CPF — sempre a última coluna
+                ])
+                linha_atual += 1
+            fim = linha_atual - 1
+            nome_veiculo = escape(grupo["veiculo"]) + (" (cont.)" if bi else "")
+            dados[inicio][0] = Paragraph(f"<b>{nome_veiculo}</b>", cel)
+            dados[inicio][7] = Paragraph(f"<b>{_hhmm(grupo['saida'])}</b>", cel)
+            estilo_cmds += [
+                ("SPAN", (0, inicio), (0, fim)),
+                ("SPAN", (7, inicio), (7, fim)),
+            ]
+            if bi == 0:
+                estilo_cmds.append(
+                    ("LINEABOVE", (0, inicio), (-1, inicio), 0.8, colors.HexColor("#" + NAVY))
+                )
 
     if not grupos:
         dados.append([Paragraph("Nenhum agendamento para a data selecionada.", cel)] + [""] * (len(COLUNAS) - 1))
@@ -327,6 +400,4 @@ def gerar_mapa_pdf(dia, grupos, motorista=""):
 
     elementos.append(Spacer(1, 8))
     elementos.append(Paragraph("<b>Legenda:</b> " + " · ".join(LEGENDA), sub))
-
-    doc.build(elementos)
-    return buf.getvalue()
+    return elementos
