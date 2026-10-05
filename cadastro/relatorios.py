@@ -287,6 +287,63 @@ def lista_ordem_cadastro_pdf(inscricoes) -> HttpResponse:
     return resp
 
 
+def base_pdf(cabecalhos, linhas) -> HttpResponse:
+    """Exporta a base de inscrições em PDF (paisagem, fonte compacta)."""
+    from reportlab.lib.pagesizes import landscape
+
+    estilos = getSampleStyleSheet()
+    cel = estilos["Normal"].clone("cel_base")
+    cel.fontSize = 6.8
+    cel.leading = 8
+
+    e = [
+        Paragraph("Base de inscrições — MCMV / Barão de Cocais", estilos["Title"]),
+        Paragraph("Edital 001/2026", estilos["Normal"]),
+        Spacer(1, 6),
+    ]
+    dados = [list(cabecalhos)]
+    for linha in linhas:
+        row = list(linha)
+        if len(row) > 1:  # quebra o nome do requerente (coluna 1)
+            row[1] = Paragraph(str(row[1]), cel)
+        dados.append(row)
+
+    # Larguras (mm) para o layout de 16 colunas da base; se vier outro número
+    # de colunas, distribui igualmente.
+    if len(cabecalhos) == 16:
+        larguras = [14, 38, 22, 22, 24, 11, 10, 10, 9, 20, 18, 14, 8, 8, 12, 13]
+    else:
+        larguras = [273 / len(cabecalhos)] * len(cabecalhos)
+    col = [w * mm for w in larguras]
+
+    t = Table(dados, colWidths=col, repeatRows=1)
+    t.setStyle(TableStyle([
+        ("FONTSIZE", (0, 0), (-1, -1), 6.8),
+        ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#d6dce3")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("BACKGROUND", (0, 0), (-1, 0), _AZUL),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f4f6f8")]),
+        ("TOPPADDING", (0, 0), (-1, -1), 1.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+    ]))
+    e.append(t)
+    e.append(Spacer(1, 6))
+    e.append(Paragraph(f"Total: {len(dados) - 1} inscrição(ões).", estilos["Normal"]))
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=landscape(A4), topMargin=12 * mm, bottomMargin=12 * mm,
+        leftMargin=12 * mm, rightMargin=12 * mm, title="base_mcmv.pdf",
+    )
+    doc.build(e)
+    buf.seek(0)
+    resp = HttpResponse(buf.getvalue(), content_type="application/pdf")
+    resp["Content-Disposition"] = 'inline; filename="base_mcmv.pdf"'
+    return resp
+
+
 def _recibo_via(inscricao, titulo_via: str, estilos) -> list:
     """Monta os elementos de UMA via do comprovante (compacta, meia folha)."""
     via_lbl = estilos["Normal"].clone("via_lbl")

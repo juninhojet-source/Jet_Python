@@ -481,13 +481,18 @@ class RelatoriosTest(TestCase):
         insc = Inscricao.objects.create(requerente=req, data_referencia=REF, status=Inscricao.Status.APTO)
         m = MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
         Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal("2500"))
+        conj = Pessoa.objects.create(nome="Esposa", cpf="viv2", data_nascimento=nasc(38), sexo="F")
+        MembroNucleo.objects.create(inscricao=insc, pessoa=conj, parentesco="CONJUGE")
         linha = views._linha_inscricao(insc)
-        self.assertEqual(linha[8], Decimal("2500.00"))   # renda computável
-        self.assertEqual(linha[13], 40)                  # total (CL_IV: renda ≤ 4863)
+        self.assertEqual(linha[2], "viv1")               # CPF do requerente
+        self.assertEqual(linha[3], "viv2")               # CPF do cônjuge/companheiro
+        self.assertEqual(linha[9], Decimal("2500.00"))   # renda computável
+        self.assertEqual(linha[14], 50)                  # CL_IV (40) + per capita 1250 (10)
 
     def test_pdfs(self):
         for url in [reverse("cadastro:rel_classificacao_pdf"),
                     reverse("cadastro:rel_ordem_cadastro_pdf"),
+                    reverse("cadastro:rel_base_pdf"),
                     reverse("cadastro:rel_ficha_pdf", args=[self.insc.pk])]:
             resp = self.client.get(url)
             self.assertEqual(resp.status_code, 200)

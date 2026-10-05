@@ -678,6 +678,10 @@ def _linha_inscricao(i):
     membros = list(i.membros.all())
     pcd = sum(1 for m in membros if m.pessoa.pcd)
     pos = getattr(getattr(i, "classificacao", None), "posicao", None)
+    conjuge = next(
+        (m.pessoa for m in membros if m.parentesco in ("CONJUGE", "COMPANHEIRO")), None
+    )
+    cpf_conjuge = conjuge.cpf if conjuge else ""
 
     # Recalcula ao vivo (não depende do snapshot salvo, que pode estar
     # desatualizado/zerado se a pontuação não foi recalculada após a digitação).
@@ -690,7 +694,8 @@ def _linha_inscricao(i):
         return Decimal(v).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     return [
-        i.numero_inscricao, i.requerente.nome, i.requerente.cpf, i.get_status_display(),
+        i.numero_inscricao, i.requerente.nome, i.requerente.cpf, cpf_conjuge,
+        i.get_status_display(),
         len(membros), r.dependentes_ate_12, r.idosos, pcd,
         _2(nucleo.renda_bruta_computavel()), _2(r.renda_per_capita), _2(r.percentual_aluguel),
         r.pontos_legais, r.pontos_complementares, r.pontuacao_total,
@@ -699,14 +704,14 @@ def _linha_inscricao(i):
 
 
 CAB_BASE = [
-    "Nº", "Requerente", "CPF", "Situação", "Integrantes", "≤12 anos", "Idosos", "PcD",
+    "Nº", "Requerente", "CPF", "CPF cônjuge/comp.", "Situação",
+    "Integrantes", "≤12 anos", "Idosos", "PcD",
     "Renda computável", "Per capita", "% aluguel", "CL", "CC", "Total", "Posição",
 ]
 
 
-@login_required
-@perfil_requerido(ADMIN)
-def rel_base(request):
+def _base_dados(request):
+    """Monta as linhas da base aplicando os filtros da requisição."""
     qs = Inscricao.objects.select_related("requerente").prefetch_related("membros__pessoa")
     status = request.GET.get("status", "").strip()
     if status:
@@ -720,14 +725,26 @@ def rel_base(request):
     if pmax:
         qs = qs.filter(pontuacao_total__lte=int(pmax))
 
-    linhas = [_linha_inscricao(i) for i in qs]
+    linhas = [_linha_inscricao(i) for i in qs.order_by("numero_inscricao")]
     if request.GET.get("pcd"):
-        linhas = [l for l in linhas if l[7]]  # coluna PcD
+        linhas = [l for l in linhas if l[8]]        # coluna PcD
     if request.GET.get("criancas"):
-        linhas = [l for l in linhas if l[5]]  # coluna ≤12
+        linhas = [l for l in linhas if l[6]]        # coluna ≤12
     if request.GET.get("idosos"):
-        linhas = [l for l in linhas if l[6]]  # coluna idosos
-    return relatorios.planilha_response("base_mcmv.xlsx", CAB_BASE, linhas)
+        linhas = [l for l in linhas if l[7]]        # coluna idosos
+    return linhas
+
+
+@login_required
+@perfil_requerido(ADMIN)
+def rel_base(request):
+    return relatorios.planilha_response("base_mcmv.xlsx", CAB_BASE, _base_dados(request))
+
+
+@login_required
+@perfil_requerido(ADMIN)
+def rel_base_pdf(request):
+    return relatorios.base_pdf(CAB_BASE, _base_dados(request))
 
 
 @login_required

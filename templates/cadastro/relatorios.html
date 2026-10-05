@@ -47,7 +47,10 @@
     <div class="check"><input type="checkbox" name="pcd" value="1"> <label>Somente com pessoa com deficiência</label></div>
     <div class="check"><input type="checkbox" name="criancas" value="1"> <label>Somente com crianças ≤ 12</label></div>
     <div class="check"><input type="checkbox" name="idosos" value="1"> <label>Somente com idosos</label></div>
-    <div style="margin-top:1rem"><button class="btn" type="submit">Exportar Excel</button></div>
+    <div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap">
+      <button class="btn" type="submit">Exportar Excel</button>
+      <button class="btn secundario" type="submit" formaction="{% url 'cadastro:rel_base_pdf' %}" formtarget="_blank">Exportar PDF</button>
+    </div>
   </form>
 </div>
 {% endif %}

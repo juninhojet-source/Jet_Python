@@ -35,6 +35,7 @@ urlpatterns = [
     # Relatórios e exportação (Fase 5)
     path("relatorios/", views.relatorios_index, name="relatorios"),
     path("relatorios/base.xlsx", views.rel_base, name="rel_base"),
+    path("relatorios/base.pdf", views.rel_base_pdf, name="rel_base_pdf"),
     path("relatorios/classificacao.xlsx", views.rel_classificacao_xlsx, name="rel_classificacao_xlsx"),
     path("relatorios/classificacao.pdf", views.rel_classificacao_pdf, name="rel_classificacao_pdf"),
     path("relatorios/ordem-cadastro.pdf", views.rel_ordem_cadastro_pdf, name="rel_ordem_cadastro_pdf"),
