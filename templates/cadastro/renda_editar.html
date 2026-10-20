@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block titulo %}Editar renda — MCMV{% endblock %}
+{% block content %}
+<h1>Editar renda — {{ inscricao.numero_inscricao }}</h1>
+<p class="trilha">Integrante: <strong>{{ renda.membro.pessoa.nome }}</strong>.
+Corrija o valor, o tipo, a competência ou a marcação de computável.</p>
+<div class="card">
+  <form method="post" class="pilha">
+    {% csrf_token %}
+    <div class="grid2">{% include "cadastro/_campos.html" %}</div>
+    <div style="margin-top:1.2rem">
+      <button class="btn" type="submit">Salvar alterações</button>
+      <a class="btn secundario" href="{% url 'cadastro:wizard' inscricao.pk 'renda' %}">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

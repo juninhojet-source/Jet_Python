@@ -1,0 +1,10 @@
+# Dependências de runtime
+PyYAML>=6.0            # leitura dos parâmetros do edital (motor de pontuação)
+Django>=5.0           # aplicação web
+openpyxl>=3.1         # exportação de planilhas .xlsx
+reportlab>=4.0        # geração de PDFs (ficha individual, classificação)
+python-dotenv>=1.0    # carregamento opcional de variáveis via .env
+
+# --- Produção (instale no servidor) ---
+# psycopg[binary]>=3.1   # driver PostgreSQL
+# gunicorn>=21.0         # servidor WSGI

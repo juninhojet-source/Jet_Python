@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block titulo %}Cadastro {{ inscricao.numero_inscricao }} — MCMV{% endblock %}
+{% block content %}
+<h1>Assistente de cadastro — {{ inscricao.numero_inscricao }}</h1>
+
+<ol class="stepper">
+  {% for p in passos %}
+  <li class="{% if p.atual %}atual{% elif p.concluida %}concluida{% endif %}">
+    <a href="{% url 'cadastro:wizard' inscricao.pk p.slug %}">
+      <span class="num">{{ p.numero }}</span> {{ p.rotulo }}
+    </a>
+  </li>
+  {% endfor %}
+</ol>
+
+{% block etapa %}{% endblock %}
+
+<div class="wizard-nav">
+  {% if url_anterior %}<a class="btn secundario" href="{{ url_anterior }}">◀ Voltar</a>{% endif %}
+  {% if url_proxima %}<a class="btn secundario" href="{{ url_proxima }}">Avançar ▶ (sem salvar)</a>{% endif %}
+  <a class="btn secundario" href="{% url 'cadastro:inscricao_detalhe' inscricao.pk %}">Sair do assistente</a>
+</div>
+{% endblock %}

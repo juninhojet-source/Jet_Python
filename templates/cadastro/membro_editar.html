@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block titulo %}Editar integrante — MCMV{% endblock %}
+{% block content %}
+<h1>Editar integrante — {{ inscricao.numero_inscricao }}</h1>
+{% if membro.pessoa_id == inscricao.requerente_id %}
+<p class="trilha">Este é o <strong>requerente</strong> (titular do núcleo). O parentesco
+é fixo; você pode ajustar os demais dados, inclusive marcar <strong>Arrimo do núcleo</strong>.</p>
+{% endif %}
+<div class="card">
+  <form method="post" class="pilha">
+    {% csrf_token %}
+    <div class="grid2">{% include "cadastro/_campos.html" %}</div>
+    <div style="margin-top:1.2rem">
+      <button class="btn" type="submit">Salvar alterações</button>
+      <a class="btn secundario" href="{% url 'cadastro:wizard' inscricao.pk 'nucleo' %}">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titulo %}Novo integrante — MCMV{% endblock %}
+{% block content %}
+<h1>Adicionar integrante — {{ inscricao.numero_inscricao }}</h1>
+<div class="card">
+  <form method="post" class="pilha">
+    {% csrf_token %}
+    {% include "cadastro/_campos.html" %}
+    <div style="margin-top:1.2rem">
+      <button class="btn" type="submit">Adicionar</button>
+      <a class="btn secundario" href="{% url 'cadastro:inscricao_detalhe' inscricao.pk %}">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

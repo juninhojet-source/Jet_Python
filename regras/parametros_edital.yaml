@@ -1,0 +1,198 @@
+# =============================================================================
+# PARÂMETROS DO EDITAL — fonte única da verdade para o motor de pontuação
+# Edital de Chamamento nº 001/2026 — Barão de Cocais/MG (MCMV)
+# Lei Municipal nº 2.064/2023
+# -----------------------------------------------------------------------------
+# Se o edital mudar, altere ESTE arquivo — não o código do motor.
+# Todos os valores são NOMINAIS e FIXOS para este processo (item 8.7.5 / 8.5.1).
+# Operadores de borda são explícitos: "min" e "max" com "inclusivo" true/false.
+# =============================================================================
+
+edital:
+  numero: "001/2026"
+  municipio: "Barão de Cocais/MG"
+  data_publicacao: "2026-08-28"
+  programa: "Minha Casa, Minha Vida - MCMV"
+  base_legal: "Lei Municipal nº 2.064/2023"
+
+# Valores de referência ancorados na publicação (não reajustar automaticamente)
+referencia:
+  salario_minimo: 1621.00        # SM vigente na publicação
+  pontuacao_maxima_total: 190
+  pontuacao_maxima_legais: 160
+  pontuacao_maxima_complementares: 30
+
+# -----------------------------------------------------------------------------
+# PRÉ-REQUISITOS / ELIMINAÇÃO (itens 3.1 e 6.1) — gates ANTES da pontuação
+# -----------------------------------------------------------------------------
+requisitos:
+  idade_minima_anos: 18                       # item 3.1.1
+  anos_residencia_municipio: 5                # item 3.1.2 / 6.1.3
+  exige_brasileiro: true                      # item 3.1.3
+  renda_familiar:
+    minima: 1621.00                           # item 3.1.4 / 6.1.4 (1 SM)
+    maxima: 8105.00                           # item 3.1.4 / 6.1.4 (5 SM)
+    minima_inclusiva: true                    # "de 1 salário-mínimo"
+    maxima_inclusiva: true                    # "até R$ 8.105,00"
+  vedado_proprietario_imovel: true            # item 3.1.5 / 6.1.1
+  vedado_beneficiado_anteriormente: true      # item 3.1.6 / 6.1.2
+  inscricao_unica_por_nucleo: true            # itens 2.2 / 3.2 / 3.3.4
+
+# Rendas NÃO computáveis para enquadramento e per capita (item 3.1.4.1)
+rendas_nao_computaveis:
+  - BPC                    # Benefício de Prestação Continuada
+  - BOLSA_FAMILIA
+  - SEGURO_DESEMPREGO
+  - AUXILIO_DOENCA
+  - AUXILIO_ACIDENTE
+  - BENEFICIO_TEMPORARIO   # demais benefícios temporários indenizatórios/assistenciais
+
+# -----------------------------------------------------------------------------
+# CRITÉRIOS LEGAIS — item 8.5. 40 pts por inciso, cumuláveis, máx 160.
+# Situações diferentes dentro do MESMO inciso NÃO acumulam (8.5.2.1).
+# -----------------------------------------------------------------------------
+criterios_legais:
+  pontos_por_inciso: 40
+  limite: 160
+  incisos:
+    - id: CL_I
+      nome: "Habitação precária/emergencial/risco ou inadequação de acessibilidade"
+      descricao: >
+        Habitação em estado precário, emergencial ou de risco, ou situação estrutural
+        inadequada para acessibilidade de pessoas idosas, com deficiência, mobilidade
+        reduzida, doenças crônicas e/ou dificuldade de locomoção.
+      exige_comprovacao: true
+      pontos: 40
+    - id: CL_II
+      nome: "Crianças de 0 a 12 anos com matrícula comprovada"
+      descricao: >
+        Existência de crianças de 0 a 12 anos, com comprovação obrigatória de matrícula
+        na rede regular de ensino do município.
+      condicoes_obrigatorias:      # TODAS precisam ser verdadeiras
+        - existe_crianca_0_a_12
+        - matricula_comprovada
+      pontos: 40
+    - id: CL_III
+      nome: "Arrimo do núcleo é mulher ou pessoa idosa"
+      descricao: "Quando o arrimo do Núcleo Familiar for mulher ou pessoa idosa."
+      exige_comprovacao: true
+      pontos: 40
+    - id: CL_IV
+      nome: "Renda bruta familiar mensal ≤ R$ 4.863,00"
+      descricao: "Renda bruta familiar mensal inferior ou igual a R$ 4.863,00 (3 SM, fixo)."
+      limite_renda: 4863.00
+      limite_inclusivo: true       # "inferior ou igual a"
+      pontos: 40
+
+# -----------------------------------------------------------------------------
+# CRITÉRIOS COMPLEMENTARES — item 8.6. Máx 30 (15 + 15).
+# -----------------------------------------------------------------------------
+criterios_complementares:
+  limite: 30
+
+  # --- Renda per capita (item 8.7). Faixa exclusiva, sem acumulação. ---
+  # per_capita = renda_bruta_computavel / nº integrantes considerados (D-2)
+  renda_per_capita:
+    limite: 15
+    # Cada faixa: min < valor <= max, conforme flags de inclusão.
+    faixas:
+      - pontos: 15
+        min: null                  # sem piso
+        max: 810.50
+        max_inclusivo: true        # "igual ou inferior a R$ 810,50"
+      - pontos: 10
+        min: 810.50
+        min_inclusivo: false       # "superior a R$ 810,50"
+        max: 1621.00
+        max_inclusivo: true        # "igual ou inferior a R$ 1.621,00"
+      - pontos: 5
+        min: 1621.00
+        min_inclusivo: false
+        max: 2431.50
+        max_inclusivo: true
+      - pontos: 0
+        min: 2431.50
+        min_inclusivo: false       # "superior a R$ 2.431,50"
+        max: null
+
+  # --- Comprometimento com aluguel (item 8.8). Faixa exclusiva. ---
+  # percentual = (media_aluguel_3_meses / renda_bruta_mensal_familiar) * 100
+  aluguel:
+    limite: 15
+    meses_referencia: 3            # média dos 3 meses anteriores à publicação (8.8.8)
+    cedido_ou_emprestado_pontos: 0 # item 8.8.6
+    # Percentuais em %. Bordas explícitas conforme item 8.8.2.
+    faixas:
+      - pontos: 0
+        max: 20.0
+        max_inclusivo: false       # "inferior a 20%"
+      - pontos: 1
+        min: 20.0
+        min_inclusivo: true        # "igual ou superior a 20%"
+        max: 25.0
+        max_inclusivo: true        # "e igual ou inferior a 25%"
+      - pontos: 3
+        min: 25.0
+        min_inclusivo: false       # "superior a 25%"
+        max: 30.0
+        max_inclusivo: true
+      - pontos: 6
+        min: 30.0
+        min_inclusivo: false
+        max: 35.0
+        max_inclusivo: true
+      - pontos: 8
+        min: 35.0
+        min_inclusivo: false
+        max: 40.0
+        max_inclusivo: true
+      - pontos: 10
+        min: 40.0
+        min_inclusivo: false
+        max: 45.0
+        max_inclusivo: true
+      - pontos: 13
+        min: 45.0
+        min_inclusivo: false
+        max: 50.0
+        max_inclusivo: true
+      - pontos: 15
+        min: 50.0
+        min_inclusivo: false       # "superior a 50%"
+        max: null
+
+# -----------------------------------------------------------------------------
+# DESEMPATE — item 8.10 (aplicados sucessivamente)
+# -----------------------------------------------------------------------------
+desempate:
+  ordem:
+    - criterio: filhos_dependentes_ate_12   # maior número (sem exigir matrícula)
+      direcao: desc
+      automatico: true
+    - criterio: idosos                       # maior número de idosos (>= 60 anos)
+      direcao: desc
+      automatico: true
+    - criterio: sorteio_publico              # ato administrativo — NÃO automatizável
+      automatico: false
+
+# -----------------------------------------------------------------------------
+# GRUPOS PRIORITÁRIOS — item 5 (afetam CONTRATAÇÃO, não a pontuação)
+# -----------------------------------------------------------------------------
+grupos_prioritarios:
+  - id: PCD
+    nome: "Pessoas com deficiência"
+    percentual_reserva: 5
+    base_legal: "Art. 32, Lei 13.146/2015"
+  - id: IDOSO
+    nome: "Pessoas idosas (>= 60 anos)"
+    percentual_reserva: 5
+    base_legal: "Art. 38, I, Lei 10.741/2003"
+
+# -----------------------------------------------------------------------------
+# DEFINIÇÕES DE IDADE (calcular a partir da data de nascimento na data de referência)
+# -----------------------------------------------------------------------------
+faixas_etarias:
+  crianca_max_anos: 12       # "0 a 12 anos" (inclusive)
+  idoso_min_anos: 60         # ">= 60 anos"
+  maioridade_anos: 18
+  # data_referencia: definir (D-1). Sugestão: data da inscrição do núcleo.

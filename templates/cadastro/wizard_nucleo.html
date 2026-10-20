@@ -1,0 +1,40 @@
+{% extends "cadastro/wizard_base.html" %}
+{% block etapa %}
+<div class="card">
+  <h2>2. Composição do Núcleo Familiar</h2>
+  <table>
+    <thead><tr><th>Nome</th><th>Parentesco</th><th>Nascimento</th><th>Arrimo</th><th>Ações</th></tr></thead>
+    <tbody>
+      {% for m in membros %}
+      <tr>
+        <td>{{ m.pessoa.nome }}{% if m.pessoa.pcd %} <span class="badge">PcD</span>{% endif %}</td>
+        <td>{{ m.get_parentesco_display }}</td>
+        <td>{{ m.pessoa.data_nascimento }}</td>
+        <td>{% if m.arrimo %}<span class="badge ok">Sim</span>{% else %}—{% endif %}</td>
+        <td style="white-space:nowrap">
+          <a class="btn pequeno secundario" href="{% url 'cadastro:membro_editar' m.pk %}">✏ Editar</a>
+          {% if m.pessoa_id != inscricao.requerente_id %}
+          <form method="post" action="{% url 'cadastro:membro_excluir' m.pk %}" style="display:inline"
+                onsubmit="return confirm('Remover {{ m.pessoa.nome|escapejs }} do núcleo?');">
+            {% csrf_token %}
+            <button class="btn pequeno perigo" type="submit">🗑 Excluir</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5">Apenas o requerente. Adicione os demais integrantes abaixo.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Adicionar integrante</h2>
+  <form method="post" class="pilha">
+    {% csrf_token %}
+    <div class="grid2">{% include "cadastro/_campos.html" %}</div>
+    <div style="margin-top:1rem"><button class="btn" type="submit">Adicionar integrante</button></div>
+  </form>
+</div>
+{% endblock %}

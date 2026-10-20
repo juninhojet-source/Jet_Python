@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block titulo %}Backup e restauração — MCMV{% endblock %}
+{% block content %}
+<h1>Backup e restauração</h1>
+<p class="trilha">Área restrita ao Administrador. O backup inclui o banco de dados
+e os documentos anexados (mídia).</p>
+
+<h2>Backup manual</h2>
+<div class="card">
+  <p>Gera um backup consistente agora (banco + documentos), salva na pasta de
+  backups do servidor e baixa uma cópia para você.</p>
+  <a class="btn" href="{% url 'cadastro:backup_baixar' %}">⬇ Baixar backup agora (.zip)</a>
+  <p class="trilha" style="margin-top:.6rem">Pasta de backups no servidor: <code>{{ pasta_backup }}</code></p>
+</div>
+
+{% if backups %}
+<div class="card">
+  <h3 style="margin-top:0">Backups recentes no servidor</h3>
+  <table>
+    <thead><tr><th>Arquivo</th><th>Data</th><th>Tamanho</th></tr></thead>
+    <tbody>
+      {% for b in backups %}
+      <tr>
+        <td>{{ b.nome }}</td>
+        <td>{{ b.data|date:"d/m/Y H:i" }}</td>
+        <td>{{ b.tamanho_mb|floatformat:1 }} MB</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<h2>Numeração das inscrições</h2>
+<div class="card">
+  <p>Reinicia a contagem para que a <strong>próxima inscrição seja 000001</strong>.
+  Funciona apenas com o banco <strong>sem inscrições</strong> — exclua todas antes
+  (o botão é recusado se houver inscrições, para não repetir números). Executa no
+  próprio sistema em uso, garantindo o reinício no banco correto.</p>
+  <form method="post" action="{% url 'cadastro:numeracao_resetar' %}"
+        onsubmit="return confirm('Reiniciar a numeração das inscrições em 000001?');">
+    {% csrf_token %}
+    <button class="btn" type="submit">↺ Reiniciar numeração (000001)</button>
+  </form>
+</div>
+
+<h2>Liberar CPF preso</h2>
+<div class="card">
+  <p>Se um CPF ficou "preso" por uma pessoa sem vínculo (impedindo um novo
+  cadastro), informe o CPF para liberá-lo. Só remove quando a pessoa <strong>não
+  está vinculada</strong> a nenhuma inscrição.</p>
+  <form method="post" action="{% url 'cadastro:cpf_liberar' %}" class="pilha"
+        onsubmit="return confirm('Liberar este CPF?');">
+    {% csrf_token %}
+    <div class="campo">
+      <label for="cpf">CPF (com ou sem máscara)</label>
+      <input type="text" name="cpf" id="cpf" class="cpf" maxlength="14"
+             inputmode="numeric" placeholder="000.000.000-00" required>
+    </div>
+    <div style="margin-top:.6rem"><button class="btn" type="submit">Liberar CPF</button></div>
+  </form>
+</div>
+
+<h2>Restaurar backup</h2>
+<div class="card" style="border-color:#b3261e">
+  <p><strong>Atenção:</strong> a restauração <strong>substitui todos os dados atuais</strong>
+  (inscrições, documentos e usuários) pelos dados do backup enviado. Antes de
+  sobrescrever, o sistema grava automaticamente uma cópia de segurança do estado
+  atual. Após restaurar, pode ser necessário <strong>entrar novamente</strong>.</p>
+  <form method="post" action="{% url 'cadastro:backup_restaurar' %}" enctype="multipart/form-data" class="pilha"
+        onsubmit="return confirm('Confirmar a RESTAURAÇÃO? Os dados atuais serão substituídos pelos do backup.');">
+    {% csrf_token %}
+    <div class="campo">
+      <label for="arquivo">Arquivo de backup (.zip gerado por este sistema)</label>
+      <input type="file" name="arquivo" id="arquivo" accept=".zip" required>
+    </div>
+    <div class="check">
+      <input type="checkbox" name="confirmar" id="confirmar" required>
+      <label for="confirmar">Entendo que os dados atuais serão substituídos.</label>
+    </div>
+    <div style="margin-top:1rem">
+      <button class="btn perigo" type="submit">↥ Restaurar backup</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
