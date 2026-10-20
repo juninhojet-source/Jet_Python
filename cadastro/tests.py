@@ -325,6 +325,37 @@ class RendaEditarExcluirTest(TestCase):
         self.assertTrue(Renda.objects.filter(pk=self.renda.pk).exists())
 
 
+class AdminEdicaoBloqueadaTest(TestCase):
+    def test_admin_edita_inscricao_bloqueada_sem_erro(self):
+        from django.contrib.admin.sites import site
+        from django.test import RequestFactory
+
+        from cadastro.admin import InscricaoAdmin
+
+        req = Pessoa.objects.create(nome="A", cpf=gera_cpf("222333445"),
+                                    data_nascimento=nasc(40), sexo="M")
+        insc = Inscricao.objects.create(
+            requerente=req, status=Inscricao.Status.RECEBIDA, bloqueada=True)
+        m = MembroNucleo.objects.create(
+            inscricao=insc, pessoa=req, parentesco="REQUERENTE", arrimo=True)
+
+        ma = InscricaoAdmin(Inscricao, site)
+        request = RequestFactory().post("/")
+        request.user = _com_perfil("admx", "Administrador")
+
+        # Editar e salvar uma inscrição bloqueada pelo admin NÃO deve levantar.
+        insc.telefone = "99999-9999"
+        ma.save_model(request, insc, None, True)
+        insc.refresh_from_db()
+        self.assertEqual(insc.telefone, "99999-9999")
+
+        # E o membro pode ser desmarcado como arrimo (sem bloqueio no inline).
+        m.arrimo = False
+        m.save()
+        m.refresh_from_db()
+        self.assertFalse(m.arrimo)
+
+
 class LiberarCpfTest(TestCase):
     def test_libera_cpf_orfao(self):
         from django.core.management import call_command

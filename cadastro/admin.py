@@ -84,6 +84,17 @@ class InscricaoAdmin(admin.ModelAdmin):
     ]
     actions = ["acao_recalcular", "acao_classificar"]
 
+    def save_model(self, request, obj, form, change):
+        # A edição pelo admin É o "procedimento administrativo autorizado"
+        # (Anexo II): libera a alteração de inscrições finalizadas/bloqueadas,
+        # registrando a autoria na trilha de auditoria. Sem isto, o save()
+        # levanta ValidationError e o admin retorna erro 500.
+        obj._alteracao_autorizada = True
+        obj._justificativa_auditoria = (
+            f"Edição administrativa via admin por {request.user.get_username()}"
+        )
+        super().save_model(request, obj, form, change)
+
     @admin.action(description="Recalcular pontuação das inscrições selecionadas")
     def acao_recalcular(self, request, queryset):
         for inscricao in queryset:
