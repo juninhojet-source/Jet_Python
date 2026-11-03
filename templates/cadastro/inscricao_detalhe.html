@@ -114,7 +114,7 @@
         <td>{{ m.pessoa.nome }}{% if m.pessoa.pcd %} <span class="badge">PcD</span>{% endif %}</td>
         <td>{{ m.get_parentesco_display }}</td>
         <td>{{ m.pessoa.data_nascimento }}</td>
-        <td>{% if m.arrimo %}sim{% else %}—{% endif %}</td>
+        <td>{% if m.arrimo %}<span class="badge ok">Arrimo</span>{% else %}—{% endif %}</td>
         <td>
           {% for r in m.rendas.all %}
             {{ r.get_tipo_display }}: R$ {{ r.valor }}{% if not r.computavel %} <em>(não comput.)</em>{% endif %}<br>
