@@ -1,0 +1,16 @@
+{% extends "cadastro/wizard_base.html" %}
+{% block etapa %}
+<div class="card">
+  <h2>5. Avaliação da análise</h2>
+  <p class="trilha">Fatos apurados pela análise: Critérios Legais, requisitos documentais
+  e aluguel (média dos 3 meses). Ao salvar, a pontuação é recalculada.</p>
+  <form method="post" class="pilha">
+    {% csrf_token %}
+    <div class="grid2">{% include "cadastro/_campos.html" %}</div>
+    <div style="margin-top:1.2rem">
+      <button class="btn" type="submit" name="acao" value="avancar">Salvar e avançar ▶</button>
+      <button class="btn secundario" type="submit">Salvar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
