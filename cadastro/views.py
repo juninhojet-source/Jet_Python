@@ -649,11 +649,31 @@ def classificacao(request):
     # — nova inscrição sem posição, ou ordem desatualizada — a classificação
     # oficial precisa ser (re)gerada.
     pendente_geracao = any(c.posicao != c.posicao_persistida for c in itens)
+    empates_pendentes = sum(1 for c in itens if c.empate_pendente_sorteio)
     return render(request, "cadastro/classificacao.html", {
         "itens": itens,
         "pendente_geracao": pendente_geracao,
+        "empates_pendentes": empates_pendentes,
         "pode_classificar": True,  # a view já é restrita ao Administrador
     })
+
+
+@login_required
+@perfil_requerido(ADMIN)
+@require_POST
+def sorteio(request):
+    """Realiza o sorteio de desempate dos grupos pendentes (item 8.10, III)."""
+    info = services.realizar_sorteio(usuario=request.user)
+    if info["grupos"]:
+        messages.success(
+            request,
+            f"Sorteio realizado: {info['grupos']} grupo(s) de empate, "
+            f"{info['sorteados']} inscrição(ões) ordenada(s). "
+            f"Semente do sorteio: {info['seed']} (registrada na auditoria).",
+        )
+    else:
+        messages.info(request, "Não há empates pendentes de sorteio.")
+    return redirect("cadastro:classificacao")
 
 
 # --------------------------------------------------------------------------- #

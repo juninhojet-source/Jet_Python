@@ -155,24 +155,34 @@ def ordenar_classificaveis() -> list[Classificacao]:
     memória ``posicao`` e ``empate_pendente_sorteio`` (sem gravar). Serve tanto à
     exibição (mostra inscrições recém-finalizadas antes mesmo de gerar) quanto à
     persistência em :func:`classificar_todos`.
+
+    A ordem é: pontuação → filhos ≤12 → idosos → resultado do sorteio (quando
+    houver) → nº da inscrição (desempate estável). Um item só é "empate pendente
+    de sorteio" quando compartilha a chave (pontuação/filhos/idosos) com outro e
+    ainda não teve ordem de sorteio definida.
     """
+    from collections import Counter
+
     itens = list(
         Classificacao.objects.select_related("inscricao__requerente").filter(
             inscricao__status__in=STATUS_CLASSIFICAVEIS
         )
     )
-    itens.sort(key=_chave_classificacao, reverse=True)
+    contagem = Counter(_chave_classificacao(c) for c in itens)
+    _BIG = 10 ** 9
+    itens.sort(key=lambda c: (
+        -c.pontuacao, -c.dependentes_ate_12, -c.idosos,
+        c.sorteio_ordem if c.sorteio_ordem is not None else _BIG,
+        c.inscricao_id,
+    ))
     for c in itens:
         # Guarda a posição oficial já gravada antes de sobrescrever em memória.
         c.posicao_persistida = c.posicao
     for posicao, c in enumerate(itens, start=1):
-        # Empate remanescente: mesma chave completa que o anterior ou o próximo.
-        empate = (
-            (posicao > 1 and _chave_classificacao(itens[posicao - 2]) == _chave_classificacao(c))
-            or (posicao < len(itens) and _chave_classificacao(itens[posicao]) == _chave_classificacao(c))
-        )
         c.posicao = posicao
-        c.empate_pendente_sorteio = empate
+        c.empate_pendente_sorteio = (
+            contagem[_chave_classificacao(c)] > 1 and c.sorteio_ordem is None
+        )
     return itens
 
 
@@ -191,3 +201,52 @@ def classificar_todos() -> list[Classificacao]:
     ).update(posicao=None, empate_pendente_sorteio=False)
 
     return itens
+
+
+@transaction.atomic
+def realizar_sorteio(seed: int | None = None, usuario=None) -> dict:
+    """Realiza o sorteio de desempate (item 8.10, III) dos grupos ainda pendentes.
+
+    Para cada grupo de inscrições empatadas (mesma pontuação, filhos ≤12 e
+    idosos) que ainda não teve sorteio, sorteia aleatoriamente a ordem e grava
+    ``sorteio_ordem`` (1 = primeiro). Usa uma semente reproduzível (registrada na
+    auditoria) para que o resultado seja verificável. Grupos já sorteados são
+    mantidos. Ao final, regenera a classificação para refletir o desempate.
+    """
+    import random
+    import secrets
+    from collections import defaultdict
+
+    from django.utils import timezone
+
+    itens = ordenar_classificaveis()
+    grupos: dict = defaultdict(list)
+    for c in itens:
+        if c.empate_pendente_sorteio:
+            grupos[_chave_classificacao(c)].append(c)
+
+    if not grupos:
+        return {"grupos": 0, "sorteados": 0, "seed": None}
+
+    if seed is None:
+        seed = secrets.randbelow(10 ** 9)
+    rng = random.Random(seed)
+    agora = timezone.now()
+    sorteados = 0
+
+    # Ordem determinística dos grupos (pela chave) antes de embaralhar — garante
+    # que a mesma semente produza sempre o mesmo resultado.
+    for chave in sorted(grupos.keys(), reverse=True):
+        membros = sorted(grupos[chave], key=lambda c: c.inscricao_id)
+        rng.shuffle(membros)
+        for ordem, c in enumerate(membros, start=1):
+            c.sorteio_ordem = ordem
+            c.sorteio_em = agora
+            c._alteracao_autorizada = True
+            c._justificativa_auditoria = f"Sorteio de desempate (semente={seed})"
+            c.save(update_fields=["sorteio_ordem", "sorteio_em"])
+            sorteados += 1
+
+    classificar_todos()  # reaplica posições já com o sorteio
+    return {"grupos": len(grupos), "sorteados": sorteados, "seed": seed}
+

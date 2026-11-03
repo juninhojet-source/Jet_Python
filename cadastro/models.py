@@ -382,6 +382,10 @@ class Classificacao(ModeloAuditavel):
     dependentes_ate_12 = models.PositiveIntegerField(default=0)
     idosos = models.PositiveIntegerField(default=0)
     empate_pendente_sorteio = models.BooleanField(default=False)
+    # Resultado do sorteio de desempate (item 8.10, III): ordem dentro do grupo
+    # empatado (1 = primeiro) e quando foi realizado.
+    sorteio_ordem = models.PositiveIntegerField(null=True, blank=True)
+    sorteio_em = models.DateTimeField(null=True, blank=True)
     sorteio_ata = models.FileField(upload_to="sorteios/%Y/%m/", null=True, blank=True)
 
     class Meta:

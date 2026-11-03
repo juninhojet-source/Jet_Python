@@ -197,6 +197,61 @@ class ClassificacaoTest(TestCase):
         self.assertFalse(a.classificacao.empate_pendente_sorteio)
 
 
+class SorteioTest(TestCase):
+    def _apta(self, cpf, filhos_ate_12=1):
+        req = Pessoa.objects.create(nome=f"R{cpf}", cpf=cpf, data_nascimento=nasc(40))
+        insc = Inscricao.objects.create(
+            requerente=req, data_referencia=REF, habitacao_precaria_ou_risco=True,
+            matricula_comprovada=True, status=Inscricao.Status.APTO,
+        )
+        m = MembroNucleo.objects.create(inscricao=insc, pessoa=req, parentesco="REQUERENTE")
+        Renda.objects.create(membro=m, tipo="FORMAL", valor=Decimal("3000"))
+        for k in range(filhos_ate_12):
+            f = Pessoa.objects.create(nome=f"F{cpf}{k}", cpf=f"{cpf}f{k}", data_nascimento=nasc(5))
+            MembroNucleo.objects.create(inscricao=insc, pessoa=f, parentesco="FILHO")
+        services.calcular_e_salvar(insc)
+        return insc
+
+    def test_sorteio_resolve_empate(self):
+        a = self._apta("s1"); b = self._apta("s2")   # mesma pontuação/filhos/idosos
+        services.classificar_todos()
+        a.refresh_from_db(); b.refresh_from_db()
+        self.assertTrue(a.classificacao.empate_pendente_sorteio)
+        self.assertTrue(b.classificacao.empate_pendente_sorteio)
+
+        info = services.realizar_sorteio(seed=123)
+        self.assertEqual(info["grupos"], 1)
+        self.assertEqual(info["sorteados"], 2)
+        a.refresh_from_db(); b.refresh_from_db()
+        # Empate resolvido: ordens distintas e posições distintas.
+        self.assertFalse(a.classificacao.empate_pendente_sorteio)
+        self.assertFalse(b.classificacao.empate_pendente_sorteio)
+        self.assertEqual(
+            {a.classificacao.sorteio_ordem, b.classificacao.sorteio_ordem}, {1, 2})
+        self.assertNotEqual(a.classificacao.posicao, b.classificacao.posicao)
+        # Novo sorteio não mexe no que já foi sorteado.
+        self.assertEqual(services.realizar_sorteio()["grupos"], 0)
+
+    def test_sorteio_reproduzivel_com_mesma_semente(self):
+        a = self._apta("r1"); b = self._apta("r2"); c = self._apta("r3")
+        services.classificar_todos()
+        services.realizar_sorteio(seed=777)
+        ordem1 = {x.requerente.cpf: x.classificacao.sorteio_ordem
+                  for x in (a, b, c) for _ in [x.refresh_from_db()]}
+        # Zera o sorteio e refaz com a MESMA semente → mesmo resultado.
+        from cadastro.models import Classificacao
+        Classificacao.objects.update(sorteio_ordem=None, sorteio_em=None)
+        services.classificar_todos()
+        services.realizar_sorteio(seed=777)
+        ordem2 = {x.requerente.cpf: x.classificacao.sorteio_ordem
+                  for x in (a, b, c) for _ in [x.refresh_from_db()]}
+        self.assertEqual(ordem1, ordem2)
+
+    def test_sorteio_restrito_ao_admin(self):
+        self.client.force_login(_com_perfil("ana_s", "Analista"))
+        self.assertEqual(self.client.post(reverse("cadastro:sorteio")).status_code, 403)
+
+
 class RendaNaoComputavelTest(TestCase):
     """Item 3.1.4.1: BPC, Bolsa Família etc. nunca entram no cálculo da renda."""
 

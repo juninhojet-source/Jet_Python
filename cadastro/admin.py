@@ -95,6 +95,13 @@ class InscricaoAdmin(admin.ModelAdmin):
         )
         super().save_model(request, obj, form, change)
 
+    def save_related(self, request, form, formsets, change):
+        # Recalcula a pontuação após salvar integrantes/rendas/documentos, para
+        # que alterações no admin (ex.: tirar o arrimo) atualizem o total sem
+        # precisar acionar "Recalcular" manualmente.
+        super().save_related(request, form, formsets, change)
+        services.calcular_e_salvar(form.instance)
+
     @admin.action(description="Recalcular pontuação das inscrições selecionadas")
     def acao_recalcular(self, request, queryset):
         for inscricao in queryset:
