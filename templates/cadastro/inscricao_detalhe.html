@@ -107,12 +107,13 @@
 <h2>Composição do núcleo familiar</h2>
 <div class="card">
   <table>
-    <thead><tr><th>Nome</th><th>Parentesco</th><th>Nasc.</th><th>Arrimo</th><th>Rendas</th><th></th></tr></thead>
+    <thead><tr><th>Nome</th><th>Parentesco</th><th>Sexo</th><th>Nasc.</th><th>Arrimo</th><th>Rendas</th><th></th></tr></thead>
     <tbody>
       {% for m in membros %}
       <tr>
         <td>{{ m.pessoa.nome }}{% if m.pessoa.pcd %} <span class="badge">PcD</span>{% endif %}</td>
         <td>{{ m.get_parentesco_display }}</td>
+        <td>{{ m.pessoa.get_sexo_display }}</td>
         <td>{{ m.pessoa.data_nascimento }}</td>
         <td>{% if m.arrimo %}<span class="badge ok">Arrimo</span>{% else %}—{% endif %}</td>
         <td>
