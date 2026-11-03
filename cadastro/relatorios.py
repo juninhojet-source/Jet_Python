@@ -212,14 +212,13 @@ def classificacao_pdf(itens) -> HttpResponse:
     estilos = getSampleStyleSheet()
     e = [Paragraph("Classificação Geral — MCMV / Barão de Cocais", estilos["Title"]),
          Spacer(1, 6)]
-    linhas = [["Pos.", "Inscrição", "Requerente", "Pontos", "Filhos ≤12", "Idosos", "Empate"]]
+    linhas = [["Pos.", "Inscrição", "Requerente", "Pontos"]]
     for c in itens:
         linhas.append([
-            str(c.posicao or "—"), c.inscricao.numero_inscricao, c.inscricao.requerente.nome,
-            str(c.pontuacao), str(c.dependentes_ate_12), str(c.idosos),
-            "Sorteio" if c.empate_pendente_sorteio else "—",
+            str(c.posicao or "—"), c.inscricao.numero_inscricao,
+            c.inscricao.requerente.nome, str(c.pontuacao),
         ])
-    t = Table(linhas, colWidths=[14 * mm, 26 * mm, 60 * mm, 18 * mm, 22 * mm, 16 * mm, 20 * mm], repeatRows=1)
+    t = Table(linhas, colWidths=[18 * mm, 30 * mm, 105 * mm, 25 * mm], repeatRows=1)
     t.setStyle(_estilo_tabela())
     e.append(t)
     return _pdf_response("classificacao.pdf", e)
